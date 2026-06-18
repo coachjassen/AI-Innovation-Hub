@@ -1,44 +1,67 @@
-# [Project name]
+# AI Innovation Circle
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A full-stack web app for a consulting firm's recurring client forum — manages circles, meetings, goals, surveys, suggestions, and member invitations across Attendee and Admin roles.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080, proxied at `/api`)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — express-session secret
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
+- Frontend: React + Vite, Tailwind, shadcn/ui, wouter, TanStack Query
+- API: Express 5 + express-session (pg store)
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API codegen: Orval (from OpenAPI spec in `lib/api-spec/openapi.yaml`)
+- Build: esbuild (ESM bundle)
+- Storage: Replit Object Storage (for file uploads)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — source-of-truth API contract
+- `lib/db/src/schema/` — Drizzle ORM schema (circles, attendees, meetings, goals, surveys, suggestions, invites, magicTokens)
+- `lib/api-client-react/src/generated/` — Orval-generated React Query hooks + Zod schemas
+- `artifacts/api-server/src/routes/` — Express route handlers (one file per domain)
+- `artifacts/api-server/src/lib/` — email stub, session type augmentation, object storage
+- `artifacts/ai-innovation-circle/src/pages/` — React pages (attendee/ and admin/ subdirs)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Passwordless auth (POC mode):** `POST /api/auth/request-link` directly creates a session from email — no SMTP needed. Real magic-link flow is wired but inert until SMTP secrets are set.
+- **Session store:** `connect-pg-simple` backed by a `sessions` table in Postgres. Both the `session` and `sessions` tables exist in the DB.
+- **API-first:** All contracts live in OpenAPI spec; Orval generates typed hooks used by the frontend. Never hand-write fetch calls in the UI.
+- **Email stubbing:** `lib/email.ts` silently no-ops when SMTP env vars are absent — safe for POC/demo without noise.
+- **Express 5 wildcard routes:** Use `/{*splat}` syntax; always check `Array.isArray(req.params.id)` before parsing IDs.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Attendee view:** Manage personal goals (create/update/delete/filter), browse past meetings with notes/insights, submit topic suggestions, invite colleagues.
+- **Admin view:** Dashboard with circle KPIs and goal progress chart, all-attendees goals view (grouped by person), meeting CRUD, attendee roster, suggestions inbox, invitation approval queue, email trigger panel (reminder + post-meeting survey).
+- **Auth:** Email entry → instant session (POC); role-based sidebar navigation (admin vs attendee).
+
+## Demo accounts
+
+- `admin@demo.com` — Admin (Sarah Chen, InnovateCo Consulting)
+- `marcus@techvision.com` — Attendee (Marcus Webb, TechVision Corp)
+- `priya@nexusai.com` — Attendee (Priya Sharma, Nexus AI Solutions)
+- `james@bridgecap.com` — Attendee (James Okafor, Bridge Capital)
+
+## Gotchas
+
+- Run `pnpm --filter @workspace/api-spec run codegen` after any OpenAPI spec change before touching frontend code.
+- After adding a DB schema file, update `lib/db/src/schema/index.ts` exports, then run `pnpm --filter @workspace/db run push`.
+- The `sessions` table in Postgres must exist before starting the API server (created by the initial DB push or manually).
+- esbuild bundles everything — do NOT rely on `__dirname` or runtime file reads inside server code (this broke `connect-pg-simple`'s auto-create feature).
 
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
 
 ## Pointers
 
