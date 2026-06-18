@@ -1,0 +1,46 @@
+Build a web app called "AI Innovation Circle" for a consulting firm that runs a recurring client forum.
+
+Roles: Attendee (client rep) and Admin/Facilitator (internal team).
+
+Data model (build a relational schema for this — Circle is the top-level container so multiple cohorts can exist later, even though we'll only seed one for now):
+
+
+Circle: name, cadence (monthly/quarterly), status
+Attendee: name, email, company, circle reference
+Meeting: circle reference, date, notes (text), slides (file upload), key_insight (text)
+Goal: attendee reference, timeframe, status (New / In Progress / Completed / Not Started), comments
+Survey: meeting reference, type (pre-meeting or post-meeting CSAT), questions (array)
+SurveyResponse: survey reference, attendee reference, answers
+Suggestion: attendee reference, meeting reference (optional), content text
+Invite: invited_by attendee, email, circle reference, status (pending/accepted)
+
+
+Authentication: Do NOT use Replit Auth. Build a custom passwordless magic-link flow: attendee enters their email, the app emails a single-use, time-limited login link, clicking it creates a session. Admins log in the same way but are flagged by a role field, not a separate system.
+
+Attendee-facing pages:
+
+
+Goals dashboard: list their goals with timeframe/status/comments, ability to add/edit, toggle to show/hide completed or cancelled goals
+Meetings page: list past meetings with notes and slides viewable/downloadable, upcoming meeting date
+A simple form to submit a content suggestion
+A simple form to invite a colleague by email (creates a pending Invite record)
+
+
+Admin-facing pages:
+
+
+Dashboard listing all goals across all attendees, filterable by status and attendee
+Attendee list showing last activity (goal updates, survey responses)
+Meeting management: create/edit a meeting, upload notes and slides, record the "key insight", book the date
+A button-triggered action (not yet scheduled) that: emails all attendees in a circle a pre-meeting reminder pulling forward their open goals, OR emails a post-meeting CSAT-style survey — build this as one API endpoint per trigger type so it can be scheduled later
+Suggestions inbox listing all submitted suggestions
+Pending invites list with an approve/reject action
+
+
+Email: all outbound mail (magic links, reminders, surveys, invite notifications) should go through a single email-sending function so the provider can be swapped easily. Use SMTP credentials from environment secrets named SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.
+
+Calendar invites: when an admin confirms a meeting date, generate an .ics file and attach it to the confirmation email sent to attendees.
+
+File storage: use Replit's built-in object storage for meeting slide/notes uploads.
+
+Keep the UI clean and simple — this is an internal tool for a small group of people, not a consumer product. Seed the database with one demo Circle, three demo Attendees, and two demo Goals so there's something to look at immediately.

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "AI Innovation Circle"
+version = "1.0.0"
+id = "artifacts/ai-innovation-circle"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21620
+
+[services.development]
+run = "pnpm --filter @workspace/ai-innovation-circle run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ai-innovation-circle", "run", "build" ]
+publicDir = "artifacts/ai-innovation-circle/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21620"
+BASE_PATH = "/"

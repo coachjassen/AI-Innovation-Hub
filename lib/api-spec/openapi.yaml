@@ -3,20 +3,39 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AI Innovation Circle API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: circles
+    description: Circle operations
+  - name: attendees
+    description: Attendee operations
+  - name: meetings
+    description: Meeting operations
+  - name: goals
+    description: Goal operations
+  - name: surveys
+    description: Survey operations
+  - name: suggestions
+    description: Suggestion operations
+  - name: invites
+    description: Invite operations
+  - name: admin
+    description: Admin operations
+  - name: storage
+    description: File storage operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +43,1157 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/request-link:
+    post:
+      operationId: requestMagicLink
+      tags: [auth]
+      summary: Request a magic login link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkRequest"
+      responses:
+        "200":
+          description: Magic link sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Bad request
+
+  /auth/verify:
+    post:
+      operationId: verifyMagicLink
+      tags: [auth]
+      summary: Verify a magic link token and create session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkVerify"
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendee"
+        "400":
+          description: Invalid or expired token
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Destroy current session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendee"
+        "401":
+          description: Not authenticated
+
+  # Circles
+  /circles:
+    get:
+      operationId: listCircles
+      tags: [circles]
+      summary: List all circles
+      responses:
+        "200":
+          description: List of circles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Circle"
+    post:
+      operationId: createCircle
+      tags: [circles]
+      summary: Create a circle (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircleInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Circle"
+
+  /circles/{id}:
+    get:
+      operationId: getCircle
+      tags: [circles]
+      summary: Get a circle by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Circle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Circle"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCircle
+      tags: [circles]
+      summary: Update a circle (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CircleUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Circle"
+
+  # Attendees
+  /attendees:
+    get:
+      operationId: listAttendees
+      tags: [attendees]
+      summary: List attendees (admin sees all, attendee sees their circle)
+      responses:
+        "200":
+          description: List of attendees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendeeWithActivity"
+
+  /attendees/{id}:
+    get:
+      operationId: getAttendee
+      tags: [attendees]
+      summary: Get attendee by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Attendee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendeeWithActivity"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateAttendee
+      tags: [attendees]
+      summary: Update attendee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendeeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendee"
+
+  # Meetings
+  /meetings:
+    get:
+      operationId: listMeetings
+      tags: [meetings]
+      summary: List meetings for the current circle
+      responses:
+        "200":
+          description: List of meetings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Meeting"
+    post:
+      operationId: createMeeting
+      tags: [meetings]
+      summary: Create a meeting (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeetingInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+
+  /meetings/{id}:
+    get:
+      operationId: getMeeting
+      tags: [meetings]
+      summary: Get a meeting by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Meeting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateMeeting
+      tags: [meetings]
+      summary: Update a meeting (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeetingUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+    delete:
+      operationId: deleteMeeting
+      tags: [meetings]
+      summary: Delete a meeting (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # Goals
+  /goals:
+    get:
+      operationId: listGoals
+      tags: [goals]
+      summary: List goals (own goals for attendee, all for admin)
+      parameters:
+        - name: attendeeId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: showCompleted
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalWithAttendee"
+    post:
+      operationId: createGoal
+      tags: [goals]
+      summary: Create a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+  /goals/summary:
+    get:
+      operationId: getGoalsSummary
+      tags: [goals]
+      summary: Get goals summary (counts by status)
+      responses:
+        "200":
+          description: Goals summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalsSummary"
+
+  /goals/{id}:
+    get:
+      operationId: getGoal
+      tags: [goals]
+      summary: Get a goal by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateGoal
+      tags: [goals]
+      summary: Update a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+    delete:
+      operationId: deleteGoal
+      tags: [goals]
+      summary: Delete a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # Surveys
+  /surveys:
+    get:
+      operationId: listSurveys
+      tags: [surveys]
+      summary: List surveys
+      responses:
+        "200":
+          description: List of surveys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Survey"
+    post:
+      operationId: createSurvey
+      tags: [surveys]
+      summary: Create a survey (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Survey"
+
+  /surveys/{id}:
+    get:
+      operationId: getSurvey
+      tags: [surveys]
+      summary: Get a survey by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Survey
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Survey"
+        "404":
+          description: Not found
+
+  /surveys/{id}/responses:
+    post:
+      operationId: submitSurveyResponse
+      tags: [surveys]
+      summary: Submit a survey response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveyResponseInput"
+      responses:
+        "201":
+          description: Response submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurveyResponse"
+    get:
+      operationId: getSurveyResponses
+      tags: [surveys]
+      summary: Get responses for a survey (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Survey responses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SurveyResponse"
+
+  # Suggestions
+  /suggestions:
+    get:
+      operationId: listSuggestions
+      tags: [suggestions]
+      summary: List suggestions (admin sees all)
+      responses:
+        "200":
+          description: List of suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SuggestionWithAttendee"
+    post:
+      operationId: createSuggestion
+      tags: [suggestions]
+      summary: Submit a content suggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuggestionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Suggestion"
+
+  # Invites
+  /invites:
+    get:
+      operationId: listInvites
+      tags: [invites]
+      summary: List invites (pending invites for admin, own invites for attendee)
+      responses:
+        "200":
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InviteWithDetails"
+    post:
+      operationId: createInvite
+      tags: [invites]
+      summary: Invite a colleague by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invite"
+
+  /invites/{id}:
+    patch:
+      operationId: updateInvite
+      tags: [invites]
+      summary: Approve or reject an invite (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invite"
+
+  # Admin actions
+  /admin/send-reminder:
+    post:
+      operationId: sendPreMeetingReminder
+      tags: [admin]
+      summary: Email pre-meeting reminder with open goals to all attendees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminEmailTrigger"
+      responses:
+        "200":
+          description: Reminder sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/send-survey:
+    post:
+      operationId: sendPostMeetingSurvey
+      tags: [admin]
+      summary: Email post-meeting CSAT survey to all attendees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminEmailTrigger"
+      responses:
+        "200":
+          description: Survey emails sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      tags: [admin]
+      summary: Get admin dashboard overview
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
+
+  # Storage
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    # Auth
+    MagicLinkRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
+    MagicLinkVerify:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    # Circle
+    Circle:
+      type: object
+      required: [id, name, cadence, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        cadence:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+
+    CircleInput:
+      type: object
+      required: [name, cadence, status]
+      properties:
+        name:
+          type: string
+        cadence:
+          type: string
+        status:
+          type: string
+
+    CircleUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        cadence:
+          type: string
+        status:
+          type: string
+
+    # Attendee
+    Attendee:
+      type: object
+      required: [id, name, email, company, role, circleId, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        company:
+          type: string
+        role:
+          type: string
+        circleId:
+          type: integer
+        createdAt:
+          type: string
+
+    AttendeeWithActivity:
+      type: object
+      required: [id, name, email, company, role, circleId, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        company:
+          type: string
+        role:
+          type: string
+        circleId:
+          type: integer
+        createdAt:
+          type: string
+        lastActivityAt:
+          type: ["string", "null"]
+        goalCount:
+          type: integer
+        surveyResponseCount:
+          type: integer
+
+    AttendeeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        company:
+          type: string
+
+    # Meeting
+    Meeting:
+      type: object
+      required: [id, circleId, date, createdAt]
+      properties:
+        id:
+          type: integer
+        circleId:
+          type: integer
+        date:
+          type: string
+        notes:
+          type: ["string", "null"]
+        slidesPath:
+          type: ["string", "null"]
+        keyInsight:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    MeetingInput:
+      type: object
+      required: [circleId, date]
+      properties:
+        circleId:
+          type: integer
+        date:
+          type: string
+        notes:
+          type: string
+        slidesPath:
+          type: string
+        keyInsight:
+          type: string
+
+    MeetingUpdate:
+      type: object
+      properties:
+        date:
+          type: string
+        notes:
+          type: string
+        slidesPath:
+          type: string
+        keyInsight:
+          type: string
+
+    # Goal
+    Goal:
+      type: object
+      required: [id, attendeeId, timeframe, status, createdAt]
+      properties:
+        id:
+          type: integer
+        attendeeId:
+          type: integer
+        timeframe:
+          type: string
+        status:
+          type: string
+        comments:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    GoalWithAttendee:
+      type: object
+      required: [id, attendeeId, timeframe, status, createdAt]
+      properties:
+        id:
+          type: integer
+        attendeeId:
+          type: integer
+        timeframe:
+          type: string
+        status:
+          type: string
+        comments:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        attendeeName:
+          type: string
+        attendeeCompany:
+          type: string
+
+    GoalInput:
+      type: object
+      required: [timeframe, status]
+      properties:
+        timeframe:
+          type: string
+        status:
+          type: string
+        comments:
+          type: string
+
+    GoalUpdate:
+      type: object
+      properties:
+        timeframe:
+          type: string
+        status:
+          type: string
+        comments:
+          type: string
+
+    GoalsSummary:
+      type: object
+      required: [total, byStatus]
+      properties:
+        total:
+          type: integer
+        byStatus:
+          type: object
+          properties:
+            new:
+              type: integer
+            inProgress:
+              type: integer
+            completed:
+              type: integer
+            notStarted:
+              type: integer
+
+    # Survey
+    Survey:
+      type: object
+      required: [id, meetingId, type, questions, createdAt]
+      properties:
+        id:
+          type: integer
+        meetingId:
+          type: integer
+        type:
+          type: string
+        questions:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+
+    SurveyInput:
+      type: object
+      required: [meetingId, type, questions]
+      properties:
+        meetingId:
+          type: integer
+        type:
+          type: string
+        questions:
+          type: array
+          items:
+            type: string
+
+    SurveyResponse:
+      type: object
+      required: [id, surveyId, attendeeId, answers, createdAt]
+      properties:
+        id:
+          type: integer
+        surveyId:
+          type: integer
+        attendeeId:
+          type: integer
+        answers:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+
+    SurveyResponseInput:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          items:
+            type: string
+
+    # Suggestion
+    Suggestion:
+      type: object
+      required: [id, attendeeId, content, createdAt]
+      properties:
+        id:
+          type: integer
+        attendeeId:
+          type: integer
+        meetingId:
+          type: ["integer", "null"]
+        content:
+          type: string
+        createdAt:
+          type: string
+
+    SuggestionWithAttendee:
+      type: object
+      required: [id, attendeeId, content, createdAt, attendeeName, attendeeCompany]
+      properties:
+        id:
+          type: integer
+        attendeeId:
+          type: integer
+        meetingId:
+          type: ["integer", "null"]
+        content:
+          type: string
+        createdAt:
+          type: string
+        attendeeName:
+          type: string
+        attendeeCompany:
+          type: string
+
+    SuggestionInput:
+      type: object
+      required: [content]
+      properties:
+        meetingId:
+          type: integer
+        content:
+          type: string
+
+    # Invite
+    Invite:
+      type: object
+      required: [id, invitedByAttendeeId, email, circleId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        invitedByAttendeeId:
+          type: integer
+        email:
+          type: string
+        circleId:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+
+    InviteWithDetails:
+      type: object
+      required: [id, invitedByAttendeeId, email, circleId, status, createdAt, invitedByName]
+      properties:
+        id:
+          type: integer
+        invitedByAttendeeId:
+          type: integer
+        email:
+          type: string
+        circleId:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+        invitedByName:
+          type: string
+        circleName:
+          type: string
+
+    InviteInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
+    InviteUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    # Admin
+    AdminEmailTrigger:
+      type: object
+      required: [circleId]
+      properties:
+        circleId:
+          type: integer
+        meetingId:
+          type: integer
+
+    AdminDashboard:
+      type: object
+      required: [totalAttendees, totalMeetings, totalGoals, goalsByStatus, recentActivity]
+      properties:
+        totalAttendees:
+          type: integer
+        totalMeetings:
+          type: integer
+        totalGoals:
+          type: integer
+        goalsByStatus:
+          type: object
+          properties:
+            new:
+              type: integer
+            inProgress:
+              type: integer
+            completed:
+              type: integer
+            notStarted:
+              type: integer
+        pendingInvites:
+          type: integer
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityItem"
+
+    ActivityItem:
+      type: object
+      required: [type, description, createdAt]
+      properties:
+        type:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+        attendeeName:
+          type: ["string", "null"]
+
+    # Storage
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
