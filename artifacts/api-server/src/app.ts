@@ -38,6 +38,11 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// The app is served over HTTPS through Replit's proxy and is embedded in a
+// cross-origin iframe (the workspace canvas / preview pane). A SameSite=Lax
+// cookie is treated as third-party there and silently dropped, so the session
+// never sticks. SameSite=None + Secure lets the cookie ride in that context.
+app.set("trust proxy", 1);
 app.use(
   session({
     store: new PgSession({
@@ -51,7 +56,8 @@ app.use(
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "none",
+      secure: true,
     },
   }),
 );
