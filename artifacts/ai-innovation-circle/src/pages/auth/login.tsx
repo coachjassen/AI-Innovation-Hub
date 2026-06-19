@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { useRequestMagicLink, useGetMe } from "@workspace/api-client-react";
+import { useRequestMagicLink, useGetMe, getGetMeQueryKey, getGetMeQueryOptions } from "@workspace/api-client-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,16 +41,25 @@ export default function Login() {
   const onSubmit = (data: LoginForm) => {
     setIsSuccess(false);
     requestMagicLink.mutate({ data: { email: data.email } }, {
-      onSuccess: () => {
+      onSuccess: async () => {
         setIsSuccess(true);
-        // Because POC auto-logs them in:
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-        setTimeout(() => {
-          queryClient.fetchQuery({ queryKey: ["/api/auth/me"] }).then(() => {
-            window.location.reload(); // Refresh to catch auth
-          });
-        }, 500);
-      }
+        // POC auto-logs them in. Poll the session a few times to absorb any
+        // brief propagation delay before it becomes readable. A successful
+        // fetch updates the useGetMe cache, and the redirect effect navigates.
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const user = await queryClient
+            .fetchQuery(getGetMeQueryOptions())
+            .catch(() => null);
+          if (user) return;
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+        // Session never became readable — let the user retry instead of
+        // stranding them on the "Signing in…" panel.
+        setIsSuccess(false);
+        form.setError("email", {
+          message: "Sign-in didn't complete. Please try again.",
+        });
+      },
     });
   };
 
