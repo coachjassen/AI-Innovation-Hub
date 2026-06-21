@@ -79,12 +79,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar>
           <SidebarContent>
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-2.5">
-                <KineticsLogo className="h-8 w-8 shrink-0" />
-                <div className="leading-tight">
-                  <h1 className="text-base font-bold tracking-tight">Kinetics</h1>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">AI Innovation Circle</p>
-                </div>
+              <div className="space-y-2">
+                <KineticsLogo className="h-9 w-auto" />
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">AI Innovation Circle</p>
               </div>
               <div>
                 <p className="text-sm font-medium">{user.name}</p>

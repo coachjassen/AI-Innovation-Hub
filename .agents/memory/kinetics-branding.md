@@ -12,9 +12,14 @@ The AI Innovation Circle app is themed to Kinetics Group (kinetics.co.nz).
 - Lime accent: `87 70% 50%` (≈ #76BC21) — secondary chart / accent
 - Supporting chart greens: `150 45% 35%`, `100 45% 62%`, `130 28% 58%`
 
-**Logo:** two-tone left-pointing double chevron (lime outer + dark-green inner),
-implemented as inline SVG in `src/components/KineticsLogo.tsx`. Wordmark is
-"Kinetics" with "AI Innovation Circle" as the product sub-label.
+**Logo:** the official Kinetics Group mark (green chevron + "KINETICS GROUP"
+wordmark) lives at `src/assets/kinetics-logo.png`; `src/components/KineticsLogo.tsx`
+renders it via `<img>`. The source was extracted from the brand docx in
+`attached_assets/` (unzip the .docx, logo is in `word/media/image1.png`), cropped
+to drop the OutSource/CloudSource sub-brand row, and had white made transparent
+(ImageMagick `convert`/`magick` is available in this env; python/PIL is NOT).
+Do not re-add a separate "Kinetics" text wordmark next to the logo — the image
+already contains it. "AI Innovation Circle" is the product sub-label.
 
 **Why:** Matches Kinetics Group's website (green primary + lime accent + chevron mark).
 

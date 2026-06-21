@@ -70,9 +70,8 @@ export default function Login() {
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-3">
-            <KineticsLogo className="h-10 w-10" />
-            <span className="text-2xl font-bold tracking-tight text-gray-900">Kinetics</span>
+          <div className="flex items-center justify-center">
+            <KineticsLogo className="h-14 w-auto" />
           </div>
           <div className="space-y-1">
             <h1 className="text-xl font-semibold tracking-tight text-gray-900">AI Innovation Circle</h1>
