@@ -7,6 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { KineticsLogo } from "@/components/KineticsLogo";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -68,9 +69,15 @@ export default function Login() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">AI Innovation Circle</h1>
-          <p className="text-gray-500">Sign in to your account</p>
+        <div className="text-center space-y-3">
+          <div className="flex items-center justify-center gap-3">
+            <KineticsLogo className="h-10 w-10" />
+            <span className="text-2xl font-bold tracking-tight text-gray-900">Kinetics</span>
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900">AI Innovation Circle</h1>
+            <p className="text-gray-500">Sign in to your account</p>
+          </div>
         </div>
 
         <Card className="border-gray-200 shadow-sm">

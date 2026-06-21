@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Target, Users, Calendar, Mail, Lightbulb, UserPlus, LogOut, LayoutDashboard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { KineticsLogo } from "@/components/KineticsLogo";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe({ query: { retry: false } });
@@ -77,10 +78,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full bg-background">
         <Sidebar>
           <SidebarContent>
-            <div className="p-6">
-              <h1 className="text-xl font-bold tracking-tight">AI Innovation Circle</h1>
-              <p className="text-sm text-muted-foreground mt-1">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-2.5">
+                <KineticsLogo className="h-8 w-8 shrink-0" />
+                <div className="leading-tight">
+                  <h1 className="text-base font-bold tracking-tight">Kinetics</h1>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">AI Innovation Circle</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium">{user.name}</p>
+                <p className="text-xs text-muted-foreground">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
+              </div>
             </div>
             <SidebarGroup>
               <SidebarGroupLabel>Menu</SidebarGroupLabel>
