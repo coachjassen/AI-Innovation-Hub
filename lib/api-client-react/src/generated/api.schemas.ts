@@ -81,6 +81,39 @@ export interface Meeting {
   /** @nullable */
   keyInsight?: string | null;
   createdAt: string;
+  /** @nullable */
+  myResponse?: string | null;
+  attendingCount?: number;
+  notAttendingCount?: number;
+  totalInvited?: number;
+}
+
+export type MeetingResponseInputStatus = typeof MeetingResponseInputStatus[keyof typeof MeetingResponseInputStatus];
+
+
+export const MeetingResponseInputStatus = {
+  attending: 'attending',
+  not_attending: 'not_attending',
+} as const;
+
+export interface MeetingResponseInput {
+  status: MeetingResponseInputStatus;
+}
+
+export type MeetingAttendeeResponseStatus = typeof MeetingAttendeeResponseStatus[keyof typeof MeetingAttendeeResponseStatus];
+
+
+export const MeetingAttendeeResponseStatus = {
+  attending: 'attending',
+  not_attending: 'not_attending',
+  no_response: 'no_response',
+} as const;
+
+export interface MeetingAttendeeResponse {
+  attendeeId: number;
+  attendeeName: string;
+  attendeeCompany?: string;
+  status: MeetingAttendeeResponseStatus;
 }
 
 export interface MeetingInput {

@@ -342,6 +342,52 @@ paths:
         "204":
           description: Deleted
 
+  /meetings/{id}/response:
+    put:
+      operationId: setMeetingResponse
+      tags: [meetings]
+      summary: Set the current attendee's RSVP for a meeting
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeetingResponseInput"
+      responses:
+        "200":
+          description: Updated meeting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+
+  /meetings/{id}/responses:
+    get:
+      operationId: listMeetingResponses
+      tags: [meetings]
+      summary: List all RSVP responses for a meeting (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Responses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MeetingAttendeeResponse"
+
   # Goals
   /goals:
     get:
@@ -862,6 +908,36 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
+        myResponse:
+          type: ["string", "null"]
+        attendingCount:
+          type: integer
+        notAttendingCount:
+          type: integer
+        totalInvited:
+          type: integer
+
+    MeetingResponseInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [attending, not_attending]
+
+    MeetingAttendeeResponse:
+      type: object
+      required: [attendeeId, attendeeName, status]
+      properties:
+        attendeeId:
+          type: integer
+        attendeeName:
+          type: string
+        attendeeCompany:
+          type: string
+        status:
+          type: string
+          enum: [attending, not_attending, no_response]
 
     MeetingInput:
       type: object

@@ -5,6 +5,7 @@ import {
   useUpdateMeeting,
   useDeleteMeeting,
   useListCircles,
+  useListMeetingResponses,
   getListMeetingsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,12 +17,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Calendar, Plus, MoreHorizontal, Trash2, Pencil, ChevronDown, FileText } from "lucide-react";
+import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users } from "lucide-react";
 
 export default function AdminMeetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: meetings = [], isLoading } = useListMeetings({ query: { queryKey: getListMeetingsQueryKey() } });
@@ -64,6 +65,10 @@ export default function AdminMeetings() {
 
   const MeetingRow = ({ m }: { m: (typeof meetings)[0] }) => {
     const isOpen = expandedId === m.id;
+    const attending = m.attendingCount ?? 0;
+    const declined = m.notAttendingCount ?? 0;
+    const invited = m.totalInvited ?? 0;
+    const noResponse = Math.max(invited - attending - declined, 0);
     return (
       <Card>
         <CardContent className="p-5">
@@ -76,8 +81,23 @@ export default function AdminMeetings() {
               {m.keyInsight && (
                 <p className="text-sm text-muted-foreground ml-6 italic">"{m.keyInsight}"</p>
               )}
+              <div className="flex flex-wrap items-center gap-3 ml-6 pt-1 text-xs">
+                <span className="inline-flex items-center gap-1 text-green-700">
+                  <Check className="h-3.5 w-3.5" /> {attending} attending
+                </span>
+                <span className="inline-flex items-center gap-1 text-gray-500">
+                  <X className="h-3.5 w-3.5" /> {declined} declined
+                </span>
+                <span className="inline-flex items-center gap-1 text-amber-600">
+                  <Clock className="h-3.5 w-3.5" /> {noResponse} no response
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setRosterMeeting({ id: m.id, date: m.date })}>
+                <Users className="h-4 w-4 mr-1" />
+                RSVPs
+              </Button>
               {m.notes && (
                 <Button variant="ghost" size="sm" onClick={() => setExpandedId(isOpen ? null : m.id)}>
                   <FileText className="h-4 w-4 mr-1" />
@@ -168,6 +188,48 @@ export default function AdminMeetings() {
           </div>
         </>
       )}
+
+      <Dialog open={rosterMeeting !== null} onOpenChange={(o) => !o && setRosterMeeting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              RSVPs{rosterMeeting ? ` — ${format(new Date(rosterMeeting.date), "MMMM d, yyyy")}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {rosterMeeting && <RosterList meetingId={rosterMeeting.id} />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function RosterList({ meetingId }: { meetingId: number }) {
+  const { data: responses = [], isLoading } = useListMeetingResponses(meetingId);
+
+  if (isLoading) {
+    return <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-muted animate-pulse rounded" />)}</div>;
+  }
+  if (responses.length === 0) {
+    return <p className="text-sm text-muted-foreground">No members in this circle.</p>;
+  }
+
+  const badge = (status: string) => {
+    if (status === "attending") return <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700"><Check className="h-3.5 w-3.5" /> Attending</span>;
+    if (status === "not_attending") return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500"><X className="h-3.5 w-3.5" /> Not attending</span>;
+    return <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><Clock className="h-3.5 w-3.5" /> No response</span>;
+  };
+
+  return (
+    <div className="divide-y max-h-[60vh] overflow-y-auto">
+      {responses.map((r) => (
+        <div key={r.attendeeId} className="flex items-center justify-between py-3">
+          <div>
+            <p className="text-sm font-medium">{r.attendeeName}</p>
+            {r.attendeeCompany && <p className="text-xs text-muted-foreground">{r.attendeeCompany}</p>}
+          </div>
+          {badge(r.status)}
+        </div>
+      ))}
     </div>
   );
 }

@@ -17,4 +17,9 @@ export interface Meeting {
   /** @nullable */
   keyInsight?: string | null;
   createdAt: string;
+  /** @nullable */
+  myResponse?: string | null;
+  attendingCount?: number;
+  notAttendingCount?: number;
+  totalInvited?: number;
 }

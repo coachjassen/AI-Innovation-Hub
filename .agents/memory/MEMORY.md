@@ -2,3 +2,4 @@
 - [Goals DB schema changes](goals-db-changes.md) — drizzle `push` is unusable here (TTY + would drop connect-pg-simple `sessions` table); apply goals column changes via raw SQL.
 - [Kinetics branding](kinetics-branding.md) — green theme + logo brand notes for AI Innovation Circle rebrand.
 - [Auth query overlay](auth-query-overlay.md) — pre-existing notes on useGetMe/useListGoals query-option typecheck quirks.
+- [Curl secure-cookie testing](curl-secure-cookie-testing.md) — session cookie is Secure; test protected routes via https://$REPLIT_DEV_DOMAIN, not localhost:80 (http drops the cookie). No python3; use node.

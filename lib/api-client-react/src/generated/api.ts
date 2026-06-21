@@ -42,7 +42,9 @@ import type {
   MagicLinkRequest,
   MagicLinkVerify,
   Meeting,
+  MeetingAttendeeResponse,
   MeetingInput,
+  MeetingResponseInput,
   MeetingUpdate,
   MessageResponse,
   Suggestion,
@@ -1323,6 +1325,155 @@ export const useDeleteMeeting = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteMeetingMutationOptions(options));
     }
+
+export const getSetMeetingResponseUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/response`
+}
+
+/**
+ * @summary Set the current attendee's RSVP for a meeting
+ */
+export const setMeetingResponse = async (id: number,
+    meetingResponseInput: MeetingResponseInput, options?: RequestInit): Promise<Meeting> => {
+
+  return customFetch<Meeting>(getSetMeetingResponseUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      meetingResponseInput,)
+  }
+);}
+
+
+
+
+export const getSetMeetingResponseMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingResponse>>, TError,{id: number;data: BodyType<MeetingResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMeetingResponse>>, TError,{id: number;data: BodyType<MeetingResponseInput>}, TContext> => {
+
+const mutationKey = ['setMeetingResponse'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMeetingResponse>>, {id: number;data: BodyType<MeetingResponseInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setMeetingResponse(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMeetingResponseMutationResult = NonNullable<Awaited<ReturnType<typeof setMeetingResponse>>>
+    export type SetMeetingResponseMutationBody = BodyType<MeetingResponseInput>
+    export type SetMeetingResponseMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set the current attendee's RSVP for a meeting
+ */
+export const useSetMeetingResponse = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingResponse>>, TError,{id: number;data: BodyType<MeetingResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMeetingResponse>>,
+        TError,
+        {id: number;data: BodyType<MeetingResponseInput>},
+        TContext
+      > => {
+      return useMutation(getSetMeetingResponseMutationOptions(options));
+    }
+
+export const getListMeetingResponsesUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/responses`
+}
+
+/**
+ * @summary List all RSVP responses for a meeting (admin only)
+ */
+export const listMeetingResponses = async (id: number, options?: RequestInit): Promise<MeetingAttendeeResponse[]> => {
+
+  return customFetch<MeetingAttendeeResponse[]>(getListMeetingResponsesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMeetingResponsesQueryKey = (id: number,) => {
+    return [
+    `/api/meetings/${id}/responses`
+    ] as const;
+    }
+
+
+export const getListMeetingResponsesQueryOptions = <TData = Awaited<ReturnType<typeof listMeetingResponses>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetingResponses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMeetingResponsesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMeetingResponses>>> = ({ signal }) => listMeetingResponses(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMeetingResponses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMeetingResponsesQueryResult = NonNullable<Awaited<ReturnType<typeof listMeetingResponses>>>
+export type ListMeetingResponsesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all RSVP responses for a meeting (admin only)
+ */
+
+export function useListMeetingResponses<TData = Awaited<ReturnType<typeof listMeetingResponses>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetingResponses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMeetingResponsesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListGoalsUrl = (params?: ListGoalsParams,) => {
   const normalizedParams = new URLSearchParams();

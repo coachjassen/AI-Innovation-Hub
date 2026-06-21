@@ -201,7 +201,11 @@ export const ListMeetingsResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "myResponse": zod.string().nullish(),
+  "attendingCount": zod.number().optional(),
+  "notAttendingCount": zod.number().optional(),
+  "totalInvited": zod.number().optional()
 })
 export const ListMeetingsResponse = zod.array(ListMeetingsResponseItem)
 
@@ -232,7 +236,11 @@ export const GetMeetingResponse = zod.object({
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "myResponse": zod.string().nullish(),
+  "attendingCount": zod.number().optional(),
+  "notAttendingCount": zod.number().optional(),
+  "totalInvited": zod.number().optional()
 })
 
 
@@ -257,7 +265,11 @@ export const UpdateMeetingResponse = zod.object({
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "myResponse": zod.string().nullish(),
+  "attendingCount": zod.number().optional(),
+  "notAttendingCount": zod.number().optional(),
+  "totalInvited": zod.number().optional()
 })
 
 
@@ -267,6 +279,48 @@ export const UpdateMeetingResponse = zod.object({
 export const DeleteMeetingParams = zod.object({
   "id": zod.coerce.number()
 })
+
+
+/**
+ * @summary Set the current attendee's RSVP for a meeting
+ */
+export const SetMeetingResponseParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetMeetingResponseBody = zod.object({
+  "status": zod.enum(['attending', 'not_attending'])
+})
+
+export const SetMeetingResponseResponse = zod.object({
+  "id": zod.number(),
+  "circleId": zod.number(),
+  "date": zod.string(),
+  "notes": zod.string().nullish(),
+  "slidesPath": zod.string().nullish(),
+  "keyInsight": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "myResponse": zod.string().nullish(),
+  "attendingCount": zod.number().optional(),
+  "notAttendingCount": zod.number().optional(),
+  "totalInvited": zod.number().optional()
+})
+
+
+/**
+ * @summary List all RSVP responses for a meeting (admin only)
+ */
+export const ListMeetingResponsesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListMeetingResponsesResponseItem = zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "attendeeCompany": zod.string().optional(),
+  "status": zod.enum(['attending', 'not_attending', 'no_response'])
+})
+export const ListMeetingResponsesResponse = zod.array(ListMeetingResponsesResponseItem)
 
 
 /**
