@@ -12,4 +12,5 @@ export interface Circle {
   cadence: string;
   status: string;
   createdAt: string;
+  memberCount?: number;
 }

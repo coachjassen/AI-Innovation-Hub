@@ -76,7 +76,8 @@ export const ListCirclesResponseItem = zod.object({
   "name": zod.string(),
   "cadence": zod.string(),
   "status": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "memberCount": zod.number().optional()
 })
 export const ListCirclesResponse = zod.array(ListCirclesResponseItem)
 
@@ -103,7 +104,8 @@ export const GetCircleResponse = zod.object({
   "name": zod.string(),
   "cadence": zod.string(),
   "status": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "memberCount": zod.number().optional()
 })
 
 
@@ -125,7 +127,8 @@ export const UpdateCircleResponse = zod.object({
   "name": zod.string(),
   "cadence": zod.string(),
   "status": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "memberCount": zod.number().optional()
 })
 
 

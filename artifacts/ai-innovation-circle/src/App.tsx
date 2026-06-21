@@ -14,6 +14,7 @@ import AttendeeInvite from "@/pages/attendee/invite";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/dashboard";
+import AdminCircles from "@/pages/admin/circles";
 import AdminGoals from "@/pages/admin/goals";
 import AdminAttendees from "@/pages/admin/attendees";
 import AdminMeetings from "@/pages/admin/meetings";
@@ -62,6 +63,7 @@ function Router() {
 
             {/* Admin */}
             <Route path="/admin/dashboard" component={AdminDashboard} />
+            <Route path="/admin/circles" component={AdminCircles} />
             <Route path="/admin/goals" component={AdminGoals} />
             <Route path="/admin/attendees" component={AdminAttendees} />
             <Route path="/admin/meetings" component={AdminMeetings} />

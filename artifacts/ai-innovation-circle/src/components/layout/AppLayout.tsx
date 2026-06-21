@@ -17,7 +17,7 @@ import {
   SidebarFooter
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Target, Users, Calendar, Mail, Lightbulb, UserPlus, LogOut, LayoutDashboard } from "lucide-react";
+import { Target, Users, Calendar, Mail, Lightbulb, UserPlus, LogOut, LayoutDashboard, CircleDot } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KineticsLogo } from "@/components/KineticsLogo";
 
@@ -32,6 +32,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       setLocation("/login");
     }
   }, [isLoading, user, setLocation]);
+
+  // Guard admin-only routes: redirect non-admins away from /admin/* pages
+  useEffect(() => {
+    if (!isLoading && user && user.role !== "admin" && location.startsWith("/admin")) {
+      setLocation("/goals");
+    }
+  }, [isLoading, user, location, setLocation]);
 
   if (isLoading) {
     return (
@@ -50,6 +57,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const adminLinks = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin/circles", label: "Circles", icon: CircleDot },
     { href: "/admin/goals", label: "All Goals", icon: Target },
     { href: "/admin/attendees", label: "Attendees", icon: Users },
     { href: "/admin/meetings", label: "Meetings", icon: Calendar },
