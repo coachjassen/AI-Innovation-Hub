@@ -1,0 +1,4 @@
+- [Date-only fields](date-only-fields.md) — use Postgres `date` + `YYYY-MM-DD` strings end-to-end; never round-trip date-only values through JS `Date`/`toISOString` (UTC shift).
+- [Goals DB schema changes](goals-db-changes.md) — drizzle `push` is unusable here (TTY + would drop connect-pg-simple `sessions` table); apply goals column changes via raw SQL.
+- [Kinetics branding](kinetics-branding.md) — green theme + logo brand notes for AI Innovation Circle rebrand.
+- [Auth query overlay](auth-query-overlay.md) — pre-existing notes on useGetMe/useListGoals query-option typecheck quirks.

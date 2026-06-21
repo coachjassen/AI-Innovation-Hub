@@ -13,6 +13,8 @@ export interface GoalWithAttendee {
   status: string;
   /** @nullable */
   comments?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
   createdAt: string;
   updatedAt?: string;
   attendeeName?: string;

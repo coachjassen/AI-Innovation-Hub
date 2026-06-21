@@ -905,6 +905,8 @@ components:
           type: string
         comments:
           type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
         createdAt:
           type: string
         updatedAt:
@@ -923,6 +925,8 @@ components:
         status:
           type: string
         comments:
+          type: ["string", "null"]
+        dueDate:
           type: ["string", "null"]
         createdAt:
           type: string
@@ -943,6 +947,8 @@ components:
           type: string
         comments:
           type: string
+        dueDate:
+          type: ["string", "null"]
 
     GoalUpdate:
       type: object
@@ -953,6 +959,8 @@ components:
           type: string
         comments:
           type: string
+        dueDate:
+          type: ["string", "null"]
 
     GoalsSummary:
       type: object

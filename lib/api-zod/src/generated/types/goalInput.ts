@@ -10,4 +10,6 @@ export interface GoalInput {
   timeframe: string;
   status: string;
   comments?: string;
+  /** @nullable */
+  dueDate?: string | null;
 }

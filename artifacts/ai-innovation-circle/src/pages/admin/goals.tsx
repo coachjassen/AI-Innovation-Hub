@@ -9,10 +9,24 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Target, CheckCircle2, Circle, Clock, MoreHorizontal, Trash2 } from "lucide-react";
+import { Target, CheckCircle2, Circle, Clock, MoreHorizontal, Trash2, Pencil } from "lucide-react";
+import { GoalDueBadge } from "@/components/GoalDueBadge";
+
+type GoalItem = {
+  id: number;
+  timeframe: string;
+  status: string;
+  comments?: string | null;
+  dueDate?: string | null;
+  updatedAt: string;
+};
 
 const STATUS_COLORS: Record<string, string> = {
   "Completed": "bg-green-100 text-green-800",
@@ -32,11 +46,33 @@ const getStatusIcon = (status: string) => {
 
 export default function AdminGoals() {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [editGoal, setEditGoal] = useState<GoalItem | null>(null);
   const queryClient = useQueryClient();
 
   const { data: goals = [], isLoading } = useListGoals({ query: { queryKey: getListGoalsQueryKey() } });
   const updateGoal = useUpdateGoal();
   const deleteGoal = useDeleteGoal();
+
+  const handleEdit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editGoal) return;
+    const formData = new FormData(e.currentTarget);
+    const due = formData.get("dueDate") as string;
+    updateGoal.mutate({
+      id: editGoal.id,
+      data: {
+        timeframe: formData.get("timeframe") as string,
+        status: formData.get("status") as string,
+        comments: formData.get("comments") as string,
+        dueDate: due ? due : null,
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+        setEditGoal(null);
+      },
+    });
+  };
 
   const filtered = statusFilter === "all"
     ? goals
@@ -111,9 +147,10 @@ export default function AdminGoals() {
                           {goal.comments && (
                             <p className="text-sm text-muted-foreground ml-6">{goal.comments}</p>
                           )}
-                          <p className="text-xs text-muted-foreground ml-6">
-                            Updated {format(new Date(goal.updatedAt), "MMM d, yyyy")}
-                          </p>
+                          <div className="ml-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <GoalDueBadge dueDate={goal.dueDate} status={goal.status} />
+                            <span>Updated {format(new Date(goal.updatedAt), "MMM d, yyyy")}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
                           <Select
@@ -141,6 +178,9 @@ export default function AdminGoals() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setEditGoal(goal as GoalItem)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(goal.id)}>
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                               </DropdownMenuItem>
@@ -156,6 +196,50 @@ export default function AdminGoals() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!editGoal} onOpenChange={(open) => !open && setEditGoal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Goal</DialogTitle>
+          </DialogHeader>
+          {editGoal && (
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="admin-edit-timeframe">Timeframe / Objective</Label>
+                <Input id="admin-edit-timeframe" name="timeframe" required defaultValue={editGoal.timeframe} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-edit-status">Status</Label>
+                <Select name="status" defaultValue={editGoal.status}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="New">New</SelectItem>
+                    <SelectItem value="Not Started">Not Started</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-edit-dueDate">Due Date</Label>
+                <Input
+                  id="admin-edit-dueDate"
+                  name="dueDate"
+                  type="date"
+                  defaultValue={editGoal.dueDate ? editGoal.dueDate.slice(0, 10) : ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-edit-comments">Comments</Label>
+                <Textarea id="admin-edit-comments" name="comments" defaultValue={editGoal.comments ?? ""} placeholder="Optional notes..." />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={updateGoal.isPending}>Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

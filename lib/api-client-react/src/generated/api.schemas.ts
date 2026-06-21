@@ -105,6 +105,8 @@ export interface Goal {
   status: string;
   /** @nullable */
   comments?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -116,6 +118,8 @@ export interface GoalWithAttendee {
   status: string;
   /** @nullable */
   comments?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
   createdAt: string;
   updatedAt?: string;
   attendeeName?: string;
@@ -126,12 +130,16 @@ export interface GoalInput {
   timeframe: string;
   status: string;
   comments?: string;
+  /** @nullable */
+  dueDate?: string | null;
 }
 
 export interface GoalUpdate {
   timeframe?: string;
   status?: string;
   comments?: string;
+  /** @nullable */
+  dueDate?: string | null;
 }
 
 export type GoalsSummaryByStatus = {

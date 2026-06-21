@@ -284,6 +284,7 @@ export const ListGoalsResponseItem = zod.object({
   "timeframe": zod.string(),
   "status": zod.string(),
   "comments": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional(),
   "attendeeName": zod.string().optional(),
@@ -298,7 +299,8 @@ export const ListGoalsResponse = zod.array(ListGoalsResponseItem)
 export const CreateGoalBody = zod.object({
   "timeframe": zod.string(),
   "status": zod.string(),
-  "comments": zod.string().optional()
+  "comments": zod.string().optional(),
+  "dueDate": zod.string().nullish()
 })
 
 
@@ -329,6 +331,7 @@ export const GetGoalResponse = zod.object({
   "timeframe": zod.string(),
   "status": zod.string(),
   "comments": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })
@@ -344,7 +347,8 @@ export const UpdateGoalParams = zod.object({
 export const UpdateGoalBody = zod.object({
   "timeframe": zod.string().optional(),
   "status": zod.string().optional(),
-  "comments": zod.string().optional()
+  "comments": zod.string().optional(),
+  "dueDate": zod.string().nullish()
 })
 
 export const UpdateGoalResponse = zod.object({
@@ -353,6 +357,7 @@ export const UpdateGoalResponse = zod.object({
   "timeframe": zod.string(),
   "status": zod.string(),
   "comments": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
 })

@@ -13,6 +13,7 @@ function serializeGoal(g: typeof goalsTable.$inferSelect & { attendeeName?: stri
     timeframe: g.timeframe,
     status: g.status,
     comments: g.comments,
+    dueDate: g.dueDate ?? null,
     createdAt: g.createdAt.toISOString(),
     updatedAt: g.updatedAt.toISOString(),
     attendeeName: g.attendeeName,
@@ -77,6 +78,7 @@ router.get("/goals", requireAuth, async (req, res): Promise<void> => {
       timeframe: goalsTable.timeframe,
       status: goalsTable.status,
       comments: goalsTable.comments,
+      dueDate: goalsTable.dueDate,
       createdAt: goalsTable.createdAt,
       updatedAt: goalsTable.updatedAt,
       attendeeName: attendeesTable.name,
@@ -91,7 +93,7 @@ router.get("/goals", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/goals", requireAuth, async (req, res): Promise<void> => {
-  const { timeframe, status, comments } = req.body as { timeframe?: string; status?: string; comments?: string };
+  const { timeframe, status, comments, dueDate } = req.body as { timeframe?: string; status?: string; comments?: string; dueDate?: string | null };
   if (!timeframe || !status) {
     res.status(400).json({ error: "timeframe and status are required" });
     return;
@@ -99,7 +101,7 @@ router.post("/goals", requireAuth, async (req, res): Promise<void> => {
   const attendeeId = req.session.attendeeId!;
   const [goal] = await db
     .insert(goalsTable)
-    .values({ attendeeId, timeframe, status, comments: comments ?? null })
+    .values({ attendeeId, timeframe, status, comments: comments ?? null, dueDate: dueDate ? dueDate : null })
     .returning();
   res.status(201).json(serializeGoal(goal));
 });
@@ -128,13 +130,14 @@ router.patch("/goals/:id", requireAuth, async (req, res): Promise<void> => {
     res.status(403).json({ error: "Forbidden" }); return;
   }
 
-  const { timeframe, status, comments } = req.body as { timeframe?: string; status?: string; comments?: string };
-  const updates: Partial<{ timeframe: string; status: string; comments: string; updatedAt: Date }> = {
+  const { timeframe, status, comments, dueDate } = req.body as { timeframe?: string; status?: string; comments?: string; dueDate?: string | null };
+  const updates: Partial<{ timeframe: string; status: string; comments: string; dueDate: string | null; updatedAt: Date }> = {
     updatedAt: new Date(),
   };
   if (timeframe !== undefined) updates.timeframe = timeframe;
   if (status !== undefined) updates.status = status;
   if (comments !== undefined) updates.comments = comments;
+  if (dueDate !== undefined) updates.dueDate = dueDate ? dueDate : null;
 
   const [goal] = await db.update(goalsTable).set(updates).where(eq(goalsTable.id, id)).returning();
   res.json(serializeGoal(goal));
