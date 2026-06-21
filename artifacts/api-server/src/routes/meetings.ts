@@ -66,7 +66,13 @@ async function withResponses(
 router.get("/meetings", requireAuth, async (req, res): Promise<void> => {
   let rows;
   if (req.session.attendeeRole === "admin") {
-    rows = await db.select().from(meetingsTable).orderBy(desc(meetingsTable.date));
+    const qCircleId = Array.isArray(req.query.circleId) ? req.query.circleId[0] : req.query.circleId;
+    const circleId = qCircleId !== undefined ? parseInt(String(qCircleId), 10) : NaN;
+    rows = await db
+      .select()
+      .from(meetingsTable)
+      .where(!isNaN(circleId) ? eq(meetingsTable.circleId, circleId) : undefined)
+      .orderBy(desc(meetingsTable.date));
   } else {
     const [me] = await db.select().from(attendeesTable).where(eq(attendeesTable.id, req.session.attendeeId!));
     if (!me) { res.status(401).json({ error: "Not found" }); return; }

@@ -8,6 +8,7 @@ import {
   useListMeetingResponses,
   getListMeetingsQueryKey,
 } from "@workspace/api-client-react";
+import { useActiveCircle } from "@/contexts/CircleContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +26,11 @@ export default function AdminMeetings() {
   const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: meetings = [], isLoading } = useListMeetings({ query: { queryKey: getListMeetingsQueryKey() } });
+  const { activeCircleId } = useActiveCircle();
+  const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
+  const { data: meetings = [], isLoading } = useListMeetings(params, {
+    query: { enabled: activeCircleId !== null, queryKey: getListMeetingsQueryKey(params) },
+  });
   const { data: circles = [] } = useListCircles();
   const createMeeting = useCreateMeeting();
   const deleteMeeting = useDeleteMeeting();

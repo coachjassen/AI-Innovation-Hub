@@ -39,13 +39,13 @@ export default function AttendeeGoals() {
   
   const queryClient = useQueryClient();
   
-  const { data: goals = [], isLoading } = useListGoals({
+  const { data: goals = [], isLoading } = useListGoals(undefined, {
     query: {
       queryKey: getListGoalsQueryKey(),
     }
   });
 
-  const { data: summary } = useGetGoalsSummary({
+  const { data: summary } = useGetGoalsSummary(undefined, {
     query: {
       queryKey: ["/api/goals/summary"]
     }

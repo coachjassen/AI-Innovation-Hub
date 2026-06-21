@@ -307,9 +307,34 @@ export interface UploadUrlResponse {
   objectPath: string;
 }
 
+export type ListAttendeesParams = {
+circleId?: number;
+};
+
+export type ListMeetingsParams = {
+circleId?: number;
+};
+
 export type ListGoalsParams = {
 attendeeId?: number;
 status?: string;
 showCompleted?: boolean;
+circleId?: number;
+};
+
+export type GetGoalsSummaryParams = {
+circleId?: number;
+};
+
+export type ListSuggestionsParams = {
+circleId?: number;
+};
+
+export type ListInvitesParams = {
+circleId?: number;
+};
+
+export type GetAdminDashboardParams = {
+circleId?: number;
 };
 

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useSendPreMeetingReminder, useSendPostMeetingSurvey, useListCircles } from "@workspace/api-client-react";
+import { useSendPreMeetingReminder, useSendPostMeetingSurvey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Mail, Bell, ClipboardList, CheckCircle2, AlertCircle } from "lucide-react";
+import { Mail, Bell, ClipboardList, CheckCircle2, AlertCircle, CircleDot } from "lucide-react";
+import { useActiveCircle } from "@/contexts/CircleContext";
 
 function StatusMessage({ ok, message }: { ok: boolean; message: string }) {
   return (
@@ -15,16 +15,14 @@ function StatusMessage({ ok, message }: { ok: boolean; message: string }) {
 }
 
 export default function AdminEmail() {
-  const { data: circles = [] } = useListCircles();
-  const [selectedCircle, setSelectedCircle] = useState<number | "">("");
+  const { activeCircle, activeCircleId } = useActiveCircle();
   const [reminderResult, setReminderResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [surveyResult, setSurveyResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const sendReminder = useSendPreMeetingReminder();
   const sendSurvey = useSendPostMeetingSurvey();
 
-  const firstCircleId = circles[0]?.id;
-  const circleId = selectedCircle !== "" ? Number(selectedCircle) : (firstCircleId ?? null);
+  const circleId = activeCircleId;
 
   const handleReminder = () => {
     if (!circleId) return;
@@ -59,18 +57,11 @@ export default function AdminEmail() {
         </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="circle-select">Select Circle</Label>
-        <select
-          id="circle-select"
-          value={selectedCircle !== "" ? selectedCircle : (firstCircleId ?? "")}
-          onChange={(e) => setSelectedCircle(Number(e.target.value))}
-          className="w-full max-w-xs border rounded-md px-3 py-2 text-sm"
-        >
-          {circles.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-md border bg-muted/40 px-3 py-2 w-fit">
+        <CircleDot className="h-4 w-4 text-primary" />
+        <span>
+          Sending to <strong className="text-foreground">{activeCircle?.name ?? "—"}</strong>. Switch circles from the sidebar.
+        </span>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

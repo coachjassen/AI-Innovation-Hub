@@ -1,10 +1,15 @@
-import { useGetAdminDashboard } from "@workspace/api-client-react";
+import { useGetAdminDashboard, getGetAdminDashboardQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Calendar, Target, UserPlus, TrendingUp, Activity } from "lucide-react";
 import { format } from "date-fns";
+import { useActiveCircle } from "@/contexts/CircleContext";
 
 export default function AdminDashboard() {
-  const { data, isLoading } = useGetAdminDashboard();
+  const { activeCircleId } = useActiveCircle();
+  const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
+  const { data, isLoading } = useGetAdminDashboard(params, {
+    query: { enabled: activeCircleId !== null, queryKey: getGetAdminDashboardQueryKey(params) },
+  });
 
   if (isLoading) {
     return (

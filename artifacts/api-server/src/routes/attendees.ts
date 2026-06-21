@@ -44,6 +44,14 @@ router.get("/attendees", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  // Admins may scope to a single circle via ?circleId
+  const qCircleId = Array.isArray(req.query.circleId) ? req.query.circleId[0] : req.query.circleId;
+  const circleId = qCircleId !== undefined ? parseInt(String(qCircleId), 10) : NaN;
+  if (!isNaN(circleId)) {
+    res.json(result.filter(a => a.circleId === circleId));
+    return;
+  }
+
   res.json(result);
 });
 

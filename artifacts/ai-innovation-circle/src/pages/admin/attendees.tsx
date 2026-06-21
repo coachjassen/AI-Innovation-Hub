@@ -1,11 +1,16 @@
-import { useListAttendees } from "@workspace/api-client-react";
+import { useListAttendees, getListAttendeesQueryKey } from "@workspace/api-client-react";
+import { useActiveCircle } from "@/contexts/CircleContext";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Target, ClipboardList } from "lucide-react";
 
 export default function AdminAttendees() {
-  const { data: attendees = [], isLoading } = useListAttendees();
+  const { activeCircleId } = useActiveCircle();
+  const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
+  const { data: attendees = [], isLoading } = useListAttendees(params, {
+    query: { enabled: activeCircleId !== null, queryKey: getListAttendeesQueryKey(params) },
+  });
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">

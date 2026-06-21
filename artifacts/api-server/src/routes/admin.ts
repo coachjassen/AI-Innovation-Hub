@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, count, desc } from "drizzle-orm";
+import { eq, count, desc, and } from "drizzle-orm";
 import {
   db,
   attendeesTable,
@@ -14,18 +14,38 @@ import { sendEmail, buildReminderEmail, buildSurveyEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
-router.get("/admin/dashboard", requireAdmin, async (_req, res): Promise<void> => {
-  const [attendeeCnt] = await db.select({ cnt: count() }).from(attendeesTable);
-  const [meetingCnt] = await db.select({ cnt: count() }).from(meetingsTable);
-  const [goalCnt] = await db.select({ cnt: count() }).from(goalsTable);
+router.get("/admin/dashboard", requireAdmin, async (req, res): Promise<void> => {
+  const qCircleId = Array.isArray(req.query.circleId) ? req.query.circleId[0] : req.query.circleId;
+  const circleId = qCircleId !== undefined ? parseInt(String(qCircleId), 10) : NaN;
+  const hasCircle = !isNaN(circleId);
+
+  const [attendeeCnt] = await db
+    .select({ cnt: count() })
+    .from(attendeesTable)
+    .where(hasCircle ? eq(attendeesTable.circleId, circleId) : undefined);
+  const [meetingCnt] = await db
+    .select({ cnt: count() })
+    .from(meetingsTable)
+    .where(hasCircle ? eq(meetingsTable.circleId, circleId) : undefined);
+  const [goalCnt] = await db
+    .select({ cnt: count() })
+    .from(goalsTable)
+    .leftJoin(attendeesTable, eq(goalsTable.attendeeId, attendeesTable.id))
+    .where(hasCircle ? eq(attendeesTable.circleId, circleId) : undefined);
   const [pendingInviteCnt] = await db
     .select({ cnt: count() })
     .from(invitesTable)
-    .where(eq(invitesTable.status, "pending"));
+    .where(
+      hasCircle
+        ? and(eq(invitesTable.status, "pending"), eq(invitesTable.circleId, circleId))
+        : eq(invitesTable.status, "pending"),
+    );
 
   const goalsByStatusRows = await db
     .select({ status: goalsTable.status, cnt: count() })
     .from(goalsTable)
+    .leftJoin(attendeesTable, eq(goalsTable.attendeeId, attendeesTable.id))
+    .where(hasCircle ? eq(attendeesTable.circleId, circleId) : undefined)
     .groupBy(goalsTable.status);
 
   const goalsByStatus = { new: 0, inProgress: 0, completed: 0, notStarted: 0 };
@@ -48,6 +68,7 @@ router.get("/admin/dashboard", requireAdmin, async (_req, res): Promise<void> =>
     })
     .from(goalsTable)
     .leftJoin(attendeesTable, eq(goalsTable.attendeeId, attendeesTable.id))
+    .where(hasCircle ? eq(attendeesTable.circleId, circleId) : undefined)
     .orderBy(desc(goalsTable.updatedAt))
     .limit(10);
 

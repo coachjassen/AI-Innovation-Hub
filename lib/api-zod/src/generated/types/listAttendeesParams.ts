@@ -6,9 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListGoalsParams = {
-attendeeId?: number;
-status?: string;
-showCompleted?: boolean;
+export type ListAttendeesParams = {
 circleId?: number;
 };

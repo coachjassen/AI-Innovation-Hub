@@ -1,4 +1,5 @@
-import { useListInvites, useUpdateInvite } from "@workspace/api-client-react";
+import { useListInvites, useUpdateInvite, getListInvitesQueryKey } from "@workspace/api-client-react";
+import { useActiveCircle } from "@/contexts/CircleContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +15,11 @@ const statusVariant = (status: string): "default" | "secondary" | "destructive" 
 
 export default function AdminInvites() {
   const queryClient = useQueryClient();
-  const { data: invites = [], isLoading } = useListInvites();
+  const { activeCircleId } = useActiveCircle();
+  const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
+  const { data: invites = [], isLoading } = useListInvites(params, {
+    query: { enabled: activeCircleId !== null, queryKey: getListInvitesQueryKey(params) },
+  });
   const updateInvite = useUpdateInvite();
 
   const pending = invites.filter((i) => i.status === "pending");

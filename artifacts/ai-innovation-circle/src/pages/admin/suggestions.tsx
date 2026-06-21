@@ -1,10 +1,15 @@
-import { useListSuggestions } from "@workspace/api-client-react";
+import { useListSuggestions, getListSuggestionsQueryKey } from "@workspace/api-client-react";
+import { useActiveCircle } from "@/contexts/CircleContext";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Lightbulb } from "lucide-react";
 
 export default function AdminSuggestions() {
-  const { data: suggestions = [], isLoading } = useListSuggestions();
+  const { activeCircleId } = useActiveCircle();
+  const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
+  const { data: suggestions = [], isLoading } = useListSuggestions(params, {
+    query: { enabled: activeCircleId !== null, queryKey: getListSuggestionsQueryKey(params) },
+  });
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">

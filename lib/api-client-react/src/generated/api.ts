@@ -28,6 +28,8 @@ import type {
   Circle,
   CircleInput,
   CircleUpdate,
+  GetAdminDashboardParams,
+  GetGoalsSummaryParams,
   Goal,
   GoalInput,
   GoalUpdate,
@@ -38,7 +40,11 @@ import type {
   InviteInput,
   InviteUpdate,
   InviteWithDetails,
+  ListAttendeesParams,
   ListGoalsParams,
+  ListInvitesParams,
+  ListMeetingsParams,
+  ListSuggestionsParams,
   MagicLinkRequest,
   MagicLinkVerify,
   Meeting,
@@ -733,20 +739,27 @@ export const useUpdateCircle = <TError = ErrorType<unknown>,
       return useMutation(getUpdateCircleMutationOptions(options));
     }
 
-export const getListAttendeesUrl = () => {
+export const getListAttendeesUrl = (params?: ListAttendeesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/attendees`
+  return stringifiedParams.length > 0 ? `/api/attendees?${stringifiedParams}` : `/api/attendees`
 }
 
 /**
  * @summary List attendees (admin sees all, attendee sees their circle)
  */
-export const listAttendees = async ( options?: RequestInit): Promise<AttendeeWithActivity[]> => {
+export const listAttendees = async (params?: ListAttendeesParams, options?: RequestInit): Promise<AttendeeWithActivity[]> => {
 
-  return customFetch<AttendeeWithActivity[]>(getListAttendeesUrl(),
+  return customFetch<AttendeeWithActivity[]>(getListAttendeesUrl(params),
   {
     ...options,
     method: 'GET'
@@ -759,23 +772,23 @@ export const listAttendees = async ( options?: RequestInit): Promise<AttendeeWit
 
 
 
-export const getListAttendeesQueryKey = () => {
+export const getListAttendeesQueryKey = (params?: ListAttendeesParams,) => {
     return [
-    `/api/attendees`
+    `/api/attendees`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListAttendeesQueryOptions = <TData = Awaited<ReturnType<typeof listAttendees>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAttendees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListAttendeesQueryOptions = <TData = Awaited<ReturnType<typeof listAttendees>>, TError = ErrorType<unknown>>(params?: ListAttendeesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAttendees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListAttendeesQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListAttendeesQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAttendees>>> = ({ signal }) => listAttendees({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAttendees>>> = ({ signal }) => listAttendees(params, { signal, ...requestOptions });
 
 
 
@@ -793,11 +806,11 @@ export type ListAttendeesQueryError = ErrorType<unknown>
  */
 
 export function useListAttendees<TData = Awaited<ReturnType<typeof listAttendees>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAttendees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListAttendeesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAttendees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListAttendeesQueryOptions(options)
+  const queryOptions = getListAttendeesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -959,20 +972,27 @@ export const useUpdateAttendee = <TError = ErrorType<unknown>,
       return useMutation(getUpdateAttendeeMutationOptions(options));
     }
 
-export const getListMeetingsUrl = () => {
+export const getListMeetingsUrl = (params?: ListMeetingsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/meetings`
+  return stringifiedParams.length > 0 ? `/api/meetings?${stringifiedParams}` : `/api/meetings`
 }
 
 /**
  * @summary List meetings for the current circle
  */
-export const listMeetings = async ( options?: RequestInit): Promise<Meeting[]> => {
+export const listMeetings = async (params?: ListMeetingsParams, options?: RequestInit): Promise<Meeting[]> => {
 
-  return customFetch<Meeting[]>(getListMeetingsUrl(),
+  return customFetch<Meeting[]>(getListMeetingsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -985,23 +1005,23 @@ export const listMeetings = async ( options?: RequestInit): Promise<Meeting[]> =
 
 
 
-export const getListMeetingsQueryKey = () => {
+export const getListMeetingsQueryKey = (params?: ListMeetingsParams,) => {
     return [
-    `/api/meetings`
+    `/api/meetings`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listMeetings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listMeetings>>, TError = ErrorType<unknown>>(params?: ListMeetingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListMeetingsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListMeetingsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMeetings>>> = ({ signal }) => listMeetings({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMeetings>>> = ({ signal }) => listMeetings(params, { signal, ...requestOptions });
 
 
 
@@ -1019,11 +1039,11 @@ export type ListMeetingsQueryError = ErrorType<unknown>
  */
 
 export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListMeetingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListMeetingsQueryOptions(options)
+  const queryOptions = getListMeetingsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1630,20 +1650,27 @@ export const useCreateGoal = <TError = ErrorType<unknown>,
       return useMutation(getCreateGoalMutationOptions(options));
     }
 
-export const getGetGoalsSummaryUrl = () => {
+export const getGetGoalsSummaryUrl = (params?: GetGoalsSummaryParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/goals/summary`
+  return stringifiedParams.length > 0 ? `/api/goals/summary?${stringifiedParams}` : `/api/goals/summary`
 }
 
 /**
  * @summary Get goals summary (counts by status)
  */
-export const getGoalsSummary = async ( options?: RequestInit): Promise<GoalsSummary> => {
+export const getGoalsSummary = async (params?: GetGoalsSummaryParams, options?: RequestInit): Promise<GoalsSummary> => {
 
-  return customFetch<GoalsSummary>(getGetGoalsSummaryUrl(),
+  return customFetch<GoalsSummary>(getGetGoalsSummaryUrl(params),
   {
     ...options,
     method: 'GET'
@@ -1656,23 +1683,23 @@ export const getGoalsSummary = async ( options?: RequestInit): Promise<GoalsSumm
 
 
 
-export const getGetGoalsSummaryQueryKey = () => {
+export const getGetGoalsSummaryQueryKey = (params?: GetGoalsSummaryParams,) => {
     return [
-    `/api/goals/summary`
+    `/api/goals/summary`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetGoalsSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getGoalsSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetGoalsSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getGoalsSummary>>, TError = ErrorType<unknown>>(params?: GetGoalsSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetGoalsSummaryQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetGoalsSummaryQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGoalsSummary>>> = ({ signal }) => getGoalsSummary({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGoalsSummary>>> = ({ signal }) => getGoalsSummary(params, { signal, ...requestOptions });
 
 
 
@@ -1690,11 +1717,11 @@ export type GetGoalsSummaryQueryError = ErrorType<unknown>
  */
 
 export function useGetGoalsSummary<TData = Awaited<ReturnType<typeof getGoalsSummary>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetGoalsSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetGoalsSummaryQueryOptions(options)
+  const queryOptions = getGetGoalsSummaryQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2300,20 +2327,27 @@ export function useGetSurveyResponses<TData = Awaited<ReturnType<typeof getSurve
 
 
 
-export const getListSuggestionsUrl = () => {
+export const getListSuggestionsUrl = (params?: ListSuggestionsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/suggestions`
+  return stringifiedParams.length > 0 ? `/api/suggestions?${stringifiedParams}` : `/api/suggestions`
 }
 
 /**
  * @summary List suggestions (admin sees all)
  */
-export const listSuggestions = async ( options?: RequestInit): Promise<SuggestionWithAttendee[]> => {
+export const listSuggestions = async (params?: ListSuggestionsParams, options?: RequestInit): Promise<SuggestionWithAttendee[]> => {
 
-  return customFetch<SuggestionWithAttendee[]>(getListSuggestionsUrl(),
+  return customFetch<SuggestionWithAttendee[]>(getListSuggestionsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2326,23 +2360,23 @@ export const listSuggestions = async ( options?: RequestInit): Promise<Suggestio
 
 
 
-export const getListSuggestionsQueryKey = () => {
+export const getListSuggestionsQueryKey = (params?: ListSuggestionsParams,) => {
     return [
-    `/api/suggestions`
+    `/api/suggestions`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof listSuggestions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof listSuggestions>>, TError = ErrorType<unknown>>(params?: ListSuggestionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListSuggestionsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListSuggestionsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuggestions>>> = ({ signal }) => listSuggestions({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuggestions>>> = ({ signal }) => listSuggestions(params, { signal, ...requestOptions });
 
 
 
@@ -2360,11 +2394,11 @@ export type ListSuggestionsQueryError = ErrorType<unknown>
  */
 
 export function useListSuggestions<TData = Awaited<ReturnType<typeof listSuggestions>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListSuggestionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListSuggestionsQueryOptions(options)
+  const queryOptions = getListSuggestionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2448,20 +2482,27 @@ export const useCreateSuggestion = <TError = ErrorType<unknown>,
       return useMutation(getCreateSuggestionMutationOptions(options));
     }
 
-export const getListInvitesUrl = () => {
+export const getListInvitesUrl = (params?: ListInvitesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/invites`
+  return stringifiedParams.length > 0 ? `/api/invites?${stringifiedParams}` : `/api/invites`
 }
 
 /**
  * @summary List invites (pending invites for admin, own invites for attendee)
  */
-export const listInvites = async ( options?: RequestInit): Promise<InviteWithDetails[]> => {
+export const listInvites = async (params?: ListInvitesParams, options?: RequestInit): Promise<InviteWithDetails[]> => {
 
-  return customFetch<InviteWithDetails[]>(getListInvitesUrl(),
+  return customFetch<InviteWithDetails[]>(getListInvitesUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2474,23 +2515,23 @@ export const listInvites = async ( options?: RequestInit): Promise<InviteWithDet
 
 
 
-export const getListInvitesQueryKey = () => {
+export const getListInvitesQueryKey = (params?: ListInvitesParams,) => {
     return [
-    `/api/invites`
+    `/api/invites`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListInvitesQueryOptions = <TData = Awaited<ReturnType<typeof listInvites>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListInvitesQueryOptions = <TData = Awaited<ReturnType<typeof listInvites>>, TError = ErrorType<unknown>>(params?: ListInvitesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListInvitesQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListInvitesQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvites>>> = ({ signal }) => listInvites({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvites>>> = ({ signal }) => listInvites(params, { signal, ...requestOptions });
 
 
 
@@ -2508,11 +2549,11 @@ export type ListInvitesQueryError = ErrorType<unknown>
  */
 
 export function useListInvites<TData = Awaited<ReturnType<typeof listInvites>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListInvitesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListInvitesQueryOptions(options)
+  const queryOptions = getListInvitesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2810,20 +2851,27 @@ export const useSendPostMeetingSurvey = <TError = ErrorType<unknown>,
       return useMutation(getSendPostMeetingSurveyMutationOptions(options));
     }
 
-export const getGetAdminDashboardUrl = () => {
+export const getGetAdminDashboardUrl = (params?: GetAdminDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/admin/dashboard`
+  return stringifiedParams.length > 0 ? `/api/admin/dashboard?${stringifiedParams}` : `/api/admin/dashboard`
 }
 
 /**
  * @summary Get admin dashboard overview
  */
-export const getAdminDashboard = async ( options?: RequestInit): Promise<AdminDashboard> => {
+export const getAdminDashboard = async (params?: GetAdminDashboardParams, options?: RequestInit): Promise<AdminDashboard> => {
 
-  return customFetch<AdminDashboard>(getGetAdminDashboardUrl(),
+  return customFetch<AdminDashboard>(getGetAdminDashboardUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2836,23 +2884,23 @@ export const getAdminDashboard = async ( options?: RequestInit): Promise<AdminDa
 
 
 
-export const getGetAdminDashboardQueryKey = () => {
+export const getGetAdminDashboardQueryKey = (params?: GetAdminDashboardParams,) => {
     return [
-    `/api/admin/dashboard`
+    `/api/admin/dashboard`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetAdminDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getAdminDashboard>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAdminDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getAdminDashboard>>, TError = ErrorType<unknown>>(params?: GetAdminDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAdminDashboardQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminDashboardQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminDashboard>>> = ({ signal }) => getAdminDashboard({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminDashboard>>> = ({ signal }) => getAdminDashboard(params, { signal, ...requestOptions });
 
 
 
@@ -2870,11 +2918,11 @@ export type GetAdminDashboardQueryError = ErrorType<unknown>
  */
 
 export function useGetAdminDashboard<TData = Awaited<ReturnType<typeof getAdminDashboard>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetAdminDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAdminDashboardQueryOptions(options)
+  const queryOptions = getGetAdminDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -135,6 +135,10 @@ export const UpdateCircleResponse = zod.object({
 /**
  * @summary List attendees (admin sees all, attendee sees their circle)
  */
+export const ListAttendeesQueryParams = zod.object({
+  "circleId": zod.coerce.number().optional()
+})
+
 export const ListAttendeesResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -197,6 +201,10 @@ export const UpdateAttendeeResponse = zod.object({
 /**
  * @summary List meetings for the current circle
  */
+export const ListMeetingsQueryParams = zod.object({
+  "circleId": zod.coerce.number().optional()
+})
+
 export const ListMeetingsResponseItem = zod.object({
   "id": zod.number(),
   "circleId": zod.number(),
@@ -332,7 +340,8 @@ export const ListMeetingResponsesResponse = zod.array(ListMeetingResponsesRespon
 export const ListGoalsQueryParams = zod.object({
   "attendeeId": zod.coerce.number().optional(),
   "status": zod.coerce.string().optional(),
-  "showCompleted": zod.coerce.boolean().optional()
+  "showCompleted": zod.coerce.boolean().optional(),
+  "circleId": zod.coerce.number().optional()
 })
 
 export const ListGoalsResponseItem = zod.object({
@@ -364,6 +373,10 @@ export const CreateGoalBody = zod.object({
 /**
  * @summary Get goals summary (counts by status)
  */
+export const GetGoalsSummaryQueryParams = zod.object({
+  "circleId": zod.coerce.number().optional()
+})
+
 export const GetGoalsSummaryResponse = zod.object({
   "total": zod.number(),
   "byStatus": zod.object({
@@ -499,6 +512,10 @@ export const GetSurveyResponsesResponse = zod.array(GetSurveyResponsesResponseIt
 /**
  * @summary List suggestions (admin sees all)
  */
+export const ListSuggestionsQueryParams = zod.object({
+  "circleId": zod.coerce.number().optional()
+})
+
 export const ListSuggestionsResponseItem = zod.object({
   "id": zod.number(),
   "attendeeId": zod.number(),
@@ -523,6 +540,10 @@ export const CreateSuggestionBody = zod.object({
 /**
  * @summary List invites (pending invites for admin, own invites for attendee)
  */
+export const ListInvitesQueryParams = zod.object({
+  "circleId": zod.coerce.number().optional()
+})
+
 export const ListInvitesResponseItem = zod.object({
   "id": zod.number(),
   "invitedByAttendeeId": zod.number(),
@@ -594,6 +615,10 @@ export const SendPostMeetingSurveyResponse = zod.object({
 /**
  * @summary Get admin dashboard overview
  */
+export const GetAdminDashboardQueryParams = zod.object({
+  "circleId": zod.coerce.number().optional()
+})
+
 export const GetAdminDashboardResponse = zod.object({
   "totalAttendees": zod.number(),
   "totalMeetings": zod.number(),

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db, suggestionsTable, attendeesTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import "../lib/session";
@@ -7,6 +7,13 @@ import "../lib/session";
 const router: IRouter = Router();
 
 router.get("/suggestions", requireAuth, async (req, res): Promise<void> => {
+  const conditions = [];
+  if (req.session.attendeeRole === "admin") {
+    const qCircleId = Array.isArray(req.query.circleId) ? req.query.circleId[0] : req.query.circleId;
+    const circleId = qCircleId !== undefined ? parseInt(String(qCircleId), 10) : NaN;
+    if (!isNaN(circleId)) conditions.push(eq(attendeesTable.circleId, circleId));
+  }
+
   const rows = await db
     .select({
       id: suggestionsTable.id,
@@ -19,6 +26,7 @@ router.get("/suggestions", requireAuth, async (req, res): Promise<void> => {
     })
     .from(suggestionsTable)
     .leftJoin(attendeesTable, eq(suggestionsTable.attendeeId, attendeesTable.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(suggestionsTable.createdAt));
 
   const result = rows.map(r => ({

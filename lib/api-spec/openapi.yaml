@@ -198,6 +198,12 @@ paths:
       operationId: listAttendees
       tags: [attendees]
       summary: List attendees (admin sees all, attendee sees their circle)
+      parameters:
+        - name: circleId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of attendees
@@ -258,6 +264,12 @@ paths:
       operationId: listMeetings
       tags: [meetings]
       summary: List meetings for the current circle
+      parameters:
+        - name: circleId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of meetings
@@ -410,6 +422,11 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: circleId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of goals
@@ -442,6 +459,12 @@ paths:
       operationId: getGoalsSummary
       tags: [goals]
       summary: Get goals summary (counts by status)
+      parameters:
+        - name: circleId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: Goals summary
@@ -611,6 +634,12 @@ paths:
       operationId: listSuggestions
       tags: [suggestions]
       summary: List suggestions (admin sees all)
+      parameters:
+        - name: circleId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of suggestions
@@ -644,6 +673,12 @@ paths:
       operationId: listInvites
       tags: [invites]
       summary: List invites (pending invites for admin, own invites for attendee)
+      parameters:
+        - name: circleId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of invites
@@ -740,6 +775,12 @@ paths:
       operationId: getAdminDashboard
       tags: [admin]
       summary: Get admin dashboard overview
+      parameters:
+        - name: circleId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: Dashboard data

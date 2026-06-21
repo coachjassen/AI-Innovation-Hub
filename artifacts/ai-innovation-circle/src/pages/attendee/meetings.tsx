@@ -20,7 +20,7 @@ type Meeting = {
 };
 
 export default function AttendeeMeetings() {
-  const { data: meetings = [], isLoading } = useListMeetings({
+  const { data: meetings = [], isLoading } = useListMeetings(undefined, {
     query: {
       queryKey: getListMeetingsQueryKey(),
     }

@@ -22,14 +22,20 @@ function serializeGoal(g: typeof goalsTable.$inferSelect & { attendeeName?: stri
 }
 
 router.get("/goals/summary", requireAuth, async (req, res): Promise<void> => {
-  let whereClause = undefined;
+  const conditions = [];
   if (req.session.attendeeRole !== "admin") {
-    whereClause = eq(goalsTable.attendeeId, req.session.attendeeId!);
+    conditions.push(eq(goalsTable.attendeeId, req.session.attendeeId!));
+  } else {
+    const qCircleId = Array.isArray(req.query.circleId) ? req.query.circleId[0] : req.query.circleId;
+    const circleId = qCircleId !== undefined ? parseInt(String(qCircleId), 10) : NaN;
+    if (!isNaN(circleId)) conditions.push(eq(attendeesTable.circleId, circleId));
   }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const rows = await db
     .select({ status: goalsTable.status, cnt: count() })
     .from(goalsTable)
+    .leftJoin(attendeesTable, eq(goalsTable.attendeeId, attendeesTable.id))
     .where(whereClause)
     .groupBy(goalsTable.status);
 
@@ -48,16 +54,20 @@ router.get("/goals/summary", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/goals", requireAuth, async (req, res): Promise<void> => {
-  const { attendeeId: qAttendeeId, status: qStatus, showCompleted } = req.query as {
-    attendeeId?: string; status?: string; showCompleted?: string;
+  const { attendeeId: qAttendeeId, status: qStatus, showCompleted, circleId: qCircleId } = req.query as {
+    attendeeId?: string; status?: string; showCompleted?: string; circleId?: string;
   };
 
   const conditions = [];
 
   if (req.session.attendeeRole !== "admin") {
     conditions.push(eq(goalsTable.attendeeId, req.session.attendeeId!));
-  } else if (qAttendeeId) {
-    conditions.push(eq(goalsTable.attendeeId, parseInt(qAttendeeId, 10)));
+  } else {
+    if (qAttendeeId) conditions.push(eq(goalsTable.attendeeId, parseInt(qAttendeeId, 10)));
+    if (qCircleId) {
+      const cid = parseInt(qCircleId, 10);
+      if (!isNaN(cid)) conditions.push(eq(attendeesTable.circleId, cid));
+    }
   }
 
   if (qStatus) {

@@ -5,6 +5,7 @@ import {
   useUpdateGoal,
   useDeleteGoal,
 } from "@workspace/api-client-react";
+import { useActiveCircle } from "@/contexts/CircleContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,7 +50,11 @@ export default function AdminGoals() {
   const [editGoal, setEditGoal] = useState<GoalItem | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: goals = [], isLoading } = useListGoals({ query: { queryKey: getListGoalsQueryKey() } });
+  const { activeCircleId } = useActiveCircle();
+  const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
+  const { data: goals = [], isLoading } = useListGoals(params, {
+    query: { enabled: activeCircleId !== null, queryKey: getListGoalsQueryKey(params) },
+  });
   const updateGoal = useUpdateGoal();
   const deleteGoal = useDeleteGoal();
 

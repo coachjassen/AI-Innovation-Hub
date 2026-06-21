@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Target, Users, Calendar, Mail, Lightbulb, UserPlus, LogOut, LayoutDashboard, CircleDot } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KineticsLogo } from "@/components/KineticsLogo";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useActiveCircle } from "@/contexts/CircleContext";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe({ query: { retry: false } });
@@ -95,6 +97,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-sm font-medium">{user.name}</p>
                 <p className="text-xs text-muted-foreground">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
               </div>
+              {isAdmin && <CircleSwitcher />}
             </div>
             <SidebarGroup>
               <SidebarGroupLabel>Menu</SidebarGroupLabel>
@@ -129,5 +132,39 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </SidebarProvider>
+  );
+}
+
+function CircleSwitcher() {
+  const { circles, activeCircleId, setActiveCircleId, isLoading } = useActiveCircle();
+
+  if (isLoading) {
+    return <Skeleton className="h-9 w-full" />;
+  }
+  if (circles.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+        <CircleDot className="h-3 w-3" /> Active Circle
+      </p>
+      <Select
+        value={activeCircleId !== null ? String(activeCircleId) : undefined}
+        onValueChange={(v) => setActiveCircleId(parseInt(v, 10))}
+      >
+        <SelectTrigger className="h-9" data-testid="select-active-circle">
+          <SelectValue placeholder="Select a circle" />
+        </SelectTrigger>
+        <SelectContent>
+          {circles.map((c) => (
+            <SelectItem key={c.id} value={String(c.id)}>
+              {c.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { CircleProvider } from "@/contexts/CircleContext";
 import Login from "@/pages/auth/login";
 
 // Attendee pages
@@ -53,6 +54,7 @@ function Router() {
 
       {/* Protected Routes */}
       <Route>
+        <CircleProvider>
         <AppLayout>
           <Switch>
             {/* Attendee */}
@@ -75,6 +77,7 @@ function Router() {
             <Route component={NotFound} />
           </Switch>
         </AppLayout>
+        </CircleProvider>
       </Route>
     </Switch>
   );
