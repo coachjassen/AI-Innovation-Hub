@@ -24,7 +24,7 @@ import { AgendaEditor } from "@/components/AgendaEditor";
 export default function AdminMeetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [agendaId, setAgendaId] = useState<number | null>(null);
+  const [agendaMeeting, setAgendaMeeting] = useState<{ id: number; date: string } | null>(null);
   const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
   const queryClient = useQueryClient();
 
@@ -72,7 +72,6 @@ export default function AdminMeetings() {
 
   const MeetingRow = ({ m }: { m: (typeof meetings)[0] }) => {
     const isOpen = expandedId === m.id;
-    const isAgendaOpen = agendaId === m.id;
     const attending = m.attendingCount ?? 0;
     const declined = m.notAttendingCount ?? 0;
     const invited = m.totalInvited ?? 0;
@@ -106,10 +105,9 @@ export default function AdminMeetings() {
                 <Users className="h-4 w-4 mr-1" />
                 RSVPs
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setAgendaId(isAgendaOpen ? null : m.id)}>
+              <Button variant="ghost" size="sm" onClick={() => setAgendaMeeting({ id: m.id, date: m.date })}>
                 <ListChecks className="h-4 w-4 mr-1" />
                 Agenda
-                <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${isAgendaOpen ? "rotate-180" : ""}`} />
               </Button>
               {m.notes && (
                 <Button variant="ghost" size="sm" onClick={() => setExpandedId(isOpen ? null : m.id)}>
@@ -135,14 +133,6 @@ export default function AdminMeetings() {
           {isOpen && m.notes && (
             <div className="mt-4 pt-4 border-t text-sm text-gray-600 bg-gray-50 p-4 rounded-md whitespace-pre-wrap">
               {m.notes}
-            </div>
-          )}
-          {isAgendaOpen && (
-            <div className="mt-4 pt-4 border-t">
-              <h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
-                <ListChecks className="h-4 w-4 text-primary" /> Agenda
-              </h4>
-              <AgendaEditor meetingId={m.id} />
             </div>
           )}
         </CardContent>
@@ -209,6 +199,17 @@ export default function AdminMeetings() {
           </div>
         </>
       )}
+
+      <Dialog open={agendaMeeting !== null} onOpenChange={(o) => !o && setAgendaMeeting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Agenda{agendaMeeting ? ` — ${format(new Date(agendaMeeting.date), "MMMM d, yyyy")}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {agendaMeeting && <AgendaEditor meetingId={agendaMeeting.id} />}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={rosterMeeting !== null} onOpenChange={(o) => !o && setRosterMeeting(null)}>
         <DialogContent>
