@@ -23,11 +23,13 @@ const emptyItem = (): DraftItem => ({ title: "", durationMinutes: "", presenter:
 
 export function AgendaEditor({ meetingId }: { meetingId: number }) {
   const queryClient = useQueryClient();
-  const { data: agenda = [], isLoading } = useGetMeetingAgenda(meetingId);
+  const { data: agenda, isLoading, isSuccess } = useGetMeetingAgenda(meetingId);
   const setAgenda = useSetMeetingAgenda();
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    if (!isSuccess || hydrated || !agenda) return;
     setItems(
       agenda.map((a) => ({
         title: a.title,
@@ -36,7 +38,8 @@ export function AgendaEditor({ meetingId }: { meetingId: number }) {
         description: a.description ?? "",
       })),
     );
-  }, [agenda]);
+    setHydrated(true);
+  }, [isSuccess, agenda, hydrated]);
 
   const update = (idx: number, patch: Partial<DraftItem>) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
