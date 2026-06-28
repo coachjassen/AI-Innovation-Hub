@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, and, inArray } from "drizzle-orm";
+import { SetMeetingAgendaBody } from "@workspace/api-zod";
 import {
   db,
   meetingsTable,
@@ -199,27 +200,27 @@ router.put("/meetings/:id/agenda", requireAdmin, async (req, res): Promise<void>
   const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
   if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
 
-  const body = req.body as {
-    items?: Array<{
-      title?: string;
-      durationMinutes?: number | null;
-      presenter?: string | null;
-      description?: string | null;
-    }>;
-  };
-  if (!Array.isArray(body.items)) {
-    res.status(400).json({ error: "items must be an array" }); return;
+  const parsed = SetMeetingAgendaBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid agenda payload",
+      fieldErrors: parsed.error.flatten(),
+    });
+    return;
   }
-  for (const item of body.items) {
-    if (typeof item.title !== "string" || item.title.trim() === "") {
+
+  // Business rule (not expressible in the JSON-schema contract): titles must be
+  // non-empty after trimming.
+  for (const item of parsed.data.items) {
+    if (item.title.trim() === "") {
       res.status(400).json({ error: "each agenda item requires a non-empty title" }); return;
     }
   }
 
-  const values = body.items.map((item, idx) => ({
+  const values = parsed.data.items.map((item, idx) => ({
     meetingId: id,
     position: idx + 1,
-    title: item.title!.trim(),
+    title: item.title.trim(),
     durationMinutes: item.durationMinutes ?? null,
     presenter: item.presenter ?? null,
     description: item.description ?? null,
