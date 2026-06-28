@@ -110,6 +110,17 @@ export async function buildMeetingIcs(opts: {
   circleName: string;
   dateIso: string;
   agenda: AgendaSummaryItem[];
+  /**
+   * iCalendar METHOD (e.g. "REQUEST"). When set, the event is emitted as a
+   * scheduling message so compliant calendars treat it as an invite/update
+   * rather than a plain published event.
+   */
+  method?: string;
+  /**
+   * iCalendar SEQUENCE. Must strictly increase across updates to the same UID
+   * so calendars supersede the existing event instead of ignoring the change.
+   */
+  sequence?: number;
 }): Promise<string | null> {
   const start = new Date(opts.dateIso);
   if (isNaN(start.getTime())) return null;
@@ -149,6 +160,8 @@ export async function buildMeetingIcs(opts: {
         startInputType: "utc",
         duration: { minutes: durationMinutes },
         description,
+        ...(opts.method ? { method: opts.method } : {}),
+        ...(opts.sequence !== undefined ? { sequence: opts.sequence } : {}),
       },
       (err, value) => {
         if (err || !value) {
@@ -198,6 +211,47 @@ export function buildRsvpConfirmationEmail(
     <p>Hi ${attendeeName},</p>
     <p>You're confirmed for the <strong>${circleName}</strong> meeting on <strong>${meetingDate}</strong>.</p>
     <p>We've attached a calendar invite so you can add it to your calendar.</p>
+    ${agendaSection}
+    <p>See you there!</p>
+  `;
+}
+
+export function buildMeetingRescheduledEmail(
+  attendeeName: string,
+  circleName: string,
+  meetingDate: string,
+  agenda: AgendaSummaryItem[],
+): string {
+  const agendaRows = agenda
+    .map(
+      (a) => `<tr>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.position}</td>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.title}${a.description ? `<br/><span style="color:#6b7280;font-size:12px">${a.description}</span>` : ""}</td>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.durationMinutes ? `${a.durationMinutes} min` : ""}</td>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.presenter ?? ""}</td>
+    </tr>`,
+    )
+    .join("");
+
+  const agendaSection = agenda.length
+    ? `<p>Here's what we'll cover:</p>
+    <table style="border-collapse:collapse;width:100%">
+      <thead>
+        <tr style="background:#f3f4f6">
+          <th style="padding:8px;text-align:left">#</th>
+          <th style="padding:8px;text-align:left">Topic</th>
+          <th style="padding:8px;text-align:left">Time</th>
+          <th style="padding:8px;text-align:left">Presenter</th>
+        </tr>
+      </thead>
+      <tbody>${agendaRows}</tbody>
+    </table>`
+    : `<p>The agenda will be shared soon.</p>`;
+
+  return `
+    <p>Hi ${attendeeName},</p>
+    <p>The <strong>${circleName}</strong> meeting has been <strong>rescheduled</strong>. It will now take place on <strong>${meetingDate}</strong>.</p>
+    <p>We've attached an updated calendar invite — your existing calendar entry will be updated automatically.</p>
     ${agendaSection}
     <p>See you there!</p>
   `;

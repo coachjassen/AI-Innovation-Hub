@@ -14,6 +14,7 @@ import {
   sendEmail,
   buildMeetingIcs,
   buildRsvpConfirmationEmail,
+  buildMeetingRescheduledEmail,
   type AgendaSummaryItem,
 } from "../lib/email";
 import { logger } from "../lib/logger";
@@ -148,6 +149,11 @@ router.patch("/meetings/:id", requireAdmin, async (req, res): Promise<void> => {
   const { date, notes, slidesPath, keyInsight } = req.body as {
     date?: string; notes?: string; slidesPath?: string; keyInsight?: string;
   };
+
+  // Capture the prior date so we can detect a reschedule after the update.
+  const [existing] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Meeting not found" }); return; }
+
   const updates: Partial<{ date: string; notes: string; slidesPath: string; keyInsight: string }> = {};
   if (date !== undefined) updates.date = date;
   if (notes !== undefined) updates.notes = notes;
@@ -156,7 +162,86 @@ router.patch("/meetings/:id", requireAdmin, async (req, res): Promise<void> => {
   const [meeting] = await db.update(meetingsTable).set(updates).where(eq(meetingsTable.id, id)).returning();
   if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
   res.json(serializeMeeting(meeting));
+
+  // If the meeting was rescheduled, send everyone who already RSVP'd
+  // "attending" an updated calendar invite. Reusing the stable UID with
+  // METHOD:REQUEST and a strictly increasing SEQUENCE makes calendars
+  // supersede the existing event instead of creating a duplicate. Like the
+  // other email triggers, this runs post-response and swallows errors so a
+  // failed (or absent, in POC mode) mailer never breaks the update.
+  const dateChanged = date !== undefined && date !== existing.date;
+  if (dateChanged) {
+    void sendRescheduleInvites(id, meeting.circleId, meeting.date).catch((err) => {
+      logger.error({ err, meetingId: id }, "Failed to send reschedule calendar invites");
+    });
+  }
 });
+
+// Send updated .ics invites to attendees who responded "attending" to a meeting
+// that has just been rescheduled. SEQUENCE is derived from the current time (in
+// seconds) so it strictly increases across successive reschedules.
+async function sendRescheduleInvites(
+  meetingId: number,
+  circleId: number,
+  dateIso: string,
+): Promise<void> {
+  const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, circleId));
+  const circleName = circle?.name ?? "AI Innovation Circle";
+
+  // Attendees (by role + circle, matching RSVP eligibility) who said "attending".
+  const recipients = await db
+    .select({ name: attendeesTable.name, email: attendeesTable.email })
+    .from(meetingResponsesTable)
+    .innerJoin(attendeesTable, eq(meetingResponsesTable.attendeeId, attendeesTable.id))
+    .where(
+      and(
+        eq(meetingResponsesTable.meetingId, meetingId),
+        eq(meetingResponsesTable.status, "attending"),
+        eq(attendeesTable.role, "attendee"),
+        eq(attendeesTable.circleId, circleId),
+      ),
+    );
+
+  if (recipients.length === 0) return;
+
+  const agendaRows = await db
+    .select()
+    .from(agendaItemsTable)
+    .where(eq(agendaItemsTable.meetingId, meetingId))
+    .orderBy(asc(agendaItemsTable.position));
+
+  const agenda: AgendaSummaryItem[] = agendaRows.map((a) => ({
+    position: a.position,
+    title: a.title,
+    durationMinutes: a.durationMinutes,
+    presenter: a.presenter,
+    description: a.description,
+  }));
+
+  const icsContent = await buildMeetingIcs({
+    meetingId,
+    circleName,
+    dateIso,
+    agenda,
+    method: "REQUEST",
+    sequence: Math.floor(Date.now() / 1000),
+  });
+
+  for (const r of recipients) {
+    try {
+      await sendEmail({
+        to: r.email,
+        subject: `Updated: ${circleName} meeting rescheduled`,
+        html: buildMeetingRescheduledEmail(r.name, circleName, dateIso, agenda),
+        attachments: icsContent
+          ? [{ filename: "meeting.ics", content: icsContent, contentType: "text/calendar; method=REQUEST" }]
+          : undefined,
+      });
+    } catch (err) {
+      logger.error({ err, meetingId, email: r.email }, "Failed to send reschedule invite to attendee");
+    }
+  }
+}
 
 router.delete("/meetings/:id", requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
