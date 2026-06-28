@@ -1,2 +1,3 @@
 - [Testing protected API routes](testing-auth.md) — Secure session cookie: test via https://$REPLIT_DEV_DOMAIN with a cookie jar, not localhost:80 (http 401)
 - [Orval query params & options](orval-query-params.md) — adding a query param shifts hook to (params, options); `enabled` needs queryKey too; filter via params for per-value cache isolation
+- [drizzle-kit push needs a TTY](db-push-tty.md) — push always prompts (connect-pg-simple `session` table not in schema); apply new-table DDL directly via SQL instead

@@ -18,11 +18,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users } from "lucide-react";
+import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks } from "lucide-react";
+import { AgendaEditor } from "@/components/AgendaEditor";
 
 export default function AdminMeetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [agendaId, setAgendaId] = useState<number | null>(null);
   const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
   const queryClient = useQueryClient();
 
@@ -70,6 +72,7 @@ export default function AdminMeetings() {
 
   const MeetingRow = ({ m }: { m: (typeof meetings)[0] }) => {
     const isOpen = expandedId === m.id;
+    const isAgendaOpen = agendaId === m.id;
     const attending = m.attendingCount ?? 0;
     const declined = m.notAttendingCount ?? 0;
     const invited = m.totalInvited ?? 0;
@@ -103,6 +106,11 @@ export default function AdminMeetings() {
                 <Users className="h-4 w-4 mr-1" />
                 RSVPs
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setAgendaId(isAgendaOpen ? null : m.id)}>
+                <ListChecks className="h-4 w-4 mr-1" />
+                Agenda
+                <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${isAgendaOpen ? "rotate-180" : ""}`} />
+              </Button>
               {m.notes && (
                 <Button variant="ghost" size="sm" onClick={() => setExpandedId(isOpen ? null : m.id)}>
                   <FileText className="h-4 w-4 mr-1" />
@@ -127,6 +135,14 @@ export default function AdminMeetings() {
           {isOpen && m.notes && (
             <div className="mt-4 pt-4 border-t text-sm text-gray-600 bg-gray-50 p-4 rounded-md whitespace-pre-wrap">
               {m.notes}
+            </div>
+          )}
+          {isAgendaOpen && (
+            <div className="mt-4 pt-4 border-t">
+              <h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+                <ListChecks className="h-4 w-4 text-primary" /> Agenda
+              </h4>
+              <AgendaEditor meetingId={m.id} />
             </div>
           )}
         </CardContent>

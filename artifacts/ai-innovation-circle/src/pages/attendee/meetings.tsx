@@ -4,8 +4,9 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Calendar, Download, FileText, ChevronDown, Check, X, Users } from "lucide-react";
+import { Calendar, Download, FileText, ChevronDown, Check, X, Users, ListChecks } from "lucide-react";
 import { useState } from "react";
+import { AgendaView } from "@/components/AgendaView";
 
 type Meeting = {
   id: number;
@@ -132,6 +133,13 @@ function UpcomingMeetingCard({ meeting }: { meeting: Meeting }) {
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{meeting.notes}</p>
         )}
 
+        <div className="rounded-md border bg-background/60 p-4">
+          <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+            <ListChecks className="h-4 w-4 text-primary" /> Agenda
+          </h4>
+          <AgendaView meetingId={meeting.id} />
+        </div>
+
         <div className="flex items-center gap-2 pt-1">
           <Button
             size="sm"
@@ -186,6 +194,13 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
               </a>
             </Button>
           )}
+        </div>
+
+        <div className="mt-6 border-t pt-4">
+          <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+            <ListChecks className="h-4 w-4 text-primary" /> Agenda
+          </h4>
+          <AgendaView meetingId={meeting.id} />
         </div>
 
         {meeting.notes && (

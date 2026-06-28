@@ -93,6 +93,116 @@ export function buildReminderEmail(
   `;
 }
 
+export interface AgendaSummaryItem {
+  position: number;
+  title: string;
+  durationMinutes: number | null;
+  presenter: string | null;
+  description: string | null;
+}
+
+/**
+ * Build an .ics calendar event for a meeting. Returns the raw ICS string, or
+ * null if the date could not be parsed (caller should skip the attachment).
+ */
+export async function buildMeetingIcs(opts: {
+  meetingId: number;
+  circleName: string;
+  dateIso: string;
+  agenda: AgendaSummaryItem[];
+}): Promise<string | null> {
+  const start = new Date(opts.dateIso);
+  if (isNaN(start.getTime())) return null;
+
+  // Default to 60 minutes if no agenda durations are provided.
+  const summed = opts.agenda.reduce((acc, a) => acc + (a.durationMinutes ?? 0), 0);
+  const durationMinutes = summed > 0 ? summed : 60;
+
+  const agendaLines = opts.agenda
+    .map((a) => {
+      const bits = [`${a.position}. ${a.title}`];
+      if (a.durationMinutes) bits.push(`(${a.durationMinutes} min)`);
+      if (a.presenter) bits.push(`— ${a.presenter}`);
+      let line = bits.join(" ");
+      if (a.description) line += `\n   ${a.description}`;
+      return line;
+    })
+    .join("\n");
+
+  const description = agendaLines
+    ? `Agenda:\n${agendaLines}`
+    : "Agenda to be confirmed.";
+
+  const ics = await import("ics");
+  return new Promise<string | null>((resolve) => {
+    ics.createEvent(
+      {
+        uid: `meeting-${opts.meetingId}@ai-innovation-circle`,
+        title: `${opts.circleName} Meeting`,
+        start: [
+          start.getUTCFullYear(),
+          start.getUTCMonth() + 1,
+          start.getUTCDate(),
+          start.getUTCHours(),
+          start.getUTCMinutes(),
+        ],
+        startInputType: "utc",
+        duration: { minutes: durationMinutes },
+        description,
+      },
+      (err, value) => {
+        if (err || !value) {
+          logger.error({ err, meetingId: opts.meetingId }, "Failed to build ICS event");
+          resolve(null);
+          return;
+        }
+        resolve(value);
+      },
+    );
+  });
+}
+
+export function buildRsvpConfirmationEmail(
+  attendeeName: string,
+  circleName: string,
+  meetingDate: string,
+  agenda: AgendaSummaryItem[],
+): string {
+  const agendaRows = agenda
+    .map(
+      (a) => `<tr>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.position}</td>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.title}${a.description ? `<br/><span style="color:#6b7280;font-size:12px">${a.description}</span>` : ""}</td>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.durationMinutes ? `${a.durationMinutes} min` : ""}</td>
+      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${a.presenter ?? ""}</td>
+    </tr>`,
+    )
+    .join("");
+
+  const agendaSection = agenda.length
+    ? `<p>Here's what we'll cover:</p>
+    <table style="border-collapse:collapse;width:100%">
+      <thead>
+        <tr style="background:#f3f4f6">
+          <th style="padding:8px;text-align:left">#</th>
+          <th style="padding:8px;text-align:left">Topic</th>
+          <th style="padding:8px;text-align:left">Time</th>
+          <th style="padding:8px;text-align:left">Presenter</th>
+        </tr>
+      </thead>
+      <tbody>${agendaRows}</tbody>
+    </table>`
+    : `<p>The agenda will be shared soon.</p>`;
+
+  return `
+    <p>Hi ${attendeeName},</p>
+    <p>You're confirmed for the <strong>${circleName}</strong> meeting on <strong>${meetingDate}</strong>.</p>
+    <p>We've attached a calendar invite so you can add it to your calendar.</p>
+    ${agendaSection}
+    <p>See you there!</p>
+  `;
+}
+
 export function buildSurveyEmail(
   attendeeName: string,
   circleName: string,

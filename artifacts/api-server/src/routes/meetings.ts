@@ -1,7 +1,21 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and, inArray } from "drizzle-orm";
-import { db, meetingsTable, attendeesTable, meetingResponsesTable } from "@workspace/db";
+import { eq, desc, asc, and, inArray } from "drizzle-orm";
+import {
+  db,
+  meetingsTable,
+  attendeesTable,
+  meetingResponsesTable,
+  agendaItemsTable,
+  circlesTable,
+} from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
+import {
+  sendEmail,
+  buildMeetingIcs,
+  buildRsvpConfirmationEmail,
+  type AgendaSummaryItem,
+} from "../lib/email";
+import { logger } from "../lib/logger";
 import "../lib/session";
 
 const router: IRouter = Router();
@@ -15,6 +29,18 @@ function serializeMeeting(m: typeof meetingsTable.$inferSelect) {
     slidesPath: m.slidesPath,
     keyInsight: m.keyInsight,
     createdAt: m.createdAt.toISOString(),
+  };
+}
+
+function serializeAgendaItem(a: typeof agendaItemsTable.$inferSelect) {
+  return {
+    id: a.id,
+    meetingId: a.meetingId,
+    position: a.position,
+    title: a.title,
+    durationMinutes: a.durationMinutes,
+    presenter: a.presenter,
+    description: a.description,
   };
 }
 
@@ -140,6 +166,74 @@ router.delete("/meetings/:id", requireAdmin, async (req, res): Promise<void> => 
   res.sendStatus(204);
 });
 
+// Read a meeting's ordered agenda. Auth-scoped: attendees may only read agendas
+// for meetings in their own circle; admins may read any.
+router.get("/meetings/:id/agenda", requireAuth, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+  if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
+
+  if (req.session.attendeeRole !== "admin") {
+    const [me] = await db.select().from(attendeesTable).where(eq(attendeesTable.id, req.session.attendeeId!));
+    if (!me || me.circleId !== meeting.circleId) { res.status(404).json({ error: "Meeting not found" }); return; }
+  }
+
+  const items = await db
+    .select()
+    .from(agendaItemsTable)
+    .where(eq(agendaItemsTable.meetingId, id))
+    .orderBy(asc(agendaItemsTable.position));
+
+  res.json(items.map(serializeAgendaItem));
+});
+
+// Replace the full ordered agenda for a meeting (admin only).
+router.put("/meetings/:id/agenda", requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+  if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
+
+  const body = req.body as {
+    items?: Array<{
+      title?: string;
+      durationMinutes?: number | null;
+      presenter?: string | null;
+      description?: string | null;
+    }>;
+  };
+  if (!Array.isArray(body.items)) {
+    res.status(400).json({ error: "items must be an array" }); return;
+  }
+  for (const item of body.items) {
+    if (typeof item.title !== "string" || item.title.trim() === "") {
+      res.status(400).json({ error: "each agenda item requires a non-empty title" }); return;
+    }
+  }
+
+  const values = body.items.map((item, idx) => ({
+    meetingId: id,
+    position: idx + 1,
+    title: item.title!.trim(),
+    durationMinutes: item.durationMinutes ?? null,
+    presenter: item.presenter ?? null,
+    description: item.description ?? null,
+  }));
+
+  const saved = await db.transaction(async (tx) => {
+    await tx.delete(agendaItemsTable).where(eq(agendaItemsTable.meetingId, id));
+    if (values.length === 0) return [];
+    return tx.insert(agendaItemsTable).values(values).returning();
+  });
+
+  res.json(saved.map(serializeAgendaItem));
+});
+
 // Set / change the current attendee's RSVP for a meeting (opt in or out).
 router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -173,6 +267,50 @@ router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void
 
   const [out] = await withResponses([meeting], attendeeId);
   res.json(out);
+
+  // After persisting the RSVP and responding, send a confirmation email with an
+  // .ics invite for "attending" responses. Email failures (or absent SMTP) must
+  // never break the RSVP write, so this runs post-response and swallows errors.
+  if (status === "attending") {
+    void (async () => {
+      try {
+        const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, meeting.circleId));
+        const circleName = circle?.name ?? "AI Innovation Circle";
+
+        const agendaRows = await db
+          .select()
+          .from(agendaItemsTable)
+          .where(eq(agendaItemsTable.meetingId, id))
+          .orderBy(asc(agendaItemsTable.position));
+
+        const agenda: AgendaSummaryItem[] = agendaRows.map((a) => ({
+          position: a.position,
+          title: a.title,
+          durationMinutes: a.durationMinutes,
+          presenter: a.presenter,
+          description: a.description,
+        }));
+
+        const icsContent = await buildMeetingIcs({
+          meetingId: id,
+          circleName,
+          dateIso: meeting.date,
+          agenda,
+        });
+
+        await sendEmail({
+          to: me.email,
+          subject: `You're confirmed: ${circleName} meeting`,
+          html: buildRsvpConfirmationEmail(me.name, circleName, meeting.date, agenda),
+          attachments: icsContent
+            ? [{ filename: "meeting.ics", content: icsContent, contentType: "text/calendar" }]
+            : undefined,
+        });
+      } catch (err) {
+        logger.error({ err, meetingId: id, attendeeId }, "Failed to send RSVP confirmation email");
+      }
+    })();
+  }
 });
 
 // Admin: full RSVP roster for a meeting (every circle member + their status).

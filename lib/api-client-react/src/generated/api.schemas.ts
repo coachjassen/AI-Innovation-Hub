@@ -117,6 +117,33 @@ export interface MeetingAttendeeResponse {
   status: MeetingAttendeeResponseStatus;
 }
 
+export interface AgendaItem {
+  id: number;
+  meetingId: number;
+  position: number;
+  title: string;
+  /** @nullable */
+  durationMinutes?: number | null;
+  /** @nullable */
+  presenter?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface AgendaItemInput {
+  title: string;
+  /** @nullable */
+  durationMinutes?: number | null;
+  /** @nullable */
+  presenter?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface AgendaInput {
+  items: AgendaItemInput[];
+}
+
 export interface MeetingInput {
   circleId: number;
   date: string;

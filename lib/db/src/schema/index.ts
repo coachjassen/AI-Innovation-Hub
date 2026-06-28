@@ -3,6 +3,7 @@ export * from "./attendees";
 export * from "./magicTokens";
 export * from "./meetings";
 export * from "./meetingResponses";
+export * from "./agendaItems";
 export * from "./goals";
 export * from "./surveys";
 export * from "./surveyResponses";

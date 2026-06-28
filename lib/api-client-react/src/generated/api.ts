@@ -22,6 +22,8 @@ import type {
 import type {
   AdminDashboard,
   AdminEmailTrigger,
+  AgendaInput,
+  AgendaItem,
   Attendee,
   AttendeeUpdate,
   AttendeeWithActivity,
@@ -1416,6 +1418,155 @@ export const useSetMeetingResponse = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSetMeetingResponseMutationOptions(options));
+    }
+
+export const getGetMeetingAgendaUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/agenda`
+}
+
+/**
+ * @summary Get the ordered agenda for a meeting
+ */
+export const getMeetingAgenda = async (id: number, options?: RequestInit): Promise<AgendaItem[]> => {
+
+  return customFetch<AgendaItem[]>(getGetMeetingAgendaUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMeetingAgendaQueryKey = (id: number,) => {
+    return [
+    `/api/meetings/${id}/agenda`
+    ] as const;
+    }
+
+
+export const getGetMeetingAgendaQueryOptions = <TData = Awaited<ReturnType<typeof getMeetingAgenda>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMeetingAgenda>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMeetingAgendaQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMeetingAgenda>>> = ({ signal }) => getMeetingAgenda(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMeetingAgenda>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMeetingAgendaQueryResult = NonNullable<Awaited<ReturnType<typeof getMeetingAgenda>>>
+export type GetMeetingAgendaQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the ordered agenda for a meeting
+ */
+
+export function useGetMeetingAgenda<TData = Awaited<ReturnType<typeof getMeetingAgenda>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMeetingAgenda>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMeetingAgendaQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetMeetingAgendaUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/agenda`
+}
+
+/**
+ * @summary Replace the full ordered agenda for a meeting (admin only)
+ */
+export const setMeetingAgenda = async (id: number,
+    agendaInput: AgendaInput, options?: RequestInit): Promise<AgendaItem[]> => {
+
+  return customFetch<AgendaItem[]>(getSetMeetingAgendaUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      agendaInput,)
+  }
+);}
+
+
+
+
+export const getSetMeetingAgendaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingAgenda>>, TError,{id: number;data: BodyType<AgendaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMeetingAgenda>>, TError,{id: number;data: BodyType<AgendaInput>}, TContext> => {
+
+const mutationKey = ['setMeetingAgenda'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMeetingAgenda>>, {id: number;data: BodyType<AgendaInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setMeetingAgenda(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMeetingAgendaMutationResult = NonNullable<Awaited<ReturnType<typeof setMeetingAgenda>>>
+    export type SetMeetingAgendaMutationBody = BodyType<AgendaInput>
+    export type SetMeetingAgendaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Replace the full ordered agenda for a meeting (admin only)
+ */
+export const useSetMeetingAgenda = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingAgenda>>, TError,{id: number;data: BodyType<AgendaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMeetingAgenda>>,
+        TError,
+        {id: number;data: BodyType<AgendaInput>},
+        TContext
+      > => {
+      return useMutation(getSetMeetingAgendaMutationOptions(options));
     }
 
 export const getListMeetingResponsesUrl = (id: number,) => {

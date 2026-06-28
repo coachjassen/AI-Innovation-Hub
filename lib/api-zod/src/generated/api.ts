@@ -319,6 +319,53 @@ export const SetMeetingResponseResponse = zod.object({
 
 
 /**
+ * @summary Get the ordered agenda for a meeting
+ */
+export const GetMeetingAgendaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetMeetingAgendaResponseItem = zod.object({
+  "id": zod.number(),
+  "meetingId": zod.number(),
+  "position": zod.number(),
+  "title": zod.string(),
+  "durationMinutes": zod.number().nullish(),
+  "presenter": zod.string().nullish(),
+  "description": zod.string().nullish()
+})
+export const GetMeetingAgendaResponse = zod.array(GetMeetingAgendaResponseItem)
+
+
+/**
+ * @summary Replace the full ordered agenda for a meeting (admin only)
+ */
+export const SetMeetingAgendaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetMeetingAgendaBody = zod.object({
+  "items": zod.array(zod.object({
+  "title": zod.string(),
+  "durationMinutes": zod.number().nullish(),
+  "presenter": zod.string().nullish(),
+  "description": zod.string().nullish()
+}))
+})
+
+export const SetMeetingAgendaResponseItem = zod.object({
+  "id": zod.number(),
+  "meetingId": zod.number(),
+  "position": zod.number(),
+  "title": zod.string(),
+  "durationMinutes": zod.number().nullish(),
+  "presenter": zod.string().nullish(),
+  "description": zod.string().nullish()
+})
+export const SetMeetingAgendaResponse = zod.array(SetMeetingAgendaResponseItem)
+
+
+/**
  * @summary List all RSVP responses for a meeting (admin only)
  */
 export const ListMeetingResponsesParams = zod.object({
