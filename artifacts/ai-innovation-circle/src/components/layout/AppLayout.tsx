@@ -2,7 +2,8 @@ import { Link, useLocation } from "wouter";
 import { useEffect } from "react";
 import { 
   useGetMe, 
-  useLogout 
+  useLogout,
+  getGetMeQueryKey
 } from "@workspace/api-client-react";
 import {
   Sidebar,
@@ -25,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useActiveCircle } from "@/contexts/CircleContext";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading } = useGetMe({ query: { retry: false } });
+  const { data: user, isLoading } = useGetMe({ query: { retry: false, queryKey: getGetMeQueryKey() } });
   const [location, setLocation] = useLocation();
   const logout = useLogout();
 

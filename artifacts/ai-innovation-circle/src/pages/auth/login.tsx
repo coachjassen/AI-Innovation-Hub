@@ -25,7 +25,7 @@ export default function Login() {
   
   // Try to see if already logged in
   const { data: user, isLoading: isUserLoading } = useGetMe({ 
-    query: { retry: false, staleTime: 0 } 
+    query: { retry: false, staleTime: 0, queryKey: getGetMeQueryKey() } 
   });
 
   useEffect(() => {

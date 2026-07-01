@@ -154,7 +154,9 @@ export default function AdminGoals() {
                           )}
                           <div className="ml-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <GoalDueBadge dueDate={goal.dueDate} status={goal.status} />
-                            <span>Updated {format(new Date(goal.updatedAt), "MMM d, yyyy")}</span>
+                            {goal.updatedAt && (
+                              <span>Updated {format(new Date(goal.updatedAt), "MMM d, yyyy")}</span>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4">

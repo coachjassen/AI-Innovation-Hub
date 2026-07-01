@@ -88,19 +88,19 @@ export default function AdminDashboard() {
                 <div className="flex rounded-full overflow-hidden h-3 bg-gray-100">
                   <div
                     className="bg-purple-500 transition-all"
-                    style={{ width: `${(goalsByStatus.new / data.totalGoals) * 100}%` }}
+                    style={{ width: `${((goalsByStatus.new ?? 0) / data.totalGoals) * 100}%` }}
                   />
                   <div
                     className="bg-gray-300 transition-all"
-                    style={{ width: `${(goalsByStatus.notStarted / data.totalGoals) * 100}%` }}
+                    style={{ width: `${((goalsByStatus.notStarted ?? 0) / data.totalGoals) * 100}%` }}
                   />
                   <div
                     className="bg-blue-500 transition-all"
-                    style={{ width: `${(goalsByStatus.inProgress / data.totalGoals) * 100}%` }}
+                    style={{ width: `${((goalsByStatus.inProgress ?? 0) / data.totalGoals) * 100}%` }}
                   />
                   <div
                     className="bg-green-500 transition-all"
-                    style={{ width: `${(goalsByStatus.completed / data.totalGoals) * 100}%` }}
+                    style={{ width: `${((goalsByStatus.completed ?? 0) / data.totalGoals) * 100}%` }}
                   />
                 </div>
                 <div className="flex gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
