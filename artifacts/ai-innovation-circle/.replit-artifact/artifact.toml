@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "AI Innovation Circle"
+title = "Kinetics Group Innovation Hubs"
 version = "1.0.0"
 id = "artifacts/ai-innovation-circle"
 router = "path"

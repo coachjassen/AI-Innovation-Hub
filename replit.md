@@ -1,6 +1,8 @@
-# AI Innovation Circle
+# Kinetics Group Innovation Hubs
 
-A full-stack web app for a consulting firm's recurring client forum — manages circles, meetings, goals, surveys, suggestions, and member invitations across Attendee and Admin roles.
+A full-stack web app for a consulting firm's recurring client forum — manages hubs (a.k.a. "circles" in code/DB), meetings, goals, surveys, suggestions, and member invitations across Attendee and Admin roles.
+
+> **Naming note:** The product is branded "Kinetics Group Innovation Hubs" and the user-facing term is "Hub". Internally the domain is still called `circle` everywhere (DB tables, API routes `/api/circles`, hooks like `useListCircles`, `CircleContext`). Only display strings were renamed to "Hub".
 
 ## Run & Operate
 

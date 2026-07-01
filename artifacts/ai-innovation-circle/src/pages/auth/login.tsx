@@ -74,7 +74,7 @@ export default function Login() {
             <KineticsLogo className="h-14 w-auto" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight text-gray-900">AI Innovation Circle</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900">Kinetics Group Innovation Hubs</h1>
             <p className="text-gray-500">Sign in to your account</p>
           </div>
         </div>

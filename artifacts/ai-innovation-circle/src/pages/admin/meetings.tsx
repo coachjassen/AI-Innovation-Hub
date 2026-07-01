@@ -145,7 +145,7 @@ export default function AdminMeetings() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Meetings</h1>
-          <p className="text-muted-foreground mt-2">Schedule and manage circle sessions.</p>
+          <p className="text-muted-foreground mt-2">Schedule and manage hub sessions.</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -232,7 +232,7 @@ function RosterList({ meetingId }: { meetingId: number }) {
     return <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-muted animate-pulse rounded" />)}</div>;
   }
   if (responses.length === 0) {
-    return <p className="text-sm text-muted-foreground">No members in this circle.</p>;
+    return <p className="text-sm text-muted-foreground">No members in this hub.</p>;
   }
 
   const badge = (status: string) => {

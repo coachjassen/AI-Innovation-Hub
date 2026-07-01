@@ -186,7 +186,7 @@ async function sendRescheduleInvites(
   dateIso: string,
 ): Promise<void> {
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, circleId));
-  const circleName = circle?.name ?? "AI Innovation Circle";
+  const circleName = circle?.name ?? "Kinetics Group Innovation Hub";
 
   // Attendees (by role + circle, matching RSVP eligibility) who said "attending".
   const recipients = await db
@@ -361,7 +361,7 @@ router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void
     void (async () => {
       try {
         const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, meeting.circleId));
-        const circleName = circle?.name ?? "AI Innovation Circle";
+        const circleName = circle?.name ?? "Kinetics Group Innovation Hub";
 
         const agendaRows = await db
           .select()

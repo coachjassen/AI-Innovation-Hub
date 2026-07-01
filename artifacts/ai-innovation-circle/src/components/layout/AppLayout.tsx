@@ -14,7 +14,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarProvider,
-  SidebarFooter
+  SidebarFooter,
+  SidebarTrigger
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Target, Users, Calendar, Mail, Lightbulb, UserPlus, LogOut, LayoutDashboard, CircleDot } from "lucide-react";
@@ -59,7 +60,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const adminLinks = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/circles", label: "Circles", icon: CircleDot },
+    { href: "/admin/hubs", label: "Hubs", icon: CircleDot },
     { href: "/admin/goals", label: "All Goals", icon: Target },
     { href: "/admin/attendees", label: "Attendees", icon: Users },
     { href: "/admin/meetings", label: "Meetings", icon: Calendar },
@@ -88,11 +89,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full bg-background">
         <Sidebar>
           <SidebarContent>
+            <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
+              <KineticsLogo className="h-8 w-auto" />
+            </div>
             <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <KineticsLogo className="h-9 w-auto" />
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">AI Innovation Circle</p>
-              </div>
               <div>
                 <p className="text-sm font-medium">{user.name}</p>
                 <p className="text-xs text-muted-foreground">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
@@ -127,9 +127,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </SidebarFooter>
         </Sidebar>
-        <main className="flex-1 flex flex-col min-w-0">
-          {children}
-        </main>
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-16 flex items-center gap-3 px-6 bg-sidebar text-sidebar-foreground border-b border-sidebar-border">
+            <SidebarTrigger className="text-sidebar-foreground -ml-1" />
+            <h1 className="text-base font-semibold tracking-tight">Kinetics Group Innovation Hubs</h1>
+          </header>
+          <main className="flex-1 flex flex-col min-w-0 overflow-auto">
+            {children}
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
@@ -148,14 +154,14 @@ function CircleSwitcher() {
   return (
     <div className="space-y-1.5">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-        <CircleDot className="h-3 w-3" /> Active Circle
+        <CircleDot className="h-3 w-3" /> Active Hub
       </p>
       <Select
         value={activeCircleId !== null ? String(activeCircleId) : undefined}
         onValueChange={(v) => setActiveCircleId(parseInt(v, 10))}
       >
         <SelectTrigger className="h-9" data-testid="select-active-circle">
-          <SelectValue placeholder="Select a circle" />
+          <SelectValue placeholder="Select a hub" />
         </SelectTrigger>
         <SelectContent>
           {circles.map((c) => (

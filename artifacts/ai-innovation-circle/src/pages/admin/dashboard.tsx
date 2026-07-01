@@ -37,7 +37,7 @@ export default function AdminDashboard() {
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Overview of the AI Innovation Circle.</p>
+        <p className="text-muted-foreground mt-2">Overview of your Kinetics Group Innovation Hub.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

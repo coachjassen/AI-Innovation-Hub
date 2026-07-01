@@ -17,7 +17,7 @@ export default function AdminAttendees() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Attendees</h1>
         <p className="text-muted-foreground mt-2">
-          {attendees.length} member{attendees.length !== 1 ? "s" : ""} in the circle.
+          {attendees.length} member{attendees.length !== 1 ? "s" : ""} in the hub.
         </p>
       </div>
 
@@ -33,48 +33,43 @@ export default function AdminAttendees() {
           <p className="text-gray-500">No attendees yet.</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {attendees.map((a) => (
             <Card key={a.id}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                        {a.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-semibold">{a.name}</p>
-                        <p className="text-sm text-muted-foreground">{a.email}</p>
-                      </div>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                    {a.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold truncate">{a.name}</p>
                       {a.role === "admin" && (
-                        <Badge variant="secondary">Admin</Badge>
+                        <Badge variant="secondary" className="shrink-0">Admin</Badge>
                       )}
                     </div>
-                    {a.company && (
-                      <p className="text-sm text-muted-foreground ml-12">{a.company}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground ml-12">
-                      Joined {format(new Date(a.createdAt), "MMM d, yyyy")}
-                    </p>
-                  </div>
-                  <div className="flex gap-6 text-center">
-                    <div>
-                      <div className="flex items-center gap-1 justify-center text-muted-foreground mb-1">
-                        <Target className="h-3.5 w-3.5" />
-                        <span className="text-xs">Goals</span>
-                      </div>
-                      <p className="text-xl font-bold">{(a as any).goalCount ?? 0}</p>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1 justify-center text-muted-foreground mb-1">
-                        <ClipboardList className="h-3.5 w-3.5" />
-                        <span className="text-xs">Surveys</span>
-                      </div>
-                      <p className="text-xl font-bold">{(a as any).surveyResponseCount ?? 0}</p>
-                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{a.email}</p>
                   </div>
                 </div>
+
+                {a.company && (
+                  <p className="text-xs text-muted-foreground truncate">{a.company}</p>
+                )}
+
+                <div className="flex items-center justify-between border-t pt-3 text-sm">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Target className="h-3.5 w-3.5" />
+                    <span className="font-semibold text-foreground">{(a as any).goalCount ?? 0}</span> Goals
+                  </span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    <span className="font-semibold text-foreground">{(a as any).surveyResponseCount ?? 0}</span> Surveys
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Joined {format(new Date(a.createdAt), "MMM d, yyyy")}
+                </p>
               </CardContent>
             </Card>
           ))}

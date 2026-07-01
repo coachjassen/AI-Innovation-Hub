@@ -53,14 +53,14 @@ export default function AdminEmail() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Email Triggers</h1>
         <p className="text-muted-foreground mt-2">
-          Send batch emails to circle attendees. When SMTP is configured, emails will be delivered; otherwise they're suppressed gracefully.
+          Send batch emails to hub attendees. When SMTP is configured, emails will be delivered; otherwise they're suppressed gracefully.
         </p>
       </div>
 
       <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-md border bg-muted/40 px-3 py-2 w-fit">
         <CircleDot className="h-4 w-4 text-primary" />
         <span>
-          Sending to <strong className="text-foreground">{activeCircle?.name ?? "—"}</strong>. Switch circles from the sidebar.
+          Sending to <strong className="text-foreground">{activeCircle?.name ?? "—"}</strong>. Switch hubs from the sidebar.
         </span>
       </div>
 

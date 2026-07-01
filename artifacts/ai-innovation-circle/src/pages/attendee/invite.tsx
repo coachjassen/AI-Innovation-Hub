@@ -47,7 +47,7 @@ export default function AttendeeInvite() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Invite a Colleague</h1>
         <p className="text-muted-foreground mt-2">
-          Recommend someone to join your circle.
+          Recommend someone to join your hub.
         </p>
       </div>
 

@@ -89,21 +89,21 @@ export default function AdminCircles() {
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Circles</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Hubs</h1>
           <p className="text-muted-foreground mt-2">
-            Each circle is a self-contained forum group with its own members, meetings, and goals.
+            Each hub is a self-contained forum group with its own members, meetings, and goals.
           </p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> New Circle</Button>
+            <Button><Plus className="mr-2 h-4 w-4" /> New Hub</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Create Circle</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Create Hub</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input name="name" id="name" required placeholder="e.g. FinTech Founders Circle" />
+                <Input name="name" id="name" required placeholder="e.g. FinTech Founders Hub" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cadence">Cadence</Label>
@@ -131,7 +131,7 @@ export default function AdminCircles() {
       ) : circles.length === 0 ? (
         <div className="text-center py-16 border rounded-lg bg-gray-50/50">
           <CircleDot className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-          <p className="text-gray-500">No circles yet. Create your first one to get started.</p>
+          <p className="text-gray-500">No hubs yet. Create your first one to get started.</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -181,7 +181,7 @@ export default function AdminCircles() {
 
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit Circle</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Edit Hub</DialogTitle></DialogHeader>
           {editing && (
             <form onSubmit={handleEdit} className="space-y-4">
               <div className="space-y-2">

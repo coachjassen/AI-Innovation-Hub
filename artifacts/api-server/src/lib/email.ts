@@ -53,7 +53,7 @@ export async function sendEmail(opts: EmailOptions): Promise<void> {
 export function buildMagicLinkEmail(link: string, name: string): string {
   return `
     <p>Hi ${name},</p>
-    <p>Click the link below to sign in to AI Innovation Circle. This link expires in 1 hour.</p>
+    <p>Click the link below to sign in to Kinetics Group Innovation Hubs. This link expires in 1 hour.</p>
     <p><a href="${link}" style="background:#1a56db;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Sign in</a></p>
     <p>If you did not request this, you can safely ignore this email.</p>
   `;
