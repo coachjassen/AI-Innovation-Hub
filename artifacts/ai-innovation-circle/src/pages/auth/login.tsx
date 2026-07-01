@@ -64,22 +64,27 @@ export default function Login() {
     });
   };
 
-  if (isUserLoading) return <div className="h-screen w-full flex items-center justify-center bg-gray-50" />;
+  if (isUserLoading) return <div className="h-screen w-full brand-gradient" />;
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-3">
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-center brand-gradient brand-glow p-4">
+      <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[hsl(var(--brand-lime)/0.12)] blur-3xl" />
+      <div className="relative z-10 w-full max-w-md space-y-8">
+        <div className="text-center space-y-4">
           <div className="flex items-center justify-center">
-            <KineticsLogo className="h-14 w-auto" />
+            <div className="rounded-xl bg-white px-5 py-3 shadow-lg">
+              <KineticsLogo className="h-10 w-auto" />
+            </div>
           </div>
           <div className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight text-gray-900">Kinetics Group Innovation Hubs</h1>
-            <p className="text-gray-500">Sign in to your account</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-white">
+              Innovation Hubs
+            </h1>
+            <p className="text-[hsl(var(--brand-lime))]">Where great teams do more, be more.</p>
           </div>
         </div>
 
-        <Card className="border-gray-200 shadow-sm">
+        <Card className="border-white/10 shadow-2xl">
           <CardHeader>
             <CardTitle>Welcome back</CardTitle>
             <CardDescription>Enter your email to sign in.</CardDescription>

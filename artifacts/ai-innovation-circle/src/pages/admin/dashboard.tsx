@@ -36,16 +36,18 @@ export default function AdminDashboard() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gradient w-fit">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-2">Overview of your Kinetics Group Innovation Hub.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {stats.map((stat) => (
-          <Card key={stat.label}>
+          <Card key={stat.label} className="card-accent hover-lift shadow-brand overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <stat.icon className="h-4 w-4" />
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ${stat.color}`}>
+                  <stat.icon className="h-4 w-4" />
+                </span>
                 {stat.label}
               </CardTitle>
             </CardHeader>

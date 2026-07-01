@@ -18,3 +18,11 @@ cascade through the OpenAPI contract, codegen, and DB with high risk for zero us
 
 **How to apply:** The user route was migrated `/admin/circles` → `/admin/hubs` with a wouter
 `<Redirect>` kept at the old path for back-compat. Any *new* user-facing copy should say "hub".
+
+## Branding / logo constraint
+The Kinetics logo (`src/assets/kinetics-logo.png`) is dark-green artwork on a transparent
+background, so it is invisible on dark surfaces. On the deep-green sidebar/header/login it
+must sit inside a white "chip" (rounded white container). Brand palette = deep forest green
+shell + vibrant lime accent (see `--brand-forest` / `--brand-lime` in index.css), inspired by
+kinetics.co.nz. Sidebar/header use `.brand-gradient`; text on the dark shell must use
+`text-sidebar-foreground` tokens, never `text-muted-foreground` (too dim on dark green).

@@ -91,12 +91,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar>
           <SidebarContent>
             <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-              <KineticsLogo className="h-8 w-auto" />
+              <div className="rounded-md bg-white px-3 py-1.5 shadow-sm">
+                <KineticsLogo className="h-6 w-auto" />
+              </div>
             </div>
             <div className="p-6 space-y-4">
-              <div>
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold">
+                  {user.name?.charAt(0)?.toUpperCase() ?? "?"}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate text-sidebar-foreground">{user.name}</p>
+                  <p className="text-xs text-sidebar-foreground/60">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
+                </div>
               </div>
               {isAdmin && <CircleSwitcher />}
             </div>
@@ -122,16 +129,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4">
-            <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={handleLogout}>
+            <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
           </SidebarFooter>
         </Sidebar>
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-16 flex items-center gap-3 px-6 bg-sidebar text-sidebar-foreground border-b border-sidebar-border">
-            <SidebarTrigger className="text-sidebar-foreground -ml-1" />
-            <h1 className="text-base font-semibold tracking-tight">Kinetics Group Innovation Hubs</h1>
+          <header className="relative h-16 flex items-center gap-3 px-6 brand-gradient brand-glow text-sidebar-foreground border-b border-sidebar-border">
+            <SidebarTrigger className="text-sidebar-foreground hover:text-white -ml-1 relative z-10" />
+            <div className="relative z-10 flex items-baseline gap-2">
+              <h1 className="text-base font-semibold tracking-tight text-white">Kinetics Group</h1>
+              <span className="text-base font-light tracking-tight text-[hsl(var(--brand-lime))]">Innovation Hubs</span>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--brand-lime)/0.5)] to-transparent" />
           </header>
           <main className="flex-1 flex flex-col min-w-0 overflow-auto">
             {children}
@@ -154,14 +165,17 @@ function CircleSwitcher() {
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-        <CircleDot className="h-3 w-3" /> Active Hub
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/70 flex items-center gap-1.5">
+        <CircleDot className="h-3 w-3 text-[hsl(var(--brand-lime))]" /> Active Hub
       </p>
       <Select
         value={activeCircleId !== null ? String(activeCircleId) : undefined}
         onValueChange={(v) => setActiveCircleId(parseInt(v, 10))}
       >
-        <SelectTrigger className="h-9" data-testid="select-active-circle">
+        <SelectTrigger
+          className="h-9 border-sidebar-border bg-sidebar-accent text-sidebar-foreground data-[placeholder]:text-sidebar-foreground/60 focus:ring-sidebar-ring"
+          data-testid="select-active-circle"
+        >
           <SelectValue placeholder="Select a hub" />
         </SelectTrigger>
         <SelectContent>
