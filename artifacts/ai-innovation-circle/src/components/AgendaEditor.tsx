@@ -21,12 +21,23 @@ type DraftItem = {
 
 const emptyItem = (): DraftItem => ({ title: "", durationMinutes: "", presenter: "", description: "" });
 
-export function AgendaEditor({ meetingId }: { meetingId: number }) {
+export function AgendaEditor({
+  meetingId,
+  startBlank = false,
+  onSaved,
+  onCancel,
+}: {
+  meetingId: number;
+  /** Seed the editor with a single blank item instead of the existing agenda. */
+  startBlank?: boolean;
+  onSaved?: () => void;
+  onCancel?: () => void;
+}) {
   const queryClient = useQueryClient();
   const { data: agenda, isLoading, isSuccess } = useGetMeetingAgenda(meetingId);
   const setAgenda = useSetMeetingAgenda();
-  const [items, setItems] = useState<DraftItem[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [items, setItems] = useState<DraftItem[]>(startBlank ? [emptyItem()] : []);
+  const [hydrated, setHydrated] = useState(startBlank);
 
   useEffect(() => {
     if (!isSuccess || hydrated || !agenda) return;
@@ -76,6 +87,7 @@ export function AgendaEditor({ meetingId }: { meetingId: number }) {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetMeetingAgendaQueryKey(meetingId) });
           queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+          onSaved?.();
         },
       },
     );
@@ -155,9 +167,16 @@ export function AgendaEditor({ meetingId }: { meetingId: number }) {
         <Button type="button" variant="outline" size="sm" onClick={add}>
           <Plus className="mr-1.5 h-4 w-4" /> Add item
         </Button>
-        <Button type="button" size="sm" onClick={save} disabled={setAgenda.isPending}>
-          <Save className="mr-1.5 h-4 w-4" /> {setAgenda.isPending ? "Saving..." : "Save agenda"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={setAgenda.isPending}>
+              Cancel
+            </Button>
+          )}
+          <Button type="button" size="sm" onClick={save} disabled={setAgenda.isPending}>
+            <Save className="mr-1.5 h-4 w-4" /> {setAgenda.isPending ? "Saving..." : "Save agenda"}
+          </Button>
+        </div>
       </div>
     </div>
   );

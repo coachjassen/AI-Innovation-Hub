@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, and, inArray } from "drizzle-orm";
+import { eq, desc, asc, and, inArray, ne, lte } from "drizzle-orm";
 import { SetMeetingAgendaBody } from "@workspace/api-zod";
 import {
   db,
@@ -125,8 +125,67 @@ router.post("/meetings", requireAdmin, async (req, res): Promise<void> => {
     .insert(meetingsTable)
     .values({ circleId, date, notes: notes ?? null, slidesPath: slidesPath ?? null, keyInsight: keyInsight ?? null })
     .returning();
+
+  // Carry the agenda forward: recurring hub meetings typically reuse the same
+  // agenda, so seed the new meeting with a copy of the most recent existing
+  // meeting's agenda in this hub. Admins can then tweak it via the agenda editor.
+  // Best-effort — a failure here must not fail meeting creation.
+  try {
+    await copyLatestAgendaInto(meeting.id, circleId, meeting.date);
+  } catch (err) {
+    logger.error({ err, meetingId: meeting.id, circleId }, "Failed to seed agenda from previous meeting");
+  }
+
   res.status(201).json(serializeMeeting(meeting));
 });
+
+// Seed a newly created meeting's agenda from the most recent PRIOR meeting in
+// the same hub (circle) that actually has agenda items. "Prior" is relative to
+// the new meeting's own date (dated on or before it), so backfilling an earlier
+// meeting inherits the agenda that preceded it rather than a future meeting's.
+// This lets recurring meetings inherit the running agenda, which admins can then
+// modify.
+async function copyLatestAgendaInto(
+  newMeetingId: number,
+  circleId: number,
+  newMeetingDate: string,
+): Promise<void> {
+  // Candidate source meetings: same hub, dated on/before the new meeting,
+  // excluding the new one, newest first.
+  const priorMeetings = await db
+    .select({ id: meetingsTable.id })
+    .from(meetingsTable)
+    .where(
+      and(
+        eq(meetingsTable.circleId, circleId),
+        ne(meetingsTable.id, newMeetingId),
+        lte(meetingsTable.date, newMeetingDate),
+      ),
+    )
+    .orderBy(desc(meetingsTable.date), desc(meetingsTable.id));
+
+  for (const prior of priorMeetings) {
+    const sourceItems = await db
+      .select()
+      .from(agendaItemsTable)
+      .where(eq(agendaItemsTable.meetingId, prior.id))
+      .orderBy(asc(agendaItemsTable.position));
+
+    if (sourceItems.length === 0) continue;
+
+    await db.insert(agendaItemsTable).values(
+      sourceItems.map((item, idx) => ({
+        meetingId: newMeetingId,
+        position: idx + 1,
+        title: item.title,
+        durationMinutes: item.durationMinutes,
+        presenter: item.presenter,
+        description: item.description,
+      })),
+    );
+    return; // Only copy from the single most-recent meeting that has an agenda.
+  }
+}
 
 router.get("/meetings/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

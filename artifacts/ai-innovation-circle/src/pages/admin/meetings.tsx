@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks } from "lucide-react";
-import { AgendaEditor } from "@/components/AgendaEditor";
+import { AgendaManager } from "@/components/AgendaManager";
 
 export default function AdminMeetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -207,7 +207,7 @@ export default function AdminMeetings() {
               Agenda{agendaMeeting ? ` — ${format(new Date(agendaMeeting.date), "MMMM d, yyyy")}` : ""}
             </DialogTitle>
           </DialogHeader>
-          {agendaMeeting && <AgendaEditor meetingId={agendaMeeting.id} />}
+          {agendaMeeting && <AgendaManager meetingId={agendaMeeting.id} />}
         </DialogContent>
       </Dialog>
 
