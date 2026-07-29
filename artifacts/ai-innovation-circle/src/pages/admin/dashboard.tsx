@@ -5,7 +5,8 @@ import { format } from "date-fns";
 import { useActiveCircle } from "@/contexts/CircleContext";
 
 export default function AdminDashboard() {
-  const { activeCircleId } = useActiveCircle();
+  const { activeCircleId, circles } = useActiveCircle();
+  const activeCircle = circles.find((c) => c.id === activeCircleId);
   const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
   const { data, isLoading } = useGetAdminDashboard(params, {
     query: { enabled: activeCircleId !== null, queryKey: getGetAdminDashboardQueryKey(params) },
@@ -36,8 +37,14 @@ export default function AdminDashboard() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gradient w-fit">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Overview of your Kinetics Group Innovation Hub.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-gradient w-fit">
+          {activeCircle ? activeCircle.name : "Admin Dashboard"}
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          {activeCircle
+            ? "Dashboard overview for this Innovation Hub."
+            : "Select a hub to see its overview."}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

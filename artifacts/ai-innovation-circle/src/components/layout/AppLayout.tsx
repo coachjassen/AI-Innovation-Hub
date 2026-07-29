@@ -61,7 +61,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const adminLinks = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/hubs", label: "Hubs", icon: CircleDot },
     { href: "/admin/goals", label: "All Goals", icon: Target },
     { href: "/admin/attendees", label: "Attendees", icon: Users },
     { href: "/admin/meetings", label: "Meetings", icon: Calendar },
@@ -105,7 +104,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-xs text-sidebar-foreground/60">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
                 </div>
               </div>
-              {isAdmin && <CircleSwitcher />}
+              {isAdmin && (
+                <div className="space-y-2">
+                  <CircleSwitcher />
+                  <Link
+                    href="/admin/hubs"
+                    className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      location.startsWith("/admin/hubs") || location.startsWith("/admin/circles")
+                        ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    }`}
+                    data-testid="link-hubs-setup"
+                  >
+                    <CircleDot className="h-4 w-4" />
+                    <span>Hubs Setup</span>
+                  </Link>
+                </div>
+              )}
             </div>
             <SidebarGroup>
               <SidebarGroupLabel>Menu</SidebarGroupLabel>
