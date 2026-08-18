@@ -1,6 +1,6 @@
 -- Seed script for Kinetics Group Innovation Hubs
 -- Run with:
---   psql "postgresql://kineticshubs:your-password@localhost:5432/kineticshubs" -f scripts/seed.sql
+--   psql "postgresql://kineticshubs:choose-a-strong-password@localhost:5432/kineticshubs" -f scripts/seed.sql
 --
 -- Safe to re-run — uses INSERT ... ON CONFLICT DO NOTHING so it won't
 -- create duplicates if run more than once.
