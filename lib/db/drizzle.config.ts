@@ -1,13 +1,18 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
+import { fileURLToPath } from "url";
+
+// fileURLToPath is used instead of import.meta.dirname because drizzle-kit
+// runs this config through its own bundler where import.meta.dirname is undefined.
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 // Load .env from the repo root when DATABASE_URL isn't already in the
 // environment (i.e. when running outside Replit / outside PM2).
 // process.loadEnvFile() is built into Node.js 22.9+ — no extra packages needed.
 if (!process.env.DATABASE_URL) {
   const candidates = [
-    path.resolve(import.meta.dirname, "../../.env"),  // lib/db/ → repo root
-    path.resolve(process.cwd(), ".env"),               // wherever the command was run from
+    path.resolve(configDir, "../../.env"),  // lib/db/ → repo root
+    path.resolve(process.cwd(), ".env"),    // wherever the command was run from
   ];
   for (const p of candidates) {
     try {
