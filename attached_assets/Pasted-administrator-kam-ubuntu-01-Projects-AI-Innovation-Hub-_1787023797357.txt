@@ -1,0 +1,19 @@
+administrator@kam-ubuntu-01:~/Projects/AI-Innovation-Hub$ pnpm --filter @workspace/ai-innovation-circle run build
+$ vite build --config vite.config.ts
+failed to load config from /home/administrator/Projects/AI-Innovation-Hub/artifacts/ai-innovation-circle/vite.config.ts
+error during build:
+Error: BASE_PATH environment variable is required but was not provided.
+    at file:///home/administrator/Projects/AI-Innovation-Hub/artifacts/ai-innovation-circle/node_modules/.vite-temp/vite.config.ts.timestamp-1787023671159-563f8501c42828.mjs:20:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async loadConfigFromBundledFile (file:///home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/dist/node/chunks/config.js:35936:12)
+    at async bundleAndLoadConfigFile (file:///home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/dist/node/chunks/config.js:35824:17)
+    at async loadConfigFromFile (file:///home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/dist/node/chunks/config.js:35791:42)
+    at async resolveConfig (file:///home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/dist/node/chunks/config.js:35440:22)
+    at async createBuilder (file:///home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/dist/node/chunks/config.js:33895:19)
+    at async CAC.<anonymous> (file:///home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/vite@7.3.3_@types+node@25.6.2_jiti@2.7.0_lightningcss@1.32.0_tsx@4.21.0_yaml@2.8.4/node_modules/vite/dist/node/cli.js:629:10)
+/home/administrator/Projects/AI-Innovation-Hub/artifacts/ai-innovation-circle:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @workspace/ai-innovation-circle@0.0.0 build: `vite build --config vite.config.ts`
+Exit status 1
+administrator@kam-ubuntu-01:~/Projects/AI-Innovation-Hub$ ^C
+administrator@kam-ubuntu-01:~/Projects/AI-In
