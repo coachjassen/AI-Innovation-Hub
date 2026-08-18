@@ -2,34 +2,34 @@
 -- Run with:
 --   psql "postgresql://kineticshubs:choose-a-strong-password@localhost:5432/kineticshubs" -f scripts/seed.sql
 --
--- Safe to re-run — uses INSERT ... ON CONFLICT DO NOTHING so it won't
--- create duplicates if run more than once.
+-- Safe to re-run — checks for existing records before inserting.
 
 BEGIN;
 
--- 1. Create the hub (circle)
+-- 1. Create the hub (circle) only if it doesn't already exist
 INSERT INTO circles (name, cadence, status)
-VALUES ('AI Innovation Circle', 'monthly', 'active')
-ON CONFLICT DO NOTHING;
+SELECT 'AI Innovation Circle', 'monthly', 'active'
+WHERE NOT EXISTS (
+  SELECT 1 FROM circles WHERE name = 'AI Innovation Circle'
+);
 
--- 2. Create the admin account, linked to the hub above
+-- 2. Create the admin account only if the email doesn't already exist
 INSERT INTO attendees (name, email, company, role, circle_id)
 SELECT
   'Jassen Elliott',
   'jassen.elliott@kambium.co.nz',
   'Kambium',
   'admin',
-  id
-FROM circles
-WHERE name = 'AI Innovation Circle'
-LIMIT 1
-ON CONFLICT (email) DO NOTHING;
+  c.id
+FROM circles c
+WHERE c.name = 'AI Innovation Circle'
+  AND NOT EXISTS (
+    SELECT 1 FROM attendees WHERE email = 'jassen.elliott@kambium.co.nz'
+  )
+LIMIT 1;
 
 COMMIT;
 
--- Confirm what was created
-SELECT 'Hubs:' AS "";
+-- Confirm what exists
 SELECT id, name, cadence, status FROM circles;
-
-SELECT 'Attendees:' AS "";
 SELECT id, name, email, company, role, circle_id FROM attendees;
