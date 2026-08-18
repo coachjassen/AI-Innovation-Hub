@@ -5,11 +5,17 @@ import path from "path";
 // environment (i.e. when running outside Replit / outside PM2).
 // process.loadEnvFile() is built into Node.js 22.9+ — no extra packages needed.
 if (!process.env.DATABASE_URL) {
-  try {
-    const envPath = path.resolve(import.meta.dirname, "../../.env");
-    (process as NodeJS.Process & { loadEnvFile?: (p: string) => void }).loadEnvFile?.(envPath);
-  } catch {
-    // File doesn't exist — DATABASE_URL must be set another way
+  const candidates = [
+    path.resolve(import.meta.dirname, "../../.env"),  // lib/db/ → repo root
+    path.resolve(process.cwd(), ".env"),               // wherever the command was run from
+  ];
+  for (const p of candidates) {
+    try {
+      (process as NodeJS.Process & { loadEnvFile?: (p: string) => void }).loadEnvFile?.(p);
+      break;
+    } catch {
+      // File not found at this path — try the next candidate
+    }
   }
 }
 
