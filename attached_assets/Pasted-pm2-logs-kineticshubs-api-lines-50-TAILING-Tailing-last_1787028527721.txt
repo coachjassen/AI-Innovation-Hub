@@ -1,0 +1,58 @@
+pm2 logs kineticshubs-api --lines 50
+[TAILING] Tailing last 50 lines for [kineticshubs-api] process (change the value with --lines option)
+/home/administrator/.pm2/logs/kineticshubs-api-error.log last 50 lines:
+0|kinetics | Error: Failed query: select "id", "name", "email", "company", "role", "circle_id", "created_at" from "attendees" where "attendees"."email" = $1
+0|kinetics | params: jassen.elliott@kambium.co.nz
+0|kinetics |     at NodePgPreparedQuery.queryWithCache (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/pg-core/session.ts:73:11)
+0|kinetics |     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+0|kinetics |     at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)
+0|kinetics |     at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/artifacts/api-server/src/routes/auth.ts:20:22)
+0|kinetics | Error: Failed query: select "id", "name", "email", "company", "role", "circle_id", "created_at" from "attendees" where "attendees"."email" = $1
+0|kinetics | params: jassen.elliott@kambium.co.nz
+0|kinetics |     at NodePgPreparedQuery.queryWithCache (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/pg-core/session.ts:73:11)
+0|kinetics |     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+0|kinetics |     at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)
+0|kinetics |     at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/artifacts/api-server/src/routes/auth.ts:20:22)
+0|kinetics | Error: Failed query: select "id", "name", "email", "company", "role", "circle_id", "created_at" from "attendees" where "attendees"."email" = $1
+0|kinetics | params: admin@demo.com
+0|kinetics |     at NodePgPreparedQuery.queryWithCache (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/pg-core/session.ts:73:11)
+0|kinetics |     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+0|kinetics |     at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)
+0|kinetics |     at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/artifacts/api-server/src/routes/auth.ts:20:22)
+ 
+/home/administrator/.pm2/logs/kineticshubs-api-out.log last 50 lines:
+0|kinetics | [04:43:51.944] INFO (63126): request completed
+0|kinetics |     req: {
+0|kinetics |       "id": 3,
+0|kinetics |       "method": "GET",
+0|kinetics |       "url": "/api/auth/me"
+0|kinetics |     }
+0|kinetics |     res: {
+0|kinetics |       "statusCode": 401
+0|kinetics |     }
+0|kinetics |     responseTime: 3
+0|kinetics | [04:43:54.589] INFO (63126): request completed
+0|kinetics |     req: {
+0|kinetics |       "id": 4,
+0|kinetics |       "method": "POST",
+0|kinetics |       "url": "/api/auth/request-link"
+0|kinetics |     }
+0|kinetics |     res: {
+0|kinetics |       "statusCode": 404
+0|kinetics |     }
+0|kinetics |     responseTime: 104
+0|kinetics | [04:44:03.325] INFO (63126): request completed
+0|kinetics |     req: {
+0|kinetics |       "id": 5,
+0|kinetics |       "method": "POST",
+0|kinetics |       "url": "/api/auth/request-link"
+0|kinetics |     }
+0|kinetics |     res: {
+0|kinetics |       "statusCode": 404
+0|kinetics |     }
+0|kinetics |     responseTime: 10
+0|kinetics | [04:45:07.959] INFO (63126): request completed
+0|kinetics |     req: {
+0|kinetics |       "id": 6,
+0|kinetics |       "method": "GET",
+0|kinetics |       "url": "/api/auth/me"
