@@ -38,10 +38,17 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// The app is served over HTTPS through Replit's proxy and is embedded in a
-// cross-origin iframe (the workspace canvas / preview pane). A SameSite=Lax
-// cookie is treated as third-party there and silently dropped, so the session
-// never sticks. SameSite=None + Secure lets the cookie ride in that context.
+// Cookie security settings differ by environment:
+//  - Inside Replit (proxied HTTPS iframe): sameSite=none + secure=true required
+//    so the cookie isn't dropped as a third-party cookie.
+//  - Self-hosted with HTTPS: set COOKIE_SECURE=true in .env → sameSite=lax,
+//    secure=true (standard secure browser behaviour).
+//  - Self-hosted plain HTTP (internal network): leave COOKIE_SECURE unset →
+//    sameSite=lax, secure=false so the browser actually stores the cookie.
+const isReplit = !!process.env.REPL_ID;
+const cookieSecure = isReplit || process.env.COOKIE_SECURE === "true";
+const cookieSameSite = isReplit ? "none" : "lax";
+
 app.set("trust proxy", 1);
 app.use(
   session({
@@ -56,8 +63,8 @@ app.use(
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
-      sameSite: "none",
-      secure: true,
+      sameSite: cookieSameSite,
+      secure: cookieSecure,
     },
   }),
 );
