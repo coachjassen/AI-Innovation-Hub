@@ -21,24 +21,63 @@ export interface MagicLinkVerify {
   token: string;
 }
 
+/**
+ * Recurrence for the Hub, or one-off for a single event
+ */
+export type CircleCadence = typeof CircleCadence[keyof typeof CircleCadence];
+
+
+export const CircleCadence = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  'one-off': 'one-off',
+} as const;
+
 export interface Circle {
   id: number;
   name: string;
-  cadence: string;
+  /** Recurrence for the Hub, or one-off for a single event */
+  cadence: CircleCadence;
   status: string;
   createdAt: string;
   memberCount?: number;
 }
 
+/**
+ * Recurrence for the Hub, or one-off for a single event
+ */
+export type CircleInputCadence = typeof CircleInputCadence[keyof typeof CircleInputCadence];
+
+
+export const CircleInputCadence = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  'one-off': 'one-off',
+} as const;
+
 export interface CircleInput {
   name: string;
-  cadence: string;
+  /** Recurrence for the Hub, or one-off for a single event */
+  cadence: CircleInputCadence;
   status: string;
 }
 
+/**
+ * Recurrence for the Hub, or one-off for a single event
+ */
+export type CircleUpdateCadence = typeof CircleUpdateCadence[keyof typeof CircleUpdateCadence];
+
+
+export const CircleUpdateCadence = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  'one-off': 'one-off',
+} as const;
+
 export interface CircleUpdate {
   name?: string;
-  cadence?: string;
+  /** Recurrence for the Hub, or one-off for a single event */
+  cadence?: CircleUpdateCadence;
   status?: string;
 }
 

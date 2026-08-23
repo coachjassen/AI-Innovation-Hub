@@ -5,11 +5,13 @@
  * AI Innovation Circle API
  * OpenAPI spec version: 0.1.0
  */
+import type { CircleCadence } from './circleCadence';
 
 export interface Circle {
   id: number;
   name: string;
-  cadence: string;
+  /** Recurrence for the Hub, or one-off for a single event */
+  cadence: CircleCadence;
   status: string;
   createdAt: string;
   memberCount?: number;

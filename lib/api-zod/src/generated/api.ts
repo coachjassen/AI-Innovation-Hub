@@ -74,7 +74,7 @@ export const GetMeResponse = zod.object({
 export const ListCirclesResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
-  "cadence": zod.string(),
+  "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string(),
   "createdAt": zod.string(),
   "memberCount": zod.number().optional()
@@ -87,7 +87,7 @@ export const ListCirclesResponse = zod.array(ListCirclesResponseItem)
  */
 export const CreateCircleBody = zod.object({
   "name": zod.string(),
-  "cadence": zod.string(),
+  "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string()
 })
 
@@ -102,7 +102,7 @@ export const GetCircleParams = zod.object({
 export const GetCircleResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
-  "cadence": zod.string(),
+  "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string(),
   "createdAt": zod.string(),
   "memberCount": zod.number().optional()
@@ -118,14 +118,14 @@ export const UpdateCircleParams = zod.object({
 
 export const UpdateCircleBody = zod.object({
   "name": zod.string().optional(),
-  "cadence": zod.string().optional(),
+  "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).optional().describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string().optional()
 })
 
 export const UpdateCircleResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
-  "cadence": zod.string(),
+  "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string(),
   "createdAt": zod.string(),
   "memberCount": zod.number().optional()

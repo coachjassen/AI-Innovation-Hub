@@ -5,7 +5,7 @@ import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-const CADENCES = ["monthly", "quarterly"] as const;
+const CADENCES = ["monthly", "quarterly", "one-off"] as const;
 const STATUSES = ["active", "inactive"] as const;
 
 router.get("/circles", requireAuth, async (_req, res): Promise<void> => {

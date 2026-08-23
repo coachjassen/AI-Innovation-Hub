@@ -4,6 +4,8 @@ import {
   useCreateCircle,
   useUpdateCircle,
   getListCirclesQueryKey,
+  type CircleInputCadence,
+  type CircleUpdateCadence,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +25,10 @@ type Circle = {
   memberCount?: number;
 };
 
-const CADENCES = ["monthly", "quarterly"];
+const CADENCES = ["monthly", "quarterly", "one-off"] as const;
+
+const cadenceLabel = (cadence: string) =>
+  cadence === "one-off" ? "One-off event" : cadence.charAt(0).toUpperCase() + cadence.slice(1);
 
 export default function AdminCircles() {
   const queryClient = useQueryClient();
@@ -43,7 +48,7 @@ export default function AdminCircles() {
       {
         data: {
           name: (fd.get("name") as string).trim(),
-          cadence: fd.get("cadence") as string,
+          cadence: fd.get("cadence") as CircleInputCadence,
           status: fd.get("status") as string,
         },
       },
@@ -65,7 +70,7 @@ export default function AdminCircles() {
         id: editing.id,
         data: {
           name: (fd.get("name") as string).trim(),
-          cadence: fd.get("cadence") as string,
+          cadence: fd.get("cadence") as CircleUpdateCadence,
           status: fd.get("status") as string,
         },
       },
@@ -108,7 +113,7 @@ export default function AdminCircles() {
               <div className="space-y-2">
                 <Label htmlFor="cadence">Cadence</Label>
                 <select name="cadence" id="cadence" defaultValue="quarterly" className="w-full border rounded-md px-3 py-2 text-sm capitalize">
-                  {CADENCES.map((c) => <option key={c} value={c} className="capitalize">{c}</option>)}
+                  {CADENCES.map((c) => <option key={c} value={c}>{cadenceLabel(c)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -148,7 +153,7 @@ export default function AdminCircles() {
                       <Badge variant={c.status === "active" ? "default" : "secondary"} className="capitalize">{c.status}</Badge>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="capitalize">{c.cadence}</span>
+                      <span>{cadenceLabel(c.cadence)}</span>
                       <span className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5" />
                         {c.memberCount ?? 0} member{(c.memberCount ?? 0) !== 1 ? "s" : ""}
@@ -191,7 +196,7 @@ export default function AdminCircles() {
               <div className="space-y-2">
                 <Label htmlFor="edit-cadence">Cadence</Label>
                 <select name="cadence" id="edit-cadence" defaultValue={editing.cadence} className="w-full border rounded-md px-3 py-2 text-sm capitalize">
-                  {CADENCES.map((c) => <option key={c} value={c} className="capitalize">{c}</option>)}
+                  {CADENCES.map((c) => <option key={c} value={c}>{cadenceLabel(c)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">

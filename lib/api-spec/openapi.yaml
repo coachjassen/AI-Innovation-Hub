@@ -899,6 +899,8 @@ components:
           type: string
         cadence:
           type: string
+          enum: [monthly, quarterly, one-off]
+          description: Recurrence for the Hub, or one-off for a single event
         status:
           type: string
         createdAt:
@@ -914,6 +916,8 @@ components:
           type: string
         cadence:
           type: string
+          enum: [monthly, quarterly, one-off]
+          description: Recurrence for the Hub, or one-off for a single event
         status:
           type: string
 
@@ -924,6 +928,8 @@ components:
           type: string
         cadence:
           type: string
+          enum: [monthly, quarterly, one-off]
+          description: Recurrence for the Hub, or one-off for a single event
         status:
           type: string
 

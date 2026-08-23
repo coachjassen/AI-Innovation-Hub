@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 export const circlesTable = pgTable("circles", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  cadence: text("cadence").notNull(), // monthly | quarterly
+  cadence: text("cadence").notNull(), // monthly | quarterly | one-off
   status: text("status").notNull().default("active"), // active | inactive
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
