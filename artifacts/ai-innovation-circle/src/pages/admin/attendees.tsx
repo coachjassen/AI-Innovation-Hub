@@ -1,24 +1,128 @@
-import { useListAttendees, getListAttendeesQueryKey } from "@workspace/api-client-react";
+import { useState } from "react";
+import {
+  useListAttendees,
+  useCreateAttendee,
+  getListAttendeesQueryKey,
+  getListCirclesQueryKey,
+} from "@workspace/api-client-react";
 import { useActiveCircle } from "@/contexts/CircleContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Target, ClipboardList } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Users, Target, ClipboardList, Plus } from "lucide-react";
 
 export default function AdminAttendees() {
-  const { activeCircleId } = useActiveCircle();
+  const queryClient = useQueryClient();
+  const { activeCircleId, activeCircle } = useActiveCircle();
   const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
   const { data: attendees = [], isLoading } = useListAttendees(params, {
     query: { enabled: activeCircleId !== null, queryKey: getListAttendeesQueryKey(params) },
   });
+  const createAttendee = useCreateAttendee();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const handleCreate = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (activeCircleId === null) return;
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const company = (formData.get("company") as string).trim();
+    setCreateError(null);
+
+    createAttendee.mutate(
+      {
+        data: {
+          name: (formData.get("name") as string).trim(),
+          email: (formData.get("email") as string).trim(),
+          company: company || undefined,
+          circleId: activeCircleId,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey(params) });
+          queryClient.invalidateQueries({ queryKey: getListCirclesQueryKey() });
+          form.reset();
+          setIsAddOpen(false);
+        },
+        onError: (error) => setCreateError(error.message || "Unable to add attendee."),
+      },
+    );
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Attendees</h1>
-        <p className="text-muted-foreground mt-2">
-          {attendees.length} member{attendees.length !== 1 ? "s" : ""} in the hub.
-        </p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Attendees</h1>
+          <p className="text-muted-foreground mt-2">
+            {attendees.length} member{attendees.length !== 1 ? "s" : ""} in the hub.
+          </p>
+        </div>
+        <Dialog
+          open={isAddOpen}
+          onOpenChange={(open) => {
+            setIsAddOpen(open);
+            if (!open) setCreateError(null);
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button disabled={activeCircleId === null}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Attendee
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Attendee</DialogTitle>
+              <DialogDescription>
+                {activeCircle
+                  ? `This attendee will be added to ${activeCircle.name}.`
+                  : "Select a Hub before adding an attendee."}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="attendee-name">Name</Label>
+                <Input id="attendee-name" name="name" required autoComplete="name" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="attendee-email">Email</Label>
+                <Input id="attendee-email" name="email" type="email" required autoComplete="email" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="attendee-company">Company <span className="text-muted-foreground">(optional)</span></Label>
+                <Input id="attendee-company" name="company" autoComplete="organization" />
+              </div>
+              {createError && (
+                <p role="alert" className="text-sm text-destructive">{createError}</p>
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createAttendee.isPending}>
+                  {createAttendee.isPending ? "Adding..." : "Add Attendee"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {isLoading ? (

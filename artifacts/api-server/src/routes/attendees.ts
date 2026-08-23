@@ -1,10 +1,50 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count } from "drizzle-orm";
-import { db, attendeesTable, goalsTable, surveyResponsesTable } from "@workspace/db";
+import { db, attendeesTable, goalsTable, surveyResponsesTable, circlesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import "../lib/session";
 
 const router: IRouter = Router();
+
+router.post("/attendees", requireAdmin, async (req, res): Promise<void> => {
+  const body = req.body as {
+    name?: string;
+    email?: string;
+    company?: string;
+    circleId?: number;
+  };
+  const name = body.name?.trim();
+  const email = body.email?.trim().toLowerCase();
+  const company = body.company?.trim() ?? "";
+  const circleId = Number(body.circleId);
+
+  if (!name || !email || !email.includes("@") || !Number.isInteger(circleId) || circleId <= 0) {
+    res.status(400).json({ error: "name, email, and a valid circleId are required" });
+    return;
+  }
+
+  const [circle] = await db.select({ id: circlesTable.id }).from(circlesTable).where(eq(circlesTable.id, circleId));
+  if (!circle) {
+    res.status(400).json({ error: "Hub not found" });
+    return;
+  }
+
+  const [existing] = await db
+    .select({ id: attendeesTable.id })
+    .from(attendeesTable)
+    .where(eq(attendeesTable.email, email));
+  if (existing) {
+    res.status(409).json({ error: "An attendee with this email already exists" });
+    return;
+  }
+
+  const [attendee] = await db
+    .insert(attendeesTable)
+    .values({ name, email, company, role: "attendee", circleId })
+    .returning();
+
+  res.status(201).json({ ...attendee, createdAt: attendee.createdAt.toISOString() });
+});
 
 router.get("/attendees", requireAuth, async (req, res): Promise<void> => {
   const rows = await db.select().from(attendeesTable).orderBy(attendeesTable.name);

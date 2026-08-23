@@ -194,6 +194,27 @@ paths:
 
   # Attendees
   /attendees:
+    post:
+      operationId: createAttendee
+      tags: [attendees]
+      summary: Create an attendee (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendeeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendee"
+        "400":
+          description: Invalid attendee or Hub
+        "409":
+          description: Email already exists
     get:
       operationId: listAttendees
       tags: [attendees]
@@ -952,6 +973,20 @@ components:
           type: integer
         createdAt:
           type: string
+
+    AttendeeInput:
+      type: object
+      required: [name, email, circleId]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+        circleId:
+          type: integer
 
     AttendeeWithActivity:
       type: object

@@ -133,6 +133,17 @@ export const UpdateCircleResponse = zod.object({
 
 
 /**
+ * @summary Create an attendee (admin only)
+ */
+export const CreateAttendeeBody = zod.object({
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "company": zod.string().optional(),
+  "circleId": zod.number()
+})
+
+
+/**
  * @summary List attendees (admin sees all, attendee sees their circle)
  */
 export const ListAttendeesQueryParams = zod.object({

@@ -91,6 +91,13 @@ export interface Attendee {
   createdAt: string;
 }
 
+export interface AttendeeInput {
+  name: string;
+  email: string;
+  company?: string;
+  circleId: number;
+}
+
 export interface AttendeeWithActivity {
   id: number;
   name: string;

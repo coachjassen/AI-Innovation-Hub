@@ -25,6 +25,7 @@ import type {
   AgendaInput,
   AgendaItem,
   Attendee,
+  AttendeeInput,
   AttendeeUpdate,
   AttendeeWithActivity,
   Circle,
@@ -739,6 +740,77 @@ export const useUpdateCircle = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateCircleMutationOptions(options));
+    }
+
+export const getCreateAttendeeUrl = () => {
+
+
+
+
+  return `/api/attendees`
+}
+
+/**
+ * @summary Create an attendee (admin only)
+ */
+export const createAttendee = async (attendeeInput: AttendeeInput, options?: RequestInit): Promise<Attendee> => {
+
+  return customFetch<Attendee>(getCreateAttendeeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      attendeeInput,)
+  }
+);}
+
+
+
+
+export const getCreateAttendeeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAttendee>>, TError,{data: BodyType<AttendeeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAttendee>>, TError,{data: BodyType<AttendeeInput>}, TContext> => {
+
+const mutationKey = ['createAttendee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAttendee>>, {data: BodyType<AttendeeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAttendee(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAttendeeMutationResult = NonNullable<Awaited<ReturnType<typeof createAttendee>>>
+    export type CreateAttendeeMutationBody = BodyType<AttendeeInput>
+    export type CreateAttendeeMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an attendee (admin only)
+ */
+export const useCreateAttendee = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAttendee>>, TError,{data: BodyType<AttendeeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAttendee>>,
+        TError,
+        {data: BodyType<AttendeeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAttendeeMutationOptions(options));
     }
 
 export const getListAttendeesUrl = (params?: ListAttendeesParams,) => {

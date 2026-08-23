@@ -14,6 +14,7 @@ export * from './agendaInput';
 export * from './agendaItem';
 export * from './agendaItemInput';
 export * from './attendee';
+export * from './attendeeInput';
 export * from './attendeeUpdate';
 export * from './attendeeWithActivity';
 export * from './circle';
