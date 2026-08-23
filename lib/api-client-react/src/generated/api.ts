@@ -53,6 +53,8 @@ import type {
   Meeting,
   MeetingAttendeeResponse,
   MeetingInput,
+  MeetingInvitee,
+  MeetingInviteesInput,
   MeetingResponseInput,
   MeetingUpdate,
   MessageResponse,
@@ -1062,7 +1064,7 @@ export const getListMeetingsUrl = (params?: ListMeetingsParams,) => {
 }
 
 /**
- * @summary List meetings for the current circle
+ * @summary List meetings for the selected circle (admin) or the current attendee's invitations
  */
 export const listMeetings = async (params?: ListMeetingsParams, options?: RequestInit): Promise<Meeting[]> => {
 
@@ -1109,7 +1111,7 @@ export type ListMeetingsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List meetings for the current circle
+ * @summary List meetings for the selected circle (admin) or the current attendee's invitations
  */
 
 export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>, TError = ErrorType<unknown>>(
@@ -1639,6 +1641,155 @@ export const useSetMeetingAgenda = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSetMeetingAgendaMutationOptions(options));
+    }
+
+export const getListMeetingInviteesUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/invitees`
+}
+
+/**
+ * @summary List eligible Hub attendees and their invitation state (admin only)
+ */
+export const listMeetingInvitees = async (id: number, options?: RequestInit): Promise<MeetingInvitee[]> => {
+
+  return customFetch<MeetingInvitee[]>(getListMeetingInviteesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMeetingInviteesQueryKey = (id: number,) => {
+    return [
+    `/api/meetings/${id}/invitees`
+    ] as const;
+    }
+
+
+export const getListMeetingInviteesQueryOptions = <TData = Awaited<ReturnType<typeof listMeetingInvitees>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetingInvitees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMeetingInviteesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMeetingInvitees>>> = ({ signal }) => listMeetingInvitees(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMeetingInvitees>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMeetingInviteesQueryResult = NonNullable<Awaited<ReturnType<typeof listMeetingInvitees>>>
+export type ListMeetingInviteesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List eligible Hub attendees and their invitation state (admin only)
+ */
+
+export function useListMeetingInvitees<TData = Awaited<ReturnType<typeof listMeetingInvitees>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMeetingInvitees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMeetingInviteesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetMeetingInviteesUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/invitees`
+}
+
+/**
+ * @summary Replace a meeting's invitee list (admin only)
+ */
+export const setMeetingInvitees = async (id: number,
+    meetingInviteesInput: MeetingInviteesInput, options?: RequestInit): Promise<MeetingInvitee[]> => {
+
+  return customFetch<MeetingInvitee[]>(getSetMeetingInviteesUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      meetingInviteesInput,)
+  }
+);}
+
+
+
+
+export const getSetMeetingInviteesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingInvitees>>, TError,{id: number;data: BodyType<MeetingInviteesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMeetingInvitees>>, TError,{id: number;data: BodyType<MeetingInviteesInput>}, TContext> => {
+
+const mutationKey = ['setMeetingInvitees'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMeetingInvitees>>, {id: number;data: BodyType<MeetingInviteesInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setMeetingInvitees(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMeetingInviteesMutationResult = NonNullable<Awaited<ReturnType<typeof setMeetingInvitees>>>
+    export type SetMeetingInviteesMutationBody = BodyType<MeetingInviteesInput>
+    export type SetMeetingInviteesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Replace a meeting's invitee list (admin only)
+ */
+export const useSetMeetingInvitees = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingInvitees>>, TError,{id: number;data: BodyType<MeetingInviteesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMeetingInvitees>>,
+        TError,
+        {id: number;data: BodyType<MeetingInviteesInput>},
+        TContext
+      > => {
+      return useMutation(getSetMeetingInviteesMutationOptions(options));
     }
 
 export const getListMeetingResponsesUrl = (id: number,) => {

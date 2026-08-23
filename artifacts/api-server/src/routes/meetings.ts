@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, and, inArray, ne, lte } from "drizzle-orm";
-import { SetMeetingAgendaBody } from "@workspace/api-zod";
+import { SetMeetingAgendaBody, SetMeetingInviteesBody } from "@workspace/api-zod";
 import {
   db,
   meetingsTable,
   attendeesTable,
+  meetingInviteesTable,
   meetingResponsesTable,
   agendaItemsTable,
   circlesTable,
@@ -47,38 +48,36 @@ function serializeAgendaItem(a: typeof agendaItemsTable.$inferSelect) {
 }
 
 // Augment meetings with RSVP counts, the requesting attendee's response, and
-// the total number of invited circle members.
+// the total number of explicitly invited attendees.
 async function withResponses(
   rows: (typeof meetingsTable.$inferSelect)[],
   myAttendeeId: number | null,
 ) {
   if (rows.length === 0) return [];
   const meetingIds = rows.map((r) => r.id);
-  const circleIds = [...new Set(rows.map((r) => r.circleId))];
 
   const responses = await db
     .select()
     .from(meetingResponsesTable)
     .where(inArray(meetingResponsesTable.meetingId, meetingIds));
 
-  // The implicit invitee set is the attendee-role members of each circle.
   const invitedRows = await db
-    .select({ id: attendeesTable.id, circleId: attendeesTable.circleId })
-    .from(attendeesTable)
-    .where(and(inArray(attendeesTable.circleId, circleIds), eq(attendeesTable.role, "attendee")));
+    .select({ meetingId: meetingInviteesTable.meetingId, attendeeId: meetingInviteesTable.attendeeId })
+    .from(meetingInviteesTable)
+    .where(inArray(meetingInviteesTable.meetingId, meetingIds));
 
-  const invitedByCircle = new Map<number, Set<number>>();
-  for (const a of invitedRows) {
-    let set = invitedByCircle.get(a.circleId);
-    if (!set) { set = new Set<number>(); invitedByCircle.set(a.circleId, set); }
-    set.add(a.id);
+  const invitedByMeeting = new Map<number, Set<number>>();
+  for (const invitee of invitedRows) {
+    let set = invitedByMeeting.get(invitee.meetingId);
+    if (!set) { set = new Set<number>(); invitedByMeeting.set(invitee.meetingId, set); }
+    set.add(invitee.attendeeId);
   }
 
   return rows.map((m) => {
-    const invited = invitedByCircle.get(m.circleId) ?? new Set<number>();
+    const invited = invitedByMeeting.get(m.id) ?? new Set<number>();
     // Only count responses from actual invitees, so counts stay consistent with totalInvited.
     const rs = responses.filter((r) => r.meetingId === m.id && invited.has(r.attendeeId));
-    const mine = myAttendeeId
+    const mine = myAttendeeId && invited.has(myAttendeeId)
       ? responses.find((r) => r.meetingId === m.id && r.attendeeId === myAttendeeId)
       : undefined;
     return {
@@ -104,11 +103,18 @@ router.get("/meetings", requireAuth, async (req, res): Promise<void> => {
   } else {
     const [me] = await db.select().from(attendeesTable).where(eq(attendeesTable.id, req.session.attendeeId!));
     if (!me) { res.status(401).json({ error: "Not found" }); return; }
-    rows = await db
-      .select()
-      .from(meetingsTable)
-      .where(eq(meetingsTable.circleId, me.circleId))
-      .orderBy(desc(meetingsTable.date));
+    const invitations = await db
+      .select({ meetingId: meetingInviteesTable.meetingId })
+      .from(meetingInviteesTable)
+      .where(eq(meetingInviteesTable.attendeeId, me.id));
+    const meetingIds = invitations.map((invitation) => invitation.meetingId);
+    rows = meetingIds.length === 0
+      ? []
+      : await db
+        .select()
+        .from(meetingsTable)
+        .where(and(eq(meetingsTable.circleId, me.circleId), inArray(meetingsTable.id, meetingIds)))
+        .orderBy(desc(meetingsTable.date));
   }
   res.json(await withResponses(rows, req.session.attendeeId ?? null));
 });
@@ -194,8 +200,11 @@ router.get("/meetings/:id", requireAuth, async (req, res): Promise<void> => {
   const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
   if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
   if (req.session.attendeeRole !== "admin") {
-    const [me] = await db.select().from(attendeesTable).where(eq(attendeesTable.id, req.session.attendeeId!));
-    if (!me || me.circleId !== meeting.circleId) { res.status(404).json({ error: "Meeting not found" }); return; }
+    const [invitation] = await db
+      .select({ attendeeId: meetingInviteesTable.attendeeId })
+      .from(meetingInviteesTable)
+      .where(and(eq(meetingInviteesTable.meetingId, id), eq(meetingInviteesTable.attendeeId, req.session.attendeeId!)));
+    if (!invitation) { res.status(404).json({ error: "Meeting not found" }); return; }
   }
   const [out] = await withResponses([meeting], req.session.attendeeId ?? null);
   res.json(out);
@@ -247,11 +256,18 @@ async function sendRescheduleInvites(
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, circleId));
   const circleName = circle?.name ?? "Kinetics Group Innovation Hub";
 
-  // Attendees (by role + circle, matching RSVP eligibility) who said "attending".
+  // Invited attendees who said "attending".
   const recipients = await db
     .select({ name: attendeesTable.name, email: attendeesTable.email })
     .from(meetingResponsesTable)
     .innerJoin(attendeesTable, eq(meetingResponsesTable.attendeeId, attendeesTable.id))
+    .innerJoin(
+      meetingInviteesTable,
+      and(
+        eq(meetingInviteesTable.meetingId, meetingResponsesTable.meetingId),
+        eq(meetingInviteesTable.attendeeId, meetingResponsesTable.attendeeId),
+      ),
+    )
     .where(
       and(
         eq(meetingResponsesTable.meetingId, meetingId),
@@ -311,8 +327,8 @@ router.delete("/meetings/:id", requireAdmin, async (req, res): Promise<void> => 
   res.sendStatus(204);
 });
 
-// Read a meeting's ordered agenda. Auth-scoped: attendees may only read agendas
-// for meetings in their own circle; admins may read any.
+// Read a meeting's ordered agenda. Attendees may only read agendas for meetings
+// they are invited to; admins may read any.
 router.get("/meetings/:id/agenda", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -322,8 +338,11 @@ router.get("/meetings/:id/agenda", requireAuth, async (req, res): Promise<void> 
   if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
 
   if (req.session.attendeeRole !== "admin") {
-    const [me] = await db.select().from(attendeesTable).where(eq(attendeesTable.id, req.session.attendeeId!));
-    if (!me || me.circleId !== meeting.circleId) { res.status(404).json({ error: "Meeting not found" }); return; }
+    const [invitation] = await db
+      .select({ attendeeId: meetingInviteesTable.attendeeId })
+      .from(meetingInviteesTable)
+      .where(and(eq(meetingInviteesTable.meetingId, id), eq(meetingInviteesTable.attendeeId, req.session.attendeeId!)));
+    if (!invitation) { res.status(404).json({ error: "Meeting not found" }); return; }
   }
 
   const items = await db
@@ -379,6 +398,97 @@ router.put("/meetings/:id/agenda", requireAdmin, async (req, res): Promise<void>
   res.json(saved.map(serializeAgendaItem));
 });
 
+async function listInviteesForMeeting(meeting: typeof meetingsTable.$inferSelect) {
+  const members = await db
+    .select({
+      attendeeId: attendeesTable.id,
+      attendeeName: attendeesTable.name,
+      attendeeEmail: attendeesTable.email,
+      attendeeCompany: attendeesTable.company,
+    })
+    .from(attendeesTable)
+    .where(and(eq(attendeesTable.circleId, meeting.circleId), eq(attendeesTable.role, "attendee")))
+    .orderBy(asc(attendeesTable.name));
+  const selected = await db
+    .select({ attendeeId: meetingInviteesTable.attendeeId })
+    .from(meetingInviteesTable)
+    .where(eq(meetingInviteesTable.meetingId, meeting.id));
+  const selectedIds = new Set(selected.map((invitee) => invitee.attendeeId));
+
+  return members.map((member) => ({
+    ...member,
+    invited: selectedIds.has(member.attendeeId),
+  }));
+}
+
+router.get("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+  if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
+  res.json(await listInviteesForMeeting(meeting));
+});
+
+router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const parsed = SetMeetingInviteesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid invitee payload", fieldErrors: parsed.error.flatten() });
+    return;
+  }
+  const attendeeIds = parsed.data.attendeeIds;
+  if (
+    attendeeIds.some((attendeeId) => !Number.isInteger(attendeeId) || attendeeId <= 0) ||
+    new Set(attendeeIds).size !== attendeeIds.length
+  ) {
+    res.status(400).json({ error: "attendeeIds must contain unique positive integers" });
+    return;
+  }
+
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+  if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
+
+  const eligibleAttendees = await db
+    .select({ id: attendeesTable.id })
+    .from(attendeesTable)
+    .where(and(eq(attendeesTable.circleId, meeting.circleId), eq(attendeesTable.role, "attendee")));
+  const eligibleIds = new Set(eligibleAttendees.map((attendee) => attendee.id));
+  if (attendeeIds.some((attendeeId) => !eligibleIds.has(attendeeId))) {
+    res.status(400).json({ error: "All invitees must be attendee-role members of this Hub" });
+    return;
+  }
+
+  const existingInvitees = await db
+    .select({ attendeeId: meetingInviteesTable.attendeeId })
+    .from(meetingInviteesTable)
+    .where(eq(meetingInviteesTable.meetingId, id));
+  const nextInviteeIds = new Set(attendeeIds);
+  const removedAttendeeIds = existingInvitees
+    .map((invitee) => invitee.attendeeId)
+    .filter((attendeeId) => !nextInviteeIds.has(attendeeId));
+
+  await db.transaction(async (tx) => {
+    if (removedAttendeeIds.length > 0) {
+      await tx
+        .delete(meetingResponsesTable)
+        .where(and(eq(meetingResponsesTable.meetingId, id), inArray(meetingResponsesTable.attendeeId, removedAttendeeIds)));
+    }
+    await tx.delete(meetingInviteesTable).where(eq(meetingInviteesTable.meetingId, id));
+    if (attendeeIds.length > 0) {
+      await tx.insert(meetingInviteesTable).values(
+        attendeeIds.map((attendeeId) => ({ meetingId: id, attendeeId })),
+      );
+    }
+  });
+
+  res.json(await listInviteesForMeeting(meeting));
+});
+
 // Set / change the current attendee's RSVP for a meeting (opt in or out).
 router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -397,8 +507,11 @@ router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void
 
   const [me] = await db.select().from(attendeesTable).where(eq(attendeesTable.id, attendeeId));
   if (!me) { res.status(401).json({ error: "Not found" }); return; }
-  // Only invitees (attendee-role members of the meeting's circle) may RSVP.
-  if (me.role !== "attendee" || meeting.circleId !== me.circleId) {
+  const [invitation] = await db
+    .select({ attendeeId: meetingInviteesTable.attendeeId })
+    .from(meetingInviteesTable)
+    .where(and(eq(meetingInviteesTable.meetingId, id), eq(meetingInviteesTable.attendeeId, attendeeId)));
+  if (me.role !== "attendee" || !invitation) {
     res.status(403).json({ error: "Only invited members can RSVP" }); return;
   }
 
@@ -458,7 +571,7 @@ router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void
   }
 });
 
-// Admin: full RSVP roster for a meeting (every circle member + their status).
+// Admin: full RSVP roster for a meeting (only invited attendees + their status).
 router.get("/meetings/:id/responses", requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
@@ -468,9 +581,15 @@ router.get("/meetings/:id/responses", requireAdmin, async (req, res): Promise<vo
   if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
 
   const members = await db
-    .select()
-    .from(attendeesTable)
-    .where(and(eq(attendeesTable.circleId, meeting.circleId), eq(attendeesTable.role, "attendee")));
+    .select({
+      attendeeId: attendeesTable.id,
+      attendeeName: attendeesTable.name,
+      attendeeCompany: attendeesTable.company,
+    })
+    .from(meetingInviteesTable)
+    .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
+    .where(eq(meetingInviteesTable.meetingId, id))
+    .orderBy(asc(attendeesTable.name));
   const responses = await db
     .select()
     .from(meetingResponsesTable)
@@ -479,10 +598,10 @@ router.get("/meetings/:id/responses", requireAdmin, async (req, res): Promise<vo
 
   res.json(
     members.map((a) => ({
-      attendeeId: a.id,
-      attendeeName: a.name,
-      attendeeCompany: a.company,
-      status: byAttendee.get(a.id) ?? "no_response",
+      attendeeId: a.attendeeId,
+      attendeeName: a.attendeeName,
+      attendeeCompany: a.attendeeCompany,
+      status: byAttendee.get(a.attendeeId) ?? "no_response",
     })),
   );
 });

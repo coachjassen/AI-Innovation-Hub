@@ -147,6 +147,18 @@ export interface MeetingResponseInput {
   status: MeetingResponseInputStatus;
 }
 
+export interface MeetingInviteesInput {
+  attendeeIds: number[];
+}
+
+export interface MeetingInvitee {
+  attendeeId: number;
+  attendeeName: string;
+  attendeeEmail: string;
+  attendeeCompany: string;
+  invited: boolean;
+}
+
 export type MeetingAttendeeResponseStatus = typeof MeetingAttendeeResponseStatus[keyof typeof MeetingAttendeeResponseStatus];
 
 

@@ -284,7 +284,7 @@ paths:
     get:
       operationId: listMeetings
       tags: [meetings]
-      summary: List meetings for the current circle
+      summary: List meetings for the selected circle (admin) or the current attendee's invitations
       parameters:
         - name: circleId
           in: query
@@ -447,6 +447,52 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AgendaItem"
+
+  /meetings/{id}/invitees:
+    get:
+      operationId: listMeetingInvitees
+      tags: [meetings]
+      summary: List eligible Hub attendees and their invitation state (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Eligible attendees and invitation state
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MeetingInvitee"
+    put:
+      operationId: setMeetingInvitees
+      tags: [meetings]
+      summary: Replace a meeting's invitee list (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeetingInviteesInput"
+      responses:
+        "200":
+          description: Saved invitees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MeetingInvitee"
 
   /meetings/{id}/responses:
     get:
@@ -1056,6 +1102,31 @@ components:
         status:
           type: string
           enum: [attending, not_attending]
+
+    MeetingInviteesInput:
+      type: object
+      required: [attendeeIds]
+      properties:
+        attendeeIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+
+    MeetingInvitee:
+      type: object
+      required: [attendeeId, attendeeName, attendeeEmail, attendeeCompany, invited]
+      properties:
+        attendeeId:
+          type: integer
+        attendeeName:
+          type: string
+        attendeeEmail:
+          type: string
+        attendeeCompany:
+          type: string
+        invited:
+          type: boolean
 
     MeetingAttendeeResponse:
       type: object

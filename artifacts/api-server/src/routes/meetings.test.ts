@@ -23,6 +23,8 @@ let baseUrl: string;
 let adminCookie: string;
 let attendeeCookie: string;
 let meetingId: number;
+let attendeeId: number;
+let adminId: number;
 const CIRCLE_ID = 1; // both demo admin and attendees live in circle 1
 
 interface ApiResult {
@@ -84,6 +86,15 @@ beforeAll(async () => {
   adminCookie = await login(ADMIN_EMAIL);
   attendeeCookie = await login(ATTENDEE_EMAIL);
 
+  const attendees = await api("GET", `/api/attendees?circleId=${CIRCLE_ID}`, { cookie: adminCookie });
+  expect(attendees.status).toBe(200);
+  attendeeId = attendees.body.find((attendee: { email: string }) => attendee.email === ATTENDEE_EMAIL)?.id;
+  adminId = attendees.body.find((attendee: { email: string; role: string }) =>
+    attendee.email === ADMIN_EMAIL && attendee.role === "admin",
+  )?.id;
+  expect(attendeeId).toBeTruthy();
+  expect(adminId).toBeTruthy();
+
   const created = await api("POST", "/api/meetings", {
     cookie: adminCookie,
     body: { circleId: CIRCLE_ID, date: "2030-01-15T17:00:00.000Z", notes: "rsvp/agenda test" },
@@ -93,13 +104,60 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Cascades remove agenda items + responses created during the test.
+  // Cascades remove agenda items, invitees, and responses created during the test.
   if (meetingId) {
     await api("DELETE", `/api/meetings/${meetingId}`, { cookie: adminCookie });
   }
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve())),
   );
+});
+
+describe("meeting invitee selection", () => {
+  it("starts a new meeting with no invitees, hides it from attendees, and forbids an RSVP", async () => {
+    const invitees = await api("GET", `/api/meetings/${meetingId}/invitees`, { cookie: adminCookie });
+    expect(invitees.status).toBe(200);
+    expect(invitees.body.find((invitee: { attendeeId: number }) => invitee.attendeeId === attendeeId)?.invited).toBe(false);
+
+    const attendeeMeetings = await api("GET", "/api/meetings", { cookie: attendeeCookie });
+    expect(attendeeMeetings.status).toBe(200);
+    expect(attendeeMeetings.body.some((meeting: { id: number }) => meeting.id === meetingId)).toBe(false);
+
+    const rsvp = await api("PUT", `/api/meetings/${meetingId}/response`, {
+      cookie: attendeeCookie,
+      body: { status: "attending" },
+    });
+    expect(rsvp.status).toBe(403);
+  });
+
+  it("lets an admin select valid attendees, rejects ineligible selections, and exposes only the selected roster", async () => {
+    const nonAdminRead = await api("GET", `/api/meetings/${meetingId}/invitees`, { cookie: attendeeCookie });
+    expect(nonAdminRead.status).toBe(403);
+
+    const invalidSelection = await api("PUT", `/api/meetings/${meetingId}/invitees`, {
+      cookie: adminCookie,
+      body: { attendeeIds: [adminId] },
+    });
+    expect(invalidSelection.status).toBe(400);
+
+    const saved = await api("PUT", `/api/meetings/${meetingId}/invitees`, {
+      cookie: adminCookie,
+      body: { attendeeIds: [attendeeId] },
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.find((invitee: { attendeeId: number }) => invitee.attendeeId === attendeeId)?.invited).toBe(true);
+
+    const roster = await api("GET", `/api/meetings/${meetingId}/responses`, { cookie: adminCookie });
+    expect(roster.status).toBe(200);
+    expect(roster.body).toHaveLength(1);
+    expect(roster.body[0]).toMatchObject({ attendeeId, status: "no_response" });
+
+    const attendeeMeetings = await api("GET", "/api/meetings", { cookie: attendeeCookie });
+    expect(attendeeMeetings.status).toBe(200);
+    expect(attendeeMeetings.body.find((meeting: { id: number }) => meeting.id === meetingId)).toMatchObject({
+      totalInvited: 1,
+    });
+  });
 });
 
 describe("agenda authorization", () => {

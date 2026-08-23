@@ -47,6 +47,8 @@ export * from './meeting';
 export * from './meetingAttendeeResponse';
 export * from './meetingAttendeeResponseStatus';
 export * from './meetingInput';
+export * from './meetingInvitee';
+export * from './meetingInviteesInput';
 export * from './meetingResponseInput';
 export * from './meetingResponseInputStatus';
 export * from './meetingUpdate';

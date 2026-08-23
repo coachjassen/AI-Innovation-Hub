@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useListMeetings,
   useCreateMeeting,
   useUpdateMeeting,
   useDeleteMeeting,
   useListCircles,
+  useListMeetingInvitees,
+  useSetMeetingInvitees,
   useListMeetingResponses,
   getListMeetingsQueryKey,
+  getListMeetingInviteesQueryKey,
+  getListMeetingResponsesQueryKey,
 } from "@workspace/api-client-react";
 import { useActiveCircle } from "@/contexts/CircleContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,9 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks, UserRoundPlus } from "lucide-react";
 import { AgendaManager } from "@/components/AgendaManager";
 
 export default function AdminMeetings() {
@@ -26,6 +31,7 @@ export default function AdminMeetings() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [agendaMeeting, setAgendaMeeting] = useState<{ id: number; date: string } | null>(null);
   const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
+  const [inviteeMeeting, setInviteeMeeting] = useState<{ id: number; date: string } | null>(null);
   const queryClient = useQueryClient();
 
   const { activeCircleId } = useActiveCircle();
@@ -98,9 +104,16 @@ export default function AdminMeetings() {
                 <span className="inline-flex items-center gap-1 text-amber-600">
                   <Clock className="h-3.5 w-3.5" /> {noResponse} no response
                 </span>
+                <span className="inline-flex items-center gap-1 text-muted-foreground">
+                  <UserRoundPlus className="h-3.5 w-3.5" /> {invited} invited
+                </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setInviteeMeeting({ id: m.id, date: m.date })}>
+                <UserRoundPlus className="h-4 w-4 mr-1" />
+                Invitees
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => setRosterMeeting({ id: m.id, date: m.date })}>
                 <Users className="h-4 w-4 mr-1" />
                 RSVPs
@@ -221,6 +234,114 @@ export default function AdminMeetings() {
           {rosterMeeting && <RosterList meetingId={rosterMeeting.id} />}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={inviteeMeeting !== null} onOpenChange={(o) => !o && setInviteeMeeting(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>
+              Manage Invitees{inviteeMeeting ? ` — ${format(new Date(inviteeMeeting.date), "MMMM d, yyyy")}` : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Choose which members of this Hub are invited to this meeting.
+            </DialogDescription>
+          </DialogHeader>
+          {inviteeMeeting && (
+            <InviteeManager meetingId={inviteeMeeting.id} onSaved={() => setInviteeMeeting(null)} />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: () => void }) {
+  const queryClient = useQueryClient();
+  const { data: invitees = [], isLoading } = useListMeetingInvitees(meetingId);
+  const setInvitees = useSetMeetingInvitees();
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedIds(invitees.filter((invitee) => invitee.invited).map((invitee) => invitee.attendeeId));
+  }, [invitees]);
+
+  const toggleInvitee = (attendeeId: number, checked: boolean) => {
+    setSelectedIds((current) =>
+      checked
+        ? current.includes(attendeeId) ? current : [...current, attendeeId]
+        : current.filter((id) => id !== attendeeId),
+    );
+  };
+
+  const save = () => {
+    setSaveError(null);
+    setInvitees.mutate(
+      { id: meetingId, data: { attendeeIds: selectedIds } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMeetingInviteesQueryKey(meetingId) });
+          queryClient.invalidateQueries({ queryKey: getListMeetingResponsesQueryKey(meetingId) });
+          queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+          onSaved();
+        },
+        onError: (error) => setSaveError(error.message || "Unable to save invitees."),
+      },
+    );
+  };
+
+  if (isLoading) {
+    return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-14 animate-pulse rounded-md bg-muted" />)}</div>;
+  }
+
+  if (invitees.length === 0) {
+    return <p className="py-6 text-center text-sm text-muted-foreground">No attendee members are available in this Hub yet.</p>;
+  }
+
+  const allSelected = selectedIds.length === invitees.length;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">{selectedIds.length} of {invitees.length} selected</span>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(invitees.map((invitee) => invitee.attendeeId))} disabled={allSelected || setInvitees.isPending}>
+            Select all
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0 || setInvitees.isPending}>
+            Clear
+          </Button>
+        </div>
+      </div>
+      <div className="max-h-[45vh] divide-y overflow-y-auto rounded-md border">
+        {invitees.map((invitee) => {
+          const isSelected = selectedIds.includes(invitee.attendeeId);
+          return (
+            <label
+              key={invitee.attendeeId}
+              htmlFor={`meeting-${meetingId}-attendee-${invitee.attendeeId}`}
+              className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/50"
+            >
+              <Checkbox
+                id={`meeting-${meetingId}-attendee-${invitee.attendeeId}`}
+                checked={isSelected}
+                onCheckedChange={(checked) => toggleInvitee(invitee.attendeeId, checked === true)}
+                disabled={setInvitees.isPending}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{invitee.attendeeName}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {invitee.attendeeCompany ? `${invitee.attendeeCompany} · ` : ""}{invitee.attendeeEmail}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+      <DialogFooter>
+        <Button type="button" onClick={save} disabled={setInvitees.isPending}>
+          {setInvitees.isPending ? "Saving..." : "Save Invitees"}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }
@@ -232,7 +353,7 @@ function RosterList({ meetingId }: { meetingId: number }) {
     return <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-muted animate-pulse rounded" />)}</div>;
   }
   if (responses.length === 0) {
-    return <p className="text-sm text-muted-foreground">No members in this hub.</p>;
+    return <p className="text-sm text-muted-foreground">No attendees have been invited to this meeting.</p>;
   }
 
   const badge = (status: string) => {

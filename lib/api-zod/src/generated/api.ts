@@ -210,7 +210,7 @@ export const UpdateAttendeeResponse = zod.object({
 
 
 /**
- * @summary List meetings for the current circle
+ * @summary List meetings for the selected circle (admin) or the current attendee's invitations
  */
 export const ListMeetingsQueryParams = zod.object({
   "circleId": zod.coerce.number().optional()
@@ -374,6 +374,44 @@ export const SetMeetingAgendaResponseItem = zod.object({
   "description": zod.string().nullish()
 })
 export const SetMeetingAgendaResponse = zod.array(SetMeetingAgendaResponseItem)
+
+
+/**
+ * @summary List eligible Hub attendees and their invitation state (admin only)
+ */
+export const ListMeetingInviteesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListMeetingInviteesResponseItem = zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "attendeeEmail": zod.string(),
+  "attendeeCompany": zod.string(),
+  "invited": zod.boolean()
+})
+export const ListMeetingInviteesResponse = zod.array(ListMeetingInviteesResponseItem)
+
+
+/**
+ * @summary Replace a meeting's invitee list (admin only)
+ */
+export const SetMeetingInviteesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetMeetingInviteesBody = zod.object({
+  "attendeeIds": zod.array(zod.number())
+})
+
+export const SetMeetingInviteesResponseItem = zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "attendeeEmail": zod.string(),
+  "attendeeCompany": zod.string(),
+  "invited": zod.boolean()
+})
+export const SetMeetingInviteesResponse = zod.array(SetMeetingInviteesResponseItem)
 
 
 /**
