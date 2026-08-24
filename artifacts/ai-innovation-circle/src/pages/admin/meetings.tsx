@@ -61,9 +61,10 @@ export default function AdminMeetings() {
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (meeting) => {
           queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
           setIsCreateOpen(false);
+          setInviteeMeeting({ id: meeting.id, date: meeting.date });
         },
       }
     );
