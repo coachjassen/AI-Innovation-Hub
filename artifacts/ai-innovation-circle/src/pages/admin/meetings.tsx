@@ -4,7 +4,6 @@ import {
   useCreateMeeting,
   useUpdateMeeting,
   useDeleteMeeting,
-  useListCircles,
   useListMeetingInvitees,
   useSetMeetingInvitees,
   useListMeetingResponses,
@@ -34,12 +33,11 @@ export default function AdminMeetings() {
   const [inviteeMeeting, setInviteeMeeting] = useState<{ id: number; date: string } | null>(null);
   const queryClient = useQueryClient();
 
-  const { activeCircleId } = useActiveCircle();
+  const { activeCircleId, activeCircle } = useActiveCircle();
   const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
   const { data: meetings = [], isLoading } = useListMeetings(params, {
     query: { enabled: activeCircleId !== null, queryKey: getListMeetingsQueryKey(params) },
   });
-  const { data: circles = [] } = useListCircles();
   const createMeeting = useCreateMeeting();
   const deleteMeeting = useDeleteMeeting();
 
@@ -50,11 +48,12 @@ export default function AdminMeetings() {
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (activeCircleId === null) return;
     const fd = new FormData(e.currentTarget);
     createMeeting.mutate(
       {
         data: {
-          circleId: parseInt(fd.get("circleId") as string, 10),
+          circleId: activeCircleId,
           date: fd.get("date") as string,
           notes: (fd.get("notes") as string) || undefined,
           keyInsight: (fd.get("keyInsight") as string) || undefined,
@@ -169,16 +168,10 @@ export default function AdminMeetings() {
             <DialogHeader><DialogTitle>Schedule Meeting</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="circleId">Circle</Label>
-                <select
-                  name="circleId"
-                  id="circleId"
-                  required
-                  defaultValue={activeCircleId ?? circles[0]?.id}
-                  className="w-full border rounded-md px-3 py-2 text-sm"
-                >
-                  {circles.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <Label>Hub</Label>
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
+                  {activeCircle?.name ?? "No Hub selected"}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
@@ -193,7 +186,7 @@ export default function AdminMeetings() {
                 <Textarea name="notes" id="notes" rows={4} placeholder="Summary of discussion..." />
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={createMeeting.isPending}>Save</Button>
+                <Button type="submit" disabled={createMeeting.isPending || activeCircleId === null}>Save</Button>
               </DialogFooter>
             </form>
           </DialogContent>
