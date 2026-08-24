@@ -38,7 +38,7 @@ export default function AdminDashboard() {
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-gradient w-fit">
-          AI Innovation Circles
+          {activeCircle ? `AI Innovation Circles — ${activeCircle.name}` : "AI Innovation Circles"}
         </h1>
         <p className="text-muted-foreground mt-2">
           {activeCircle
