@@ -57,6 +57,12 @@ export default function AdminAttendees() {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey(params) });
           queryClient.invalidateQueries({ queryKey: getListCirclesQueryKey() });
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              typeof query.queryKey[0] === "string" &&
+              query.queryKey[0].startsWith("/api/meetings/") &&
+              query.queryKey[0].endsWith("/invitees"),
+          });
           form.reset();
           setIsAddOpen(false);
         },
