@@ -31,6 +31,7 @@ export default function AdminMeetings() {
   const [agendaMeeting, setAgendaMeeting] = useState<{ id: number; date: string } | null>(null);
   const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
   const [inviteeMeeting, setInviteeMeeting] = useState<{ id: number; date: string } | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { activeCircleId, activeCircle } = useActiveCircle();
@@ -50,6 +51,7 @@ export default function AdminMeetings() {
     e.preventDefault();
     if (activeCircleId === null) return;
     const fd = new FormData(e.currentTarget);
+    setCreateError(null);
     createMeeting.mutate(
       {
         data: {
@@ -65,6 +67,7 @@ export default function AdminMeetings() {
           setIsCreateOpen(false);
           setInviteeMeeting({ id: meeting.id, date: meeting.date });
         },
+        onError: (error) => setCreateError(error.message || "Unable to create the meeting."),
       }
     );
   };
@@ -160,7 +163,13 @@ export default function AdminMeetings() {
           <h1 className="text-3xl font-bold tracking-tight">Meetings</h1>
           <p className="text-muted-foreground mt-2">Schedule and manage hub sessions.</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <Dialog
+          open={isCreateOpen}
+          onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (!open) setCreateError(null);
+          }}
+        >
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Add Meeting</Button>
           </DialogTrigger>
@@ -185,6 +194,7 @@ export default function AdminMeetings() {
                 <Label htmlFor="notes">Meeting Notes (optional)</Label>
                 <Textarea name="notes" id="notes" rows={4} placeholder="Summary of discussion..." />
               </div>
+              {createError && <p role="alert" className="text-sm text-destructive">{createError}</p>}
               <DialogFooter>
                 <Button type="submit" disabled={createMeeting.isPending || activeCircleId === null}>Save</Button>
               </DialogFooter>
@@ -256,7 +266,7 @@ export default function AdminMeetings() {
 
 function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: () => void }) {
   const queryClient = useQueryClient();
-  const { data: invitees = [], isLoading } = useListMeetingInvitees(meetingId);
+  const { data: invitees = [], isLoading, isError, error } = useListMeetingInvitees(meetingId);
   const setInvitees = useSetMeetingInvitees();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -291,6 +301,14 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
 
   if (isLoading) {
     return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-14 animate-pulse rounded-md bg-muted" />)}</div>;
+  }
+
+  if (isError) {
+    return (
+      <p role="alert" className="py-6 text-center text-sm text-destructive">
+        Unable to load Hub members. {error.message || "Please try again."}
+      </p>
+    );
   }
 
   if (invitees.length === 0) {
