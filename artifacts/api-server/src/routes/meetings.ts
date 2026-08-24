@@ -272,7 +272,7 @@ async function sendRescheduleInvites(
       and(
         eq(meetingResponsesTable.meetingId, meetingId),
         eq(meetingResponsesTable.status, "attending"),
-        eq(attendeesTable.role, "attendee"),
+        ne(attendeesTable.role, "admin"),
         eq(attendeesTable.circleId, circleId),
       ),
     );
@@ -407,7 +407,7 @@ async function listInviteesForMeeting(meeting: typeof meetingsTable.$inferSelect
       attendeeCompany: attendeesTable.company,
     })
     .from(attendeesTable)
-    .where(and(eq(attendeesTable.circleId, meeting.circleId), eq(attendeesTable.role, "attendee")))
+    .where(and(eq(attendeesTable.circleId, meeting.circleId), ne(attendeesTable.role, "admin")))
     .orderBy(asc(attendeesTable.name));
   const selected = await db
     .select({ attendeeId: meetingInviteesTable.attendeeId })
@@ -456,10 +456,10 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
   const eligibleAttendees = await db
     .select({ id: attendeesTable.id })
     .from(attendeesTable)
-    .where(and(eq(attendeesTable.circleId, meeting.circleId), eq(attendeesTable.role, "attendee")));
+    .where(and(eq(attendeesTable.circleId, meeting.circleId), ne(attendeesTable.role, "admin")));
   const eligibleIds = new Set(eligibleAttendees.map((attendee) => attendee.id));
   if (attendeeIds.some((attendeeId) => !eligibleIds.has(attendeeId))) {
-    res.status(400).json({ error: "All invitees must be attendee-role members of this Hub" });
+    res.status(400).json({ error: "All invitees must be non-admin members of this Hub" });
     return;
   }
 
@@ -511,7 +511,7 @@ router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void
     .select({ attendeeId: meetingInviteesTable.attendeeId })
     .from(meetingInviteesTable)
     .where(and(eq(meetingInviteesTable.meetingId, id), eq(meetingInviteesTable.attendeeId, attendeeId)));
-  if (me.role !== "attendee" || !invitation) {
+  if (me.role === "admin" || !invitation) {
     res.status(403).json({ error: "Only invited members can RSVP" }); return;
   }
 

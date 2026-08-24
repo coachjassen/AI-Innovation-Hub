@@ -10,11 +10,11 @@ CREATE TABLE IF NOT EXISTS meeting_invitees (
 );
 
 -- Preserve the previous behavior for meetings that already existed: every
--- attendee-role member of the Hub remains invited. Newly created meetings are
+-- non-admin member of the Hub remains invited. Newly created meetings are
 -- intentionally not seeded and require an admin to choose invitees.
 INSERT INTO meeting_invitees (meeting_id, attendee_id)
 SELECT meetings.id, attendees.id
 FROM meetings
 INNER JOIN attendees ON attendees.circle_id = meetings.circle_id
-WHERE attendees.role = 'attendee'
+WHERE attendees.role <> 'admin'
 ON CONFLICT (meeting_id, attendee_id) DO NOTHING;
