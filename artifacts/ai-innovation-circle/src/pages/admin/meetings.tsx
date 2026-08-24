@@ -170,7 +170,13 @@ export default function AdminMeetings() {
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="circleId">Circle</Label>
-                <select name="circleId" id="circleId" required className="w-full border rounded-md px-3 py-2 text-sm">
+                <select
+                  name="circleId"
+                  id="circleId"
+                  required
+                  defaultValue={activeCircleId ?? circles[0]?.id}
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                >
                   {circles.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
