@@ -32,6 +32,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 - `artifacts/api-server/src/routes/` — Express route handlers (one file per domain)
 - `artifacts/api-server/src/lib/` — email delivery, magic-link/session helpers, object storage
 - `artifacts/ai-innovation-circle/src/pages/` — React pages (attendee/ and admin/ subdirs)
+- `scripts/ensure-admin.sql` — idempotent self-hosted bootstrap for the confirmed administrator account
 
 ## Architecture decisions
 
