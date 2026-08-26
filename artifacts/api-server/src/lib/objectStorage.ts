@@ -203,7 +203,7 @@ export class ObjectStorageService {
   normalizeObjectEntityPath(rawPath: string): string {
     if (this.isLocalStorage() && rawPath.startsWith("/api/storage/uploads/")) {
       const entityId = rawPath.slice("/api/storage/uploads/".length);
-      return entityId ? `/objects/${entityId}` : rawPath;
+      return entityId ? `/objects/uploads/${entityId}` : rawPath;
     }
 
     if (!rawPath.startsWith("https://storage.googleapis.com/")) {

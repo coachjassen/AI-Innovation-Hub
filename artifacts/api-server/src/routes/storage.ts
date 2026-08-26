@@ -73,14 +73,14 @@ router.put(
 
     const raw = req.params.filePath;
     const filePath = Array.isArray(raw) ? raw.join("/") : raw;
-    if (!/^uploads\/[0-9a-f-]{36}$/i.test(filePath) || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+    if (!/^[0-9a-f-]{36}$/i.test(filePath) || !Buffer.isBuffer(req.body) || req.body.length === 0) {
       res.status(400).json({ error: "Invalid upload" });
       return;
     }
 
     try {
       await objectStorageService.saveLocalObject(
-        `/objects/${filePath}`,
+        `/objects/uploads/${filePath}`,
         req.body,
         req.get("content-type") || "application/octet-stream",
       );

@@ -29,7 +29,7 @@ describe("self-hosted local object storage", () => {
     const objectPath = storage.normalizeObjectEntityPath(uploadURL);
 
     expect(uploadURL).toMatch(/^\/api\/storage\/uploads\/[0-9a-f-]{36}$/);
-    expect(objectPath).toMatch(/^\/objects\/[0-9a-f-]{36}$/);
+    expect(objectPath).toMatch(/^\/objects\/uploads\/[0-9a-f-]{36}$/);
 
     await storage.saveLocalObject(objectPath, Buffer.from("invitation content"), "application/pdf");
     const objectFile = await storage.getObjectEntityFile(objectPath);
