@@ -3,14 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Calendar, Target, UserPlus, TrendingUp, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { useActiveCircle } from "@/contexts/CircleContext";
+import { OneOffDashboard } from "./one-off-dashboard";
 
 export default function AdminDashboard() {
   const { activeCircleId, circles } = useActiveCircle();
   const activeCircle = circles.find((c) => c.id === activeCircleId);
-  const params = activeCircleId !== null ? { circleId: activeCircleId } : undefined;
+  const isOneOffHub = activeCircle?.cadence === "one-off";
+
+  const params = activeCircleId !== null && !isOneOffHub ? { circleId: activeCircleId } : undefined;
   const { data, isLoading } = useGetAdminDashboard(params, {
-    query: { enabled: activeCircleId !== null, queryKey: getGetAdminDashboardQueryKey(params) },
+    query: { enabled: activeCircleId !== null && !isOneOffHub, queryKey: getGetAdminDashboardQueryKey(params) },
   });
+
+  if (isOneOffHub && activeCircle) {
+    return <OneOffDashboard activeCircle={activeCircle} />;
+  }
 
   if (isLoading) {
     return (
