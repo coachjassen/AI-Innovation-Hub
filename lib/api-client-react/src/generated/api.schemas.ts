@@ -5,6 +5,18 @@
  * AI Innovation Circle API
  * OpenAPI spec version: 0.1.0
  */
+export type AuthConfigMode = typeof AuthConfigMode[keyof typeof AuthConfigMode];
+
+
+export const AuthConfigMode = {
+  magic_link: 'magic_link',
+  direct_admin: 'direct_admin',
+} as const;
+
+export interface AuthConfig {
+  mode: AuthConfigMode;
+}
+
 export interface HealthStatus {
   status: string;
 }

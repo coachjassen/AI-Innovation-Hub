@@ -17,6 +17,32 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Get the active sign-in mode
+ */
+export const GetAuthConfigResponse = zod.object({
+  "mode": zod.enum(['magic_link', 'direct_admin'])
+})
+
+
+/**
+ * @summary Sign in directly as an administrator when explicitly enabled
+ */
+export const DirectAdminLoginBody = zod.object({
+  "email": zod.string().email()
+})
+
+export const DirectAdminLoginResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "company": zod.string(),
+  "role": zod.string(),
+  "circleId": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary Request a magic login link
  */
 export const RequestMagicLinkBody = zod.object({

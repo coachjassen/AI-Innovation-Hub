@@ -32,6 +32,7 @@ import type {
   AttendeeInput,
   AttendeeUpdate,
   AttendeeWithActivity,
+  AuthConfig,
   Circle,
   CircleInput,
   CircleUpdate,
@@ -162,6 +163,154 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getGetAuthConfigUrl = () => {
+
+
+
+
+  return `/api/auth/config`
+}
+
+/**
+ * @summary Get the active sign-in mode
+ */
+export const getAuthConfig = async ( options?: RequestInit): Promise<AuthConfig> => {
+
+  return customFetch<AuthConfig>(getGetAuthConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuthConfigQueryKey = () => {
+    return [
+    `/api/auth/config`
+    ] as const;
+    }
+
+
+export const getGetAuthConfigQueryOptions = <TData = Awaited<ReturnType<typeof getAuthConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuthConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuthConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuthConfig>>> = ({ signal }) => getAuthConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuthConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuthConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getAuthConfig>>>
+export type GetAuthConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the active sign-in mode
+ */
+
+export function useGetAuthConfig<TData = Awaited<ReturnType<typeof getAuthConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuthConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuthConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDirectAdminLoginUrl = () => {
+
+
+
+
+  return `/api/auth/direct-login`
+}
+
+/**
+ * @summary Sign in directly as an administrator when explicitly enabled
+ */
+export const directAdminLogin = async (magicLinkRequest: MagicLinkRequest, options?: RequestInit): Promise<Attendee> => {
+
+  return customFetch<Attendee>(getDirectAdminLoginUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      magicLinkRequest,)
+  }
+);}
+
+
+
+
+export const getDirectAdminLoginMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof directAdminLogin>>, TError,{data: BodyType<MagicLinkRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof directAdminLogin>>, TError,{data: BodyType<MagicLinkRequest>}, TContext> => {
+
+const mutationKey = ['directAdminLogin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof directAdminLogin>>, {data: BodyType<MagicLinkRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  directAdminLogin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DirectAdminLoginMutationResult = NonNullable<Awaited<ReturnType<typeof directAdminLogin>>>
+    export type DirectAdminLoginMutationBody = BodyType<MagicLinkRequest>
+    export type DirectAdminLoginMutationError = ErrorType<void>
+
+    /**
+ * @summary Sign in directly as an administrator when explicitly enabled
+ */
+export const useDirectAdminLogin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof directAdminLogin>>, TError,{data: BodyType<MagicLinkRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof directAdminLogin>>,
+        TError,
+        {data: BodyType<MagicLinkRequest>},
+        TContext
+      > => {
+      return useMutation(getDirectAdminLoginMutationOptions(options));
+    }
 
 export const getRequestMagicLinkUrl = () => {
 

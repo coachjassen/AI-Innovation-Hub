@@ -17,6 +17,8 @@ const sendEmailMock = sendEmail as unknown as Mock;
 const AUTH_EMAIL = `magic-link-auth-${process.pid}@example.test`;
 const OTHER_EMAIL = `magic-link-other-${process.pid}@example.test`;
 const RATE_EMAIL = `magic-link-rate-${process.pid}@example.test`;
+const DIRECT_ADMIN_EMAIL = `direct-admin-${process.pid}@example.test`;
+const originalAuthMode = process.env.AUTH_MODE;
 
 let server: Server;
 let baseUrl: string;
@@ -90,6 +92,7 @@ beforeAll(async () => {
       { name: "Magic Link Test", email: AUTH_EMAIL, company: "Test Co", role: "attendee", circleId: 1 },
       { name: "Other Test", email: OTHER_EMAIL, company: "Test Co", role: "attendee", circleId: 1 },
       { name: "Rate Test", email: RATE_EMAIL, company: "Test Co", role: "attendee", circleId: 1 },
+      { name: "Direct Admin Test", email: DIRECT_ADMIN_EMAIL, company: "Test Co", role: "admin", circleId: 1 },
     ])
     .returning({ id: attendeesTable.id });
   attendeeIds = [auth.id, other.id, rate.id];
@@ -109,6 +112,11 @@ afterAll(async () => {
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
+  if (originalAuthMode === undefined) {
+    delete process.env.AUTH_MODE;
+  } else {
+    process.env.AUTH_MODE = originalAuthMode;
+  }
 });
 
 describe("magic-link authentication", () => {
@@ -181,6 +189,48 @@ describe("magic-link authentication", () => {
 
     expect(response.status).toBe(503);
     expect(response.setCookie).toBeNull();
+  });
+
+  it("keeps direct administrator sign-in disabled unless explicitly configured", async () => {
+    const priorMode = process.env.AUTH_MODE;
+    delete process.env.AUTH_MODE;
+    try {
+      const response = await api("POST", "/api/auth/direct-login", { body: { email: DIRECT_ADMIN_EMAIL } });
+      expect(response.status).toBe(404);
+      expect(response.setCookie).toBeNull();
+    } finally {
+      if (priorMode === undefined) {
+        delete process.env.AUTH_MODE;
+      } else {
+        process.env.AUTH_MODE = priorMode;
+      }
+    }
+  });
+
+  it("allows direct sign-in only for administrators when explicitly enabled", async () => {
+    process.env.AUTH_MODE = "direct_admin";
+    try {
+      const config = await api("GET", "/api/auth/config");
+      expect(config.status).toBe(200);
+      expect(config.body).toEqual({ mode: "direct_admin" });
+
+      const admin = await api("POST", "/api/auth/direct-login", { body: { email: DIRECT_ADMIN_EMAIL } });
+      expect(admin.status).toBe(200);
+      expect(admin.setCookie).toBeTruthy();
+      expect((admin.body as { role: string }).role).toBe("admin");
+
+      const attendee = await api("POST", "/api/auth/direct-login", { body: { email: AUTH_EMAIL } });
+      expect(attendee.status).toBe(403);
+      expect(attendee.setCookie).toBeNull();
+
+      const unknown = await api("POST", "/api/auth/direct-login", {
+        body: { email: `unknown-direct-${process.pid}@example.test` },
+      });
+      expect(unknown.status).toBe(401);
+      expect(unknown.setCookie).toBeNull();
+    } finally {
+      delete process.env.AUTH_MODE;
+    }
   });
 
   it("keeps attendee goals private to their owner", async () => {

@@ -6,6 +6,9 @@ import {
   useRequestMagicLink,
   useVerifyMagicLink,
   useGetMe,
+  useGetAuthConfig,
+  useDirectAdminLogin,
+  getGetAuthConfigQueryKey,
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -27,6 +30,7 @@ export default function Login() {
   const queryClient = useQueryClient();
   const requestMagicLink = useRequestMagicLink();
   const verifyMagicLink = useVerifyMagicLink();
+  const directAdminLogin = useDirectAdminLogin();
   const [requestSent, setRequestSent] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -51,6 +55,10 @@ export default function Login() {
   const { data: user, isLoading: isUserLoading } = useGetMe({ 
     query: { retry: false, staleTime: 0, queryKey: getGetMeQueryKey() }
   });
+  const { data: authConfig } = useGetAuthConfig({
+    query: { retry: false, staleTime: Infinity, queryKey: getGetAuthConfigQueryKey() },
+  });
+  const isDirectAdminMode = authConfig?.mode === "direct_admin";
 
   useEffect(() => {
     if (user && !token) {
@@ -87,6 +95,24 @@ export default function Login() {
   const onSubmit = (data: LoginForm) => {
     setRequestError(null);
     setRequestSent(false);
+    if (isDirectAdminMode) {
+      directAdminLogin.mutate({ data: { email: data.email } }, {
+        onSuccess: (attendee) => {
+          queryClient.setQueryData(getGetMeQueryKey(), attendee);
+          setLocation(safeReturnTo ?? "/admin/dashboard");
+        },
+        onError: (error) => {
+          const status = (error as { status?: number }).status;
+          setRequestError(
+            status === 401 || status === 403
+              ? "This email does not have administrator access."
+              : "We couldn't sign you in. Please try again.",
+          );
+        },
+      });
+      return;
+    }
+
     requestMagicLink.mutate({ data: { email: data.email } }, {
       onSuccess: () => {
         setRequestSent(true);
@@ -124,8 +150,12 @@ export default function Login() {
 
         <Card className="border-white/10 shadow-2xl">
           <CardHeader>
-            <CardTitle>Welcome back</CardTitle>
-            <CardDescription>We'll email you a secure, one-time sign-in link.</CardDescription>
+            <CardTitle>{isDirectAdminMode ? "Administrator sign in" : "Welcome back"}</CardTitle>
+            <CardDescription>
+              {isDirectAdminMode
+                ? "Enter the email address for an administrator account."
+                : "We'll email you a secure, one-time sign-in link."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {verifyMagicLink.isPending ? (
@@ -179,9 +209,11 @@ export default function Login() {
                   <Button 
                     type="submit" 
                     className="w-full" 
-                    disabled={requestMagicLink.isPending}
+                    disabled={requestMagicLink.isPending || directAdminLogin.isPending}
                   >
-                    {requestMagicLink.isPending ? "Sending link..." : "Email me a sign-in link"}
+                    {isDirectAdminMode
+                      ? (directAdminLogin.isPending ? "Signing in..." : "Sign in")
+                      : (requestMagicLink.isPending ? "Sending link..." : "Email me a sign-in link")}
                   </Button>
                 </form>
               </Form>

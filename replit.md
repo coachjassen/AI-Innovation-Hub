@@ -35,7 +35,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 
 ## Architecture decisions
 
-- **Passwordless auth:** `POST /api/auth/request-link` issues a hashed, single-use, one-hour email link. The session is created only when `POST /api/auth/verify` redeems that link. New requests invalidate earlier pending links and resend attempts are rate-limited.
+- **Authentication:** Default sign-in uses `POST /api/auth/request-link` to issue a hashed, single-use, one-hour email link; the session is created only when `POST /api/auth/verify` redeems it. Self-hosted deployments can explicitly opt into `AUTH_MODE=direct_admin`, which allows email-only sessions for existing administrator accounts only.
 - **Session store:** `connect-pg-simple` backed by a `sessions` table in Postgres. Both the `session` and `sessions` tables exist in the DB.
 - **API-first:** All contracts live in OpenAPI spec; Orval generates typed hooks used by the frontend. Never hand-write fetch calls in the UI.
 - **Email configuration:** Sign-in links and attendee notifications require SMTP. The app returns an explicit configuration/delivery error when SMTP is unavailable; it never claims a message was sent.
@@ -45,7 +45,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 
 - **Attendee view:** Manage personal goals (create/update/delete/filter), browse past meetings with notes/insights, submit topic suggestions, invite colleagues.
 - **Admin view:** Dashboard with circle KPIs and goal progress chart, all-attendees goals view (grouped by person), meeting CRUD, attendee roster, suggestions inbox, invitation approval queue, email trigger panel (reminder + post-meeting survey).
-- **Auth:** Attendees request a secure email link, then return to their intended protected page after verification. Navigation remains role-based (admin vs attendee).
+- **Auth:** Attendees request a secure email link and return to their intended protected page after verification. When the self-hosted direct-admin mode is enabled, only existing administrator accounts can sign in without email; navigation remains role-based.
 
 ## Demo accounts
 

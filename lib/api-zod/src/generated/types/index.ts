@@ -25,6 +25,8 @@ export * from './attendeeImportSkippedRowReason';
 export * from './attendeeInput';
 export * from './attendeeUpdate';
 export * from './attendeeWithActivity';
+export * from './authConfig';
+export * from './authConfigMode';
 export * from './circle';
 export * from './circleCadence';
 export * from './circleInput';

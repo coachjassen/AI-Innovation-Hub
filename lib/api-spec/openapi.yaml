@@ -45,6 +45,46 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 
   # Auth
+  /auth/config:
+    get:
+      operationId: getAuthConfig
+      tags: [auth]
+      summary: Get the active sign-in mode
+      responses:
+        "200":
+          description: Active sign-in mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthConfig"
+
+  /auth/direct-login:
+    post:
+      operationId: directAdminLogin
+      tags: [auth]
+      summary: Sign in directly as an administrator when explicitly enabled
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkRequest"
+      responses:
+        "200":
+          description: Administrator session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendee"
+        "400":
+          description: Invalid email address
+        "401":
+          description: Administrator account not found
+        "403":
+          description: Direct sign-in is limited to administrator accounts
+        "404":
+          description: Direct administrator sign-in is disabled
+
   /auth/request-link:
     post:
       operationId: requestMagicLink
@@ -997,6 +1037,14 @@ paths:
 
 components:
   schemas:
+    AuthConfig:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [magic_link, direct_admin]
+
     HealthStatus:
       type: object
       required: [status]

@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { eq } from "drizzle-orm";
 import { db, attendeesTable } from "@workspace/db";
 import {
@@ -10,11 +10,71 @@ import { isSmtpConfigured } from "../lib/email";
 import "../lib/session";
 
 const router: IRouter = Router();
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getAuthMode(): "magic_link" | "direct_admin" {
+  return process.env.AUTH_MODE === "direct_admin" ? "direct_admin" : "magic_link";
+}
+
+function serializeAttendee(attendee: typeof attendeesTable.$inferSelect) {
+  return {
+    id: attendee.id,
+    name: attendee.name,
+    email: attendee.email,
+    company: attendee.company,
+    role: attendee.role,
+    circleId: attendee.circleId,
+    createdAt: attendee.createdAt.toISOString(),
+  };
+}
+
+async function createSession(req: Request, attendee: typeof attendeesTable.$inferSelect): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    req.session.regenerate((error) => (error ? reject(error) : resolve()));
+  });
+  req.session.attendeeId = attendee.id;
+  req.session.attendeeRole = attendee.role;
+}
+
+router.get("/auth/config", (_req, res): void => {
+  res.json({ mode: getAuthMode() });
+});
+
+router.post("/auth/direct-login", async (req, res): Promise<void> => {
+  if (getAuthMode() !== "direct_admin") {
+    res.status(404).json({ error: "Direct administrator sign-in is disabled" });
+    return;
+  }
+
+  const { email } = req.body as { email?: string };
+  if (!email || typeof email !== "string" || !emailPattern.test(email.trim())) {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const [attendee] = await db
+    .select()
+    .from(attendeesTable)
+    .where(eq(attendeesTable.email, normalizedEmail));
+
+  if (!attendee) {
+    res.status(401).json({ error: "No administrator account found with that email" });
+    return;
+  }
+  if (attendee.role !== "admin") {
+    res.status(403).json({ error: "Direct sign-in is limited to administrator accounts" });
+    return;
+  }
+
+  await createSession(req, attendee);
+  res.json(serializeAttendee(attendee));
+});
 
 router.post("/auth/request-link", async (req, res): Promise<void> => {
   const { email } = req.body as { email?: string };
 
-  if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+  if (!email || typeof email !== "string" || !emailPattern.test(email.trim())) {
     res.status(400).json({ error: "Email is required" });
     return;
   }
@@ -62,20 +122,8 @@ router.post("/auth/verify", async (req, res): Promise<void> => {
     return;
   }
 
-  await new Promise<void>((resolve, reject) => {
-    req.session.regenerate((error) => (error ? reject(error) : resolve()));
-  });
-  req.session.attendeeId = attendee.id;
-  req.session.attendeeRole = attendee.role;
-  res.json({
-    id: attendee.id,
-    name: attendee.name,
-    email: attendee.email,
-    company: attendee.company,
-    role: attendee.role,
-    circleId: attendee.circleId,
-    createdAt: attendee.createdAt.toISOString(),
-  });
+  await createSession(req, attendee);
+  res.json(serializeAttendee(attendee));
 });
 
 // POST /auth/logout
@@ -103,15 +151,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json({
-    id: attendee.id,
-    name: attendee.name,
-    email: attendee.email,
-    company: attendee.company,
-    role: attendee.role,
-    circleId: attendee.circleId,
-    createdAt: attendee.createdAt.toISOString(),
-  });
+  res.json(serializeAttendee(attendee));
 });
 
 export default router;
