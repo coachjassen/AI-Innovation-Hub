@@ -1,4 +1,7 @@
 import { Storage, File } from "@google-cloud/storage";
+import { createReadStream } from "fs";
+import { mkdir, readFile, stat, writeFile } from "fs/promises";
+import path from "path";
 import { Readable } from "stream";
 import { randomUUID } from "crypto";
 import {
@@ -10,6 +13,9 @@ import {
 } from "./objectAcl";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
+const LOCAL_OBJECT_STORAGE_DIR = process.env.LOCAL_OBJECT_STORAGE_DIR
+  ? path.resolve(process.env.LOCAL_OBJECT_STORAGE_DIR)
+  : path.resolve(process.cwd(), "data/private-objects");
 
 export const objectStorageClient = new Storage({
   credentials: {
@@ -39,6 +45,12 @@ export class ObjectNotFoundError extends Error {
 
 export class ObjectStorageService {
   constructor() {}
+
+  isLocalStorage(): boolean {
+    if (process.env.STORAGE_BACKEND === "local") return true;
+    if (process.env.STORAGE_BACKEND === "replit") return false;
+    return !process.env.REPL_ID;
+  }
 
   getPublicObjectSearchPaths(): Array<string> {
     const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
@@ -88,6 +100,17 @@ export class ObjectStorageService {
   }
 
   async downloadObject(file: File, cacheTtlSec: number = 3600): Promise<Response> {
+    if (file instanceof LocalObjectFile) {
+      const nodeStream = createReadStream(file.filePath);
+      const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+      return new Response(webStream, {
+        headers: {
+          "Content-Type": file.contentType,
+          "Cache-Control": `private, max-age=${cacheTtlSec}`,
+        },
+      });
+    }
+
     const [metadata] = await file.getMetadata();
     const aclPolicy = await getObjectAclPolicy(file);
     const isPublic = aclPolicy?.visibility === "public";
@@ -107,6 +130,10 @@ export class ObjectStorageService {
   }
 
   async getObjectEntityUploadURL(): Promise<string> {
+    if (this.isLocalStorage()) {
+      return `/api/storage/uploads/${randomUUID()}`;
+    }
+
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {
       throw new Error(
@@ -139,6 +166,25 @@ export class ObjectStorageService {
     }
 
     const entityId = parts.slice(1).join("/");
+    if (this.isLocalStorage()) {
+      const localPath = this.getSafeLocalPath(entityId);
+      try {
+        await stat(localPath);
+      } catch {
+        throw new ObjectNotFoundError();
+      }
+
+      let contentType = "application/octet-stream";
+      try {
+        const metadata = JSON.parse(await readFile(`${localPath}.metadata.json`, "utf8")) as { contentType?: string };
+        if (metadata.contentType) contentType = metadata.contentType;
+      } catch {
+        // Files written before metadata support remain downloadable.
+      }
+
+      return new LocalObjectFile(localPath, contentType) as unknown as File;
+    }
+
     let entityDir = this.getPrivateObjectDir();
     if (!entityDir.endsWith("/")) {
       entityDir = `${entityDir}/`;
@@ -155,6 +201,11 @@ export class ObjectStorageService {
   }
 
   normalizeObjectEntityPath(rawPath: string): string {
+    if (this.isLocalStorage() && rawPath.startsWith("/api/storage/uploads/")) {
+      const entityId = rawPath.slice("/api/storage/uploads/".length);
+      return entityId ? `/objects/${entityId}` : rawPath;
+    }
+
     if (!rawPath.startsWith("https://storage.googleapis.com/")) {
       return rawPath;
     }
@@ -173,6 +224,17 @@ export class ObjectStorageService {
 
     const entityId = rawObjectPath.slice(objectEntityDir.length);
     return `/objects/${entityId}`;
+  }
+
+  async saveLocalObject(objectPath: string, data: Buffer, contentType: string): Promise<void> {
+    if (!this.isLocalStorage() || !objectPath.startsWith("/objects/")) {
+      throw new ObjectNotFoundError();
+    }
+
+    const localPath = this.getSafeLocalPath(objectPath.slice("/objects/".length));
+    await mkdir(path.dirname(localPath), { recursive: true });
+    await writeFile(localPath, data, { flag: "wx" });
+    await writeFile(`${localPath}.metadata.json`, JSON.stringify({ contentType }), { flag: "wx" });
   }
 
   async trySetObjectEntityAclPolicy(
@@ -203,6 +265,36 @@ export class ObjectStorageService {
       objectFile,
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
+  }
+
+  private getSafeLocalPath(entityId: string): string {
+    const normalized = path.posix.normalize(entityId);
+    if (
+      !normalized
+      || normalized === "."
+      || normalized.startsWith("../")
+      || normalized.includes("/../")
+      || path.posix.isAbsolute(normalized)
+    ) {
+      throw new ObjectNotFoundError();
+    }
+
+    const localPath = path.resolve(LOCAL_OBJECT_STORAGE_DIR, ...normalized.split("/"));
+    if (localPath !== LOCAL_OBJECT_STORAGE_DIR && !localPath.startsWith(`${LOCAL_OBJECT_STORAGE_DIR}${path.sep}`)) {
+      throw new ObjectNotFoundError();
+    }
+    return localPath;
+  }
+}
+
+class LocalObjectFile {
+  constructor(
+    readonly filePath: string,
+    readonly contentType: string,
+  ) {}
+
+  async download(): Promise<[Buffer]> {
+    return [await readFile(this.filePath)];
   }
 }
 

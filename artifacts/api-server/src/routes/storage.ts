@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import express, { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 import {
   RequestUploadUrlBody,
@@ -57,6 +57,40 @@ router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, r
     res.status(500).json({ error: "Failed to generate upload URL" });
   }
 });
+
+// Self-hosted deployments do not have Replit's GCS sidecar. In that mode the
+// request URL is an API URL and the browser sends the file bytes back here.
+// Replit deployments receive a GCS URL instead, so this route is never used.
+router.put(
+  "/storage/uploads/*filePath",
+  requireAdmin,
+  express.raw({ type: "*/*", limit: MAX_UPLOAD_BYTES }),
+  async (req: Request, res: Response) => {
+    if (!objectStorageService.isLocalStorage()) {
+      res.status(404).json({ error: "Upload route is not available for this storage backend" });
+      return;
+    }
+
+    const raw = req.params.filePath;
+    const filePath = Array.isArray(raw) ? raw.join("/") : raw;
+    if (!/^uploads\/[0-9a-f-]{36}$/i.test(filePath) || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+      res.status(400).json({ error: "Invalid upload" });
+      return;
+    }
+
+    try {
+      await objectStorageService.saveLocalObject(
+        `/objects/${filePath}`,
+        req.body,
+        req.get("content-type") || "application/octet-stream",
+      );
+      res.status(200).json({ ok: true });
+    } catch (error) {
+      req.log.error({ err: error }, "Error storing uploaded object");
+      res.status(500).json({ error: "Failed to store uploaded file" });
+    }
+  },
+);
 
 /**
  * GET /storage/public-objects/*

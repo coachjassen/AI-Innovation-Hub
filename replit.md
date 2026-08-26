@@ -39,6 +39,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 
 - **Authentication:** Default sign-in uses `POST /api/auth/request-link` to issue a hashed, single-use, one-hour email link; the session is created only when `POST /api/auth/verify` redeems it. Self-hosted deployments can explicitly opt into `AUTH_MODE=direct_admin`, which allows email-only sessions for existing administrator accounts only.
 - **Session store:** `connect-pg-simple` backed by a `sessions` table in Postgres. Both the `session` and `sessions` tables exist in the DB.
+- **Invitation files:** Replit deployments use App Storage; self-hosted deployments use the local filesystem. Set `LOCAL_OBJECT_STORAGE_DIR` to a persistent, PM2-writable directory (for example `/var/lib/kinetics-hubs/private-objects`).
 - **API-first:** All contracts live in OpenAPI spec; Orval generates typed hooks used by the frontend. Never hand-write fetch calls in the UI.
 - **Email configuration:** Sign-in links and attendee notifications require SMTP. The app returns an explicit configuration/delivery error when SMTP is unavailable; it never claims a message was sent.
 - **Express 5 wildcard routes:** Use `/{*splat}` syntax; always check `Array.isArray(req.params.id)` before parsing IDs.
