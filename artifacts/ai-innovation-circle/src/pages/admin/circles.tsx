@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { CircleDot, Plus, MoreHorizontal, Pencil, Users, Power, PowerOff } from "lucide-react";
+import { CircleDot, Plus, MoreHorizontal, Pencil, Users, Power, PowerOff, Sparkles } from "lucide-react";
 
 type Circle = {
   id: number;
@@ -111,10 +111,13 @@ export default function AdminCircles() {
                 <Input name="name" id="name" required placeholder="e.g. FinTech Founders Hub" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cadence">Cadence</Label>
+                <Label htmlFor="cadence">Hub type</Label>
                 <select name="cadence" id="cadence" defaultValue="quarterly" className="w-full border rounded-md px-3 py-2 text-sm capitalize">
                   {CADENCES.map((c) => <option key={c} value={c}>{cadenceLabel(c)}</option>)}
                 </select>
+                <p className="text-xs text-muted-foreground">
+                  Choose <span className="font-medium text-foreground">One-off event</span> for a dedicated event Hub. Its events use invitation files and public RSVP links instead of meeting agendas.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
@@ -151,6 +154,11 @@ export default function AdminCircles() {
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-lg">{c.name}</p>
                       <Badge variant={c.status === "active" ? "default" : "secondary"} className="capitalize">{c.status}</Badge>
+                      {c.cadence === "one-off" && (
+                        <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
+                          <Sparkles className="h-3 w-3" /> One-off event Hub
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>{cadenceLabel(c.cadence)}</span>

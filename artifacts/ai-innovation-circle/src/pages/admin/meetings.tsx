@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks, UserRoundPlus, Mail } from "lucide-react";
+import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks, UserRoundPlus, Mail, Sparkles } from "lucide-react";
 import { AgendaManager } from "@/components/AgendaManager";
 import { OneOffInvitationManager } from "@/components/OneOffInvitationManager";
 
@@ -48,6 +48,8 @@ export default function AdminMeetings() {
   const now = new Date();
   const upcoming = sorted.filter((m) => new Date(m.date) > now);
   const past = sorted.filter((m) => new Date(m.date) <= now);
+  const isOneOffHub = activeCircle?.cadence === "one-off";
+  const itemLabel = isOneOffHub ? "one-off event" : "meeting";
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -123,10 +125,10 @@ export default function AdminMeetings() {
                 <Users className="h-4 w-4 mr-1" />
                 RSVPs
               </Button>
-              {activeCircle?.cadence === 'one-off' ? (
+              {isOneOffHub ? (
                 <Button variant="ghost" size="sm" onClick={() => setInvitationMeeting({ id: m.id, date: m.date })}>
                   <Mail className="h-4 w-4 mr-1" />
-                  Invitation
+                  Invitation & RSVP
                 </Button>
               ) : (
                 <>
@@ -175,8 +177,19 @@ export default function AdminMeetings() {
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Meetings</h1>
-          <p className="text-muted-foreground mt-2">Schedule and manage hub sessions.</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">{isOneOffHub ? "One-Off Events" : "Meetings"}</h1>
+            {isOneOffHub && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                <Sparkles className="h-3.5 w-3.5" /> Invitation-led
+              </span>
+            )}
+          </div>
+          <p className="text-muted-foreground mt-2">
+            {isOneOffHub
+              ? "Create a standalone event, then prepare its invitation document and public RSVP link."
+              : "Schedule and manage hub sessions."}
+          </p>
         </div>
         <Dialog
           open={isCreateOpen}
@@ -186,32 +199,49 @@ export default function AdminMeetings() {
           }}
         >
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Meeting</Button>
+            <Button><Plus className="mr-2 h-4 w-4" /> {isOneOffHub ? "Create One-Off Event" : "Add Meeting"}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Schedule Meeting</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{isOneOffHub ? "Create One-Off Event" : "Schedule Meeting"}</DialogTitle>
+              {isOneOffHub && (
+                <DialogDescription>
+                  Save the event first, then you’ll add its custom message, private invitation file, selected recipients, and no-login RSVP link.
+                </DialogDescription>
+              )}
+            </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
-                <Label>Hub</Label>
+                <Label>{isOneOffHub ? "One-Off Event Hub" : "Hub"}</Label>
                 <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
                   {activeCircle?.name ?? "No Hub selected"}
                 </div>
               </div>
+              {isOneOffHub && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                  <p className="font-medium text-foreground">This event will not have a meeting agenda.</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Its setup continues with an invitation document, recipient list, delivery status, and public RSVP controls.
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
                 <Input type="date" name="date" id="date" required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="keyInsight">Key Insight (optional)</Label>
-                <Input name="keyInsight" id="keyInsight" placeholder="One memorable takeaway..." />
+                <Label htmlFor="keyInsight">{isOneOffHub ? "Event Focus (optional)" : "Key Insight (optional)"}</Label>
+                <Input name="keyInsight" id="keyInsight" placeholder={isOneOffHub ? "What is this event about?" : "One memorable takeaway..."} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="notes">Meeting Notes (optional)</Label>
-                <Textarea name="notes" id="notes" rows={4} placeholder="Summary of discussion..." />
+                <Label htmlFor="notes">{isOneOffHub ? "Event Notes (optional)" : "Meeting Notes (optional)"}</Label>
+                <Textarea name="notes" id="notes" rows={4} placeholder={isOneOffHub ? "Anything your event team should know..." : "Summary of discussion..."} />
               </div>
               {createError && <p role="alert" className="text-sm text-destructive">{createError}</p>}
               <DialogFooter>
-                <Button type="submit" disabled={createMeeting.isPending || activeCircleId === null}>Save</Button>
+                <Button type="submit" disabled={createMeeting.isPending || activeCircleId === null}>
+                  {isOneOffHub ? "Save & Set Up Invitations" : "Save"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -224,14 +254,14 @@ export default function AdminMeetings() {
         <>
           {upcoming.length > 0 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-primary">Upcoming</h2>
+              <h2 className="text-lg font-semibold text-primary">{isOneOffHub ? "Upcoming One-Off Events" : "Upcoming"}</h2>
               {upcoming.map((m) => <MeetingRow key={m.id} m={m} />)}
             </div>
           )}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Past Meetings</h2>
+            <h2 className="text-lg font-semibold">{isOneOffHub ? "Past One-Off Events" : "Past Meetings"}</h2>
             {past.length === 0
-              ? <p className="text-muted-foreground text-sm">No past meetings yet.</p>
+              ? <p className="text-muted-foreground text-sm">No past {itemLabel}s yet.</p>
               : past.map((m) => <MeetingRow key={m.id} m={m} />)
             }
           </div>
