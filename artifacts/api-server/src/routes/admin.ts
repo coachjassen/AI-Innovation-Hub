@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
-import { eq, count, desc, and } from "drizzle-orm";
+import { eq, count, desc, asc, and, ne, lte, gte } from "drizzle-orm";
 import {
   db,
   attendeesTable,
+  meetingInviteesTable,
   meetingsTable,
   goalsTable,
   invitesTable,
@@ -11,6 +12,7 @@ import {
 } from "@workspace/db";
 import { requireAdmin } from "../middlewares/requireAuth";
 import { sendEmail, buildReminderEmail, buildSurveyEmail } from "../lib/email";
+import { getApplicationUrl } from "../lib/magic-link";
 
 const router: IRouter = Router();
 
@@ -96,16 +98,22 @@ router.post("/admin/send-reminder", requireAdmin, async (req, res): Promise<void
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, circleId));
   if (!circle) { res.status(404).json({ error: "Circle not found" }); return; }
 
-  const attendees = await db.select().from(attendeesTable).where(eq(attendeesTable.circleId, circleId));
+  const attendees = await db
+    .select()
+    .from(attendeesTable)
+    .where(and(eq(attendeesTable.circleId, circleId), ne(attendeesTable.role, "admin")));
 
   // Get next upcoming meeting
   const [nextMeeting] = await db
     .select()
     .from(meetingsTable)
-    .where(eq(meetingsTable.circleId, circleId))
-    .orderBy(desc(meetingsTable.date))
+    .where(and(eq(meetingsTable.circleId, circleId), gte(meetingsTable.date, new Date().toISOString())))
+    .orderBy(asc(meetingsTable.date))
     .limit(1);
 
+  let sent = 0;
+  let suppressed = 0;
+  let failed = 0;
   for (const attendee of attendees) {
     const openGoals = await db
       .select()
@@ -123,10 +131,21 @@ router.post("/admin/send-reminder", requireAdmin, async (req, res): Promise<void
       })),
     );
 
-    await sendEmail({ to: attendee.email, subject: `Upcoming ${circle.name} Meeting Reminder`, html });
+    try {
+      const delivery = await sendEmail({ to: attendee.email, subject: `Upcoming ${circle.name} Meeting Reminder`, html });
+      if (delivery.sent) sent += 1;
+      else suppressed += 1;
+    } catch {
+      failed += 1;
+    }
   }
 
-  res.json({ message: `Reminder sent to ${attendees.length} attendees` });
+  res.json({
+    message: `Reminder processed for ${attendees.length} attendees`,
+    sent,
+    suppressed,
+    failed,
+  });
 });
 
 router.post("/admin/send-survey", requireAdmin, async (req, res): Promise<void> => {
@@ -136,14 +155,6 @@ router.post("/admin/send-survey", requireAdmin, async (req, res): Promise<void> 
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, circleId));
   if (!circle) { res.status(404).json({ error: "Circle not found" }); return; }
 
-  const attendees = await db.select().from(attendeesTable).where(eq(attendeesTable.circleId, circleId));
-
-  // Find or use provided survey
-  let survey;
-  if (meetingId) {
-    [survey] = await db.select().from(surveysTable).where(eq(surveysTable.meetingId, meetingId));
-  }
-
   const defaultQuestions = [
     "How would you rate today's session overall? (1-5)",
     "What was the most valuable topic discussed?",
@@ -151,14 +162,64 @@ router.post("/admin/send-survey", requireAdmin, async (req, res): Promise<void> 
     "Any other feedback or suggestions?",
   ];
 
-  const questions = survey ? (survey.questions as string[]) : defaultQuestions;
-
-  for (const attendee of attendees) {
-    const html = buildSurveyEmail(attendee.name, circle.name, "https://example.com/survey", questions);
-    await sendEmail({ to: attendee.email, subject: `${circle.name} — Post-Meeting Feedback`, html });
+  const [meeting] = meetingId
+    ? await db
+      .select()
+      .from(meetingsTable)
+      .where(and(eq(meetingsTable.id, meetingId), eq(meetingsTable.circleId, circleId)))
+    : await db
+      .select()
+      .from(meetingsTable)
+      .where(and(eq(meetingsTable.circleId, circleId), lte(meetingsTable.date, new Date().toISOString())))
+      .orderBy(desc(meetingsTable.date))
+      .limit(1);
+  if (!meeting) {
+    res.status(400).json({ error: "Select a completed meeting before sending a survey" });
+    return;
   }
 
-  res.json({ message: `Survey sent to ${attendees.length} attendees` });
+  let [survey] = await db.select().from(surveysTable).where(eq(surveysTable.meetingId, meeting.id));
+  if (!survey) {
+    [survey] = await db
+      .insert(surveysTable)
+      .values({ meetingId: meeting.id, type: "post_meeting", questions: defaultQuestions })
+      .returning();
+  }
+
+  const applicationUrl = getApplicationUrl(req);
+  if (!applicationUrl) {
+    res.status(503).json({ error: "Survey email is not configured with a public application URL" });
+    return;
+  }
+
+  const attendees = await db
+    .select({ name: attendeesTable.name, email: attendeesTable.email })
+    .from(meetingInviteesTable)
+    .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
+    .where(and(eq(meetingInviteesTable.meetingId, meeting.id), ne(attendeesTable.role, "admin")));
+  const questions = survey.questions as string[];
+  const surveyLink = `${applicationUrl}/survey/${survey.id}`;
+
+  let sent = 0;
+  let suppressed = 0;
+  let failed = 0;
+  for (const attendee of attendees) {
+    const html = buildSurveyEmail(attendee.name, circle.name, surveyLink, questions);
+    try {
+      const delivery = await sendEmail({ to: attendee.email, subject: `${circle.name} — Post-Meeting Feedback`, html });
+      if (delivery.sent) sent += 1;
+      else suppressed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  res.json({
+    message: `Survey processed for ${attendees.length} attendees`,
+    sent,
+    suppressed,
+    failed,
+  });
 });
 
 export default router;

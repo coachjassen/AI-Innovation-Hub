@@ -1,9 +1,18 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi, type Mock } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { inArray } from "drizzle-orm";
-import { db, attendeesTable, circlesTable } from "@workspace/db";
+import { db, attendeesTable, circlesTable, magicTokensTable } from "@workspace/db";
+
+vi.mock("../lib/email", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/email")>();
+  return { ...actual, sendEmail: vi.fn(async () => ({ sent: true as const })) };
+});
+
 import app from "../app";
+import { sendEmail } from "../lib/email";
+
+const sendEmailMock = sendEmail as unknown as Mock;
 
 const ADMIN_EMAIL = "admin@demo.com";
 const ATTENDEE_EMAIL = "marcus@techvision.com";
@@ -61,13 +70,33 @@ async function api(
 }
 
 async function login(email: string): Promise<string> {
-  const response = await api("POST", "/api/auth/request-link", { body: { email } });
-  expect(response.status).toBe(200);
-  expect(response.setCookie).toBeTruthy();
-  return response.setCookie as string;
+  sendEmailMock.mockClear();
+  const requested = await api("POST", "/api/auth/request-link", { body: { email } });
+  expect(requested.status).toBe(200);
+  expect(requested.setCookie).toBeNull();
+  const emailHtml = (sendEmailMock.mock.calls.at(-1)?.[0] as { html?: string } | undefined)?.html;
+  const href = emailHtml?.match(/href="([^"]+)"/)?.[1];
+  expect(href).toBeTruthy();
+  const token = new URL(href as string).searchParams.get("token");
+  const verified = await api("POST", "/api/auth/verify", { body: { token } });
+  expect(verified.status).toBe(200);
+  expect(verified.setCookie).toBeTruthy();
+  return verified.setCookie as string;
 }
 
 beforeAll(async () => {
+  process.env.SMTP_HOST = "smtp.test";
+  process.env.SMTP_USER = "test-user";
+  process.env.SMTP_PASS = "test-password";
+  process.env.SMTP_FROM = "hubs@example.test";
+  process.env.APP_URL = "https://hubs.example.test";
+  const demoAttendees = await db
+    .select({ id: attendeesTable.id })
+    .from(attendeesTable)
+    .where(inArray(attendeesTable.email, [ADMIN_EMAIL, ATTENDEE_EMAIL]));
+  if (demoAttendees.length > 0) {
+    await db.delete(magicTokensTable).where(inArray(magicTokensTable.attendeeId, demoAttendees.map((attendee) => attendee.id)));
+  }
   await db.delete(attendeesTable).where(inArray(attendeesTable.email, TEST_EMAILS));
   const [inactiveCircle] = await db
     .insert(circlesTable)

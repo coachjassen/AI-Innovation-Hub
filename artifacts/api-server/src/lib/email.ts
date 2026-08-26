@@ -11,19 +11,27 @@ export interface EmailOptions {
   }>;
 }
 
+export type EmailDeliveryResult =
+  | { sent: true }
+  | { sent: false; reason: "smtp_unavailable" };
+
+export function isSmtpConfigured(): boolean {
+  const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+  return Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS && SMTP_FROM);
+}
+
 /**
  * Single email-sending function. Swap the implementation here to change provider.
- * Currently logs email content when SMTP is not configured (POC mode).
  */
-export async function sendEmail(opts: EmailOptions): Promise<void> {
+export async function sendEmail(opts: EmailOptions): Promise<EmailDeliveryResult> {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
 
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
     logger.warn(
       { to: opts.to, subject: opts.subject },
-      "SMTP not configured — email suppressed (POC mode)",
+      "SMTP not configured — email suppressed",
     );
-    return;
+    return { sent: false, reason: "smtp_unavailable" };
   }
 
   try {
@@ -44,6 +52,7 @@ export async function sendEmail(opts: EmailOptions): Promise<void> {
     });
 
     logger.info({ to: opts.to, subject: opts.subject }, "Email sent");
+    return { sent: true };
   } catch (err) {
     logger.error({ err, to: opts.to, subject: opts.subject }, "Failed to send email");
     throw err;
@@ -56,6 +65,20 @@ export function buildMagicLinkEmail(link: string, name: string): string {
     <p>Click the link below to sign in to Kinetics Group Innovation Hubs. This link expires in 1 hour.</p>
     <p><a href="${link}" style="background:#1a56db;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Sign in</a></p>
     <p>If you did not request this, you can safely ignore this email.</p>
+  `;
+}
+
+export function buildMeetingInvitationEmail(
+  attendeeName: string,
+  circleName: string,
+  meetingDate: string,
+  meetingLink: string,
+): string {
+  return `
+    <p>Hi ${attendeeName},</p>
+    <p>You have been invited to the <strong>${circleName}</strong> meeting on <strong>${meetingDate}</strong>.</p>
+    <p>Please sign in to review the agenda and RSVP.</p>
+    <p><a href="${meetingLink}" style="background:#1a56db;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View meeting</a></p>
   `;
 }
 

@@ -12,6 +12,7 @@ import AttendeeGoals from "@/pages/attendee/goals";
 import AttendeeMeetings from "@/pages/attendee/meetings";
 import AttendeeSuggestions from "@/pages/attendee/suggestions";
 import AttendeeInvite from "@/pages/attendee/invite";
+import AttendeeSurvey from "@/pages/attendee/survey";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -48,6 +49,16 @@ function DefaultRedirect() {
 }
 
 function Router() {
+  const artifactBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const browserPath = typeof window === "undefined" ? "" : window.location.pathname.replace(/\/$/, "");
+
+  // The artifact preview proxy can expose the initial URL with its base path
+  // included before Wouter normalizes it. Handle that first so a magic-link
+  // token is never intercepted by the protected layout.
+  if (browserPath === "/login" || browserPath.endsWith("/login")) {
+    return <Login />;
+  }
+
   return (
     <Switch>
       <Route path="/login" component={Login} />
@@ -62,6 +73,7 @@ function Router() {
             <Route path="/meetings" component={AttendeeMeetings} />
             <Route path="/suggestions" component={AttendeeSuggestions} />
             <Route path="/invite" component={AttendeeInvite} />
+            <Route path="/survey/:id" component={AttendeeSurvey} />
 
             {/* Admin */}
             <Route path="/admin/dashboard" component={AdminDashboard} />

@@ -1,10 +1,18 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, surveysTable, surveyResponsesTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
+import { db, surveysTable, surveyResponsesTable, meetingInviteesTable } from "@workspace/db";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import "../lib/session";
 
 const router: IRouter = Router();
+
+async function attendeeCanAccessSurvey(attendeeId: number, meetingId: number): Promise<boolean> {
+  const [invite] = await db
+    .select({ attendeeId: meetingInviteesTable.attendeeId })
+    .from(meetingInviteesTable)
+    .where(and(eq(meetingInviteesTable.meetingId, meetingId), eq(meetingInviteesTable.attendeeId, attendeeId)));
+  return Boolean(invite);
+}
 
 function serializeSurvey(s: typeof surveysTable.$inferSelect) {
   return {
@@ -26,9 +34,19 @@ function serializeResponse(r: typeof surveyResponsesTable.$inferSelect) {
   };
 }
 
-router.get("/surveys", requireAuth, async (_req, res): Promise<void> => {
+router.get("/surveys", requireAuth, async (req, res): Promise<void> => {
   const surveys = await db.select().from(surveysTable).orderBy(surveysTable.createdAt);
-  res.json(surveys.map(serializeSurvey));
+  if (req.session.attendeeRole === "admin") {
+    res.json(surveys.map(serializeSurvey));
+    return;
+  }
+
+  const invitations = await db
+    .select({ meetingId: meetingInviteesTable.meetingId })
+    .from(meetingInviteesTable)
+    .where(eq(meetingInviteesTable.attendeeId, req.session.attendeeId!));
+  const invitedMeetingIds = new Set(invitations.map((invitation) => invitation.meetingId));
+  res.json(surveys.filter((survey) => invitedMeetingIds.has(survey.meetingId)).map(serializeSurvey));
 });
 
 router.post("/surveys", requireAdmin, async (req, res): Promise<void> => {
@@ -47,6 +65,12 @@ router.get("/surveys/:id", requireAuth, async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [survey] = await db.select().from(surveysTable).where(eq(surveysTable.id, id));
   if (!survey) { res.status(404).json({ error: "Survey not found" }); return; }
+  if (
+    req.session.attendeeRole !== "admin" &&
+    !(await attendeeCanAccessSurvey(req.session.attendeeId!, survey.meetingId))
+  ) {
+    res.status(404).json({ error: "Survey not found" }); return;
+  }
   res.json(serializeSurvey(survey));
 });
 
@@ -55,8 +79,26 @@ router.post("/surveys/:id/responses", requireAuth, async (req, res): Promise<voi
   const surveyId = parseInt(raw, 10);
   if (isNaN(surveyId)) { res.status(400).json({ error: "Invalid id" }); return; }
   const { answers } = req.body as { answers?: string[] };
-  if (!answers) { res.status(400).json({ error: "answers is required" }); return; }
+  if (!Array.isArray(answers) || answers.some((answer) => typeof answer !== "string")) {
+    res.status(400).json({ error: "answers must be an array of text responses" }); return;
+  }
+  const [survey] = await db.select().from(surveysTable).where(eq(surveysTable.id, surveyId));
+  if (!survey) { res.status(404).json({ error: "Survey not found" }); return; }
   const attendeeId = req.session.attendeeId!;
+  if (
+    req.session.attendeeRole !== "admin" &&
+    !(await attendeeCanAccessSurvey(attendeeId, survey.meetingId))
+  ) {
+    res.status(404).json({ error: "Survey not found" }); return;
+  }
+  if (answers.length !== (survey.questions as string[]).length || answers.some((answer) => answer.trim() === "")) {
+    res.status(400).json({ error: "Please answer every survey question" }); return;
+  }
+  const [existing] = await db
+    .select({ id: surveyResponsesTable.id })
+    .from(surveyResponsesTable)
+    .where(and(eq(surveyResponsesTable.surveyId, surveyId), eq(surveyResponsesTable.attendeeId, attendeeId)));
+  if (existing) { res.status(409).json({ error: "You have already completed this survey" }); return; }
   const [response] = await db
     .insert(surveyResponsesTable)
     .values({ surveyId, attendeeId, answers })

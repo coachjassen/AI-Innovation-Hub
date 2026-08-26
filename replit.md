@@ -30,22 +30,22 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 - `lib/db/src/schema/` — Drizzle ORM schema (circles, attendees, meetings, goals, surveys, suggestions, invites, magicTokens)
 - `lib/api-client-react/src/generated/` — Orval-generated React Query hooks + Zod schemas
 - `artifacts/api-server/src/routes/` — Express route handlers (one file per domain)
-- `artifacts/api-server/src/lib/` — email stub, session type augmentation, object storage
+- `artifacts/api-server/src/lib/` — email delivery, magic-link/session helpers, object storage
 - `artifacts/ai-innovation-circle/src/pages/` — React pages (attendee/ and admin/ subdirs)
 
 ## Architecture decisions
 
-- **Passwordless auth (POC mode):** `POST /api/auth/request-link` directly creates a session from email — no SMTP needed. Real magic-link flow is wired but inert until SMTP secrets are set.
+- **Passwordless auth:** `POST /api/auth/request-link` issues a hashed, single-use, one-hour email link. The session is created only when `POST /api/auth/verify` redeems that link. New requests invalidate earlier pending links and resend attempts are rate-limited.
 - **Session store:** `connect-pg-simple` backed by a `sessions` table in Postgres. Both the `session` and `sessions` tables exist in the DB.
 - **API-first:** All contracts live in OpenAPI spec; Orval generates typed hooks used by the frontend. Never hand-write fetch calls in the UI.
-- **Email stubbing:** `lib/email.ts` silently no-ops when SMTP env vars are absent — safe for POC/demo without noise.
+- **Email configuration:** Sign-in links and attendee notifications require SMTP. The app returns an explicit configuration/delivery error when SMTP is unavailable; it never claims a message was sent.
 - **Express 5 wildcard routes:** Use `/{*splat}` syntax; always check `Array.isArray(req.params.id)` before parsing IDs.
 
 ## Product
 
 - **Attendee view:** Manage personal goals (create/update/delete/filter), browse past meetings with notes/insights, submit topic suggestions, invite colleagues.
 - **Admin view:** Dashboard with circle KPIs and goal progress chart, all-attendees goals view (grouped by person), meeting CRUD, attendee roster, suggestions inbox, invitation approval queue, email trigger panel (reminder + post-meeting survey).
-- **Auth:** Email entry → instant session (POC); role-based sidebar navigation (admin vs attendee).
+- **Auth:** Attendees request a secure email link, then return to their intended protected page after verification. Navigation remains role-based (admin vs attendee).
 
 ## Demo accounts
 

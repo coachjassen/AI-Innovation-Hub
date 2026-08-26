@@ -7,5 +7,6 @@
  */
 
 export interface MagicLinkVerify {
+  /** @minLength 1 */
   token: string;
 }

@@ -5,8 +5,9 @@ import { attendeesTable } from "./attendees";
 
 export const magicTokensTable = pgTable("magic_tokens", {
   id: serial("id").primaryKey(),
+  // SHA-256 digest of the raw token. Raw tokens only travel in email links.
   token: text("token").notNull().unique(),
-  attendeeId: integer("attendee_id").references(() => attendeesTable.id).notNull(),
+  attendeeId: integer("attendee_id").references(() => attendeesTable.id, { onDelete: "cascade" }).notNull(),
   used: boolean("used").notNull().default(false),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

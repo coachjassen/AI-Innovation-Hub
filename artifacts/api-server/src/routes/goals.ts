@@ -5,6 +5,11 @@ import { requireAuth } from "../middlewares/requireAuth";
 import "../lib/session";
 
 const router: IRouter = Router();
+const GOAL_STATUSES = new Set(["New", "Not Started", "In Progress", "Completed"]);
+
+function isValidGoalStatus(status: unknown): status is string {
+  return typeof status === "string" && GOAL_STATUSES.has(status);
+}
 
 function serializeGoal(g: typeof goalsTable.$inferSelect & { attendeeName?: string; attendeeCompany?: string }) {
   return {
@@ -104,14 +109,19 @@ router.get("/goals", requireAuth, async (req, res): Promise<void> => {
 
 router.post("/goals", requireAuth, async (req, res): Promise<void> => {
   const { timeframe, status, comments, dueDate } = req.body as { timeframe?: string; status?: string; comments?: string; dueDate?: string | null };
-  if (!timeframe || !status) {
-    res.status(400).json({ error: "timeframe and status are required" });
+  const normalizedTimeframe = timeframe?.trim();
+  if (!normalizedTimeframe || !isValidGoalStatus(status)) {
+    res.status(400).json({ error: "A goal objective and valid status are required" });
+    return;
+  }
+  if (dueDate !== undefined && dueDate !== null && (typeof dueDate !== "string" || Number.isNaN(Date.parse(dueDate)))) {
+    res.status(400).json({ error: "dueDate must be a valid date" });
     return;
   }
   const attendeeId = req.session.attendeeId!;
   const [goal] = await db
     .insert(goalsTable)
-    .values({ attendeeId, timeframe, status, comments: comments ?? null, dueDate: dueDate ? dueDate : null })
+    .values({ attendeeId, timeframe: normalizedTimeframe, status, comments: comments?.trim() || null, dueDate: dueDate ? dueDate : null })
     .returning();
   res.status(201).json(serializeGoal(goal));
 });
@@ -141,12 +151,21 @@ router.patch("/goals/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   const { timeframe, status, comments, dueDate } = req.body as { timeframe?: string; status?: string; comments?: string; dueDate?: string | null };
-  const updates: Partial<{ timeframe: string; status: string; comments: string; dueDate: string | null; updatedAt: Date }> = {
+  if (timeframe !== undefined && timeframe.trim() === "") {
+    res.status(400).json({ error: "A goal objective is required" }); return;
+  }
+  if (status !== undefined && !isValidGoalStatus(status)) {
+    res.status(400).json({ error: "status is invalid" }); return;
+  }
+  if (dueDate !== undefined && dueDate !== null && (typeof dueDate !== "string" || Number.isNaN(Date.parse(dueDate)))) {
+    res.status(400).json({ error: "dueDate must be a valid date" }); return;
+  }
+  const updates: Partial<{ timeframe: string; status: string; comments: string | null; dueDate: string | null; updatedAt: Date }> = {
     updatedAt: new Date(),
   };
-  if (timeframe !== undefined) updates.timeframe = timeframe;
+  if (timeframe !== undefined) updates.timeframe = timeframe.trim();
   if (status !== undefined) updates.status = status;
-  if (comments !== undefined) updates.comments = comments;
+  if (comments !== undefined) updates.comments = comments.trim() || null;
   if (dueDate !== undefined) updates.dueDate = dueDate ? dueDate : null;
 
   const [goal] = await db.update(goalsTable).set(updates).where(eq(goalsTable.id, id)).returning();

@@ -33,7 +33,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // Redirect to login when unauthenticated — use effect to avoid setState-during-render
   useEffect(() => {
     if (!isLoading && !user) {
-      setLocation("/login");
+      const configuredBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const artifactBasePath = configuredBasePath || "/ai-innovation-circle";
+      const internalPath = location.startsWith(`${artifactBasePath}/`)
+        ? location.slice(artifactBasePath.length)
+        : location;
+      const returnTo = internalPath.startsWith("/") && !internalPath.startsWith("//")
+        ? `?returnTo=${encodeURIComponent(internalPath)}`
+        : "";
+      setLocation(`/login${returnTo}`);
     }
   }, [isLoading, user, setLocation]);
 

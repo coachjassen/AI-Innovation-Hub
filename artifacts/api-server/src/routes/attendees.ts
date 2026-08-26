@@ -3,6 +3,7 @@ import { eq, desc, count, inArray } from "drizzle-orm";
 import { db, attendeesTable, goalsTable, surveyResponsesTable, circlesTable } from "@workspace/db";
 import { ImportAttendeesBody, ImportAttendeesResponse } from "@workspace/api-zod";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
+import { sendAttendeeOnboardingEmail } from "../lib/magic-link";
 import "../lib/session";
 
 const router: IRouter = Router();
@@ -49,6 +50,11 @@ router.post("/attendees", requireAdmin, async (req, res): Promise<void> => {
     .returning();
 
   res.status(201).json(serializeAttendee(attendee));
+  void sendAttendeeOnboardingEmail(req, attendee).catch((err) => {
+    // The attendee record is valid even when email delivery is unavailable.
+    // The admin can retry sign-in delivery from the login page.
+    req.log?.warn({ err, attendeeId: attendee.id }, "Failed to send attendee onboarding email");
+  });
 });
 
 router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> => {
@@ -149,9 +155,14 @@ router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> =
     created: created.map(serializeAttendee),
     skipped,
   }));
+  void Promise.all(
+    created.map((attendee) => sendAttendeeOnboardingEmail(req, attendee)),
+  ).catch((err) => {
+    req.log?.warn({ err, circleId }, "Failed to send one or more onboarding emails after import");
+  });
 });
 
-router.get("/attendees", requireAuth, async (req, res): Promise<void> => {
+router.get("/attendees", requireAdmin, async (req, res): Promise<void> => {
   const rows = await db.select().from(attendeesTable).orderBy(attendeesTable.name);
 
   // Get goal counts and survey response counts per attendee

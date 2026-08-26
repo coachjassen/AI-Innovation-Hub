@@ -16,8 +16,10 @@ import {
   buildMeetingIcs,
   buildRsvpConfirmationEmail,
   buildMeetingRescheduledEmail,
+  buildMeetingInvitationEmail,
   type AgendaSummaryItem,
 } from "../lib/email";
+import { getApplicationUrl } from "../lib/magic-link";
 import { logger } from "../lib/logger";
 import "../lib/session";
 
@@ -468,6 +470,8 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
     .from(meetingInviteesTable)
     .where(eq(meetingInviteesTable.meetingId, id));
   const nextInviteeIds = new Set(attendeeIds);
+  const existingInviteeIds = new Set(existingInvitees.map((invitee) => invitee.attendeeId));
+  const addedAttendeeIds = attendeeIds.filter((attendeeId) => !existingInviteeIds.has(attendeeId));
   const removedAttendeeIds = existingInvitees
     .map((invitee) => invitee.attendeeId)
     .filter((attendeeId) => !nextInviteeIds.has(attendeeId));
@@ -487,7 +491,43 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
   });
 
   res.json(await listInviteesForMeeting(meeting));
+
+  // Meeting invitations are best-effort and never roll back a valid invitee
+  // selection if SMTP is unavailable or an individual recipient fails.
+  if (addedAttendeeIds.length > 0) {
+    const applicationUrl = getApplicationUrl(req);
+    if (applicationUrl) {
+      void sendMeetingInvitationEmails(meeting, addedAttendeeIds, `${applicationUrl}/meetings`).catch((err) => {
+        logger.error({ err, meetingId: meeting.id }, "Failed to send meeting invitation emails");
+      });
+    }
+  }
 });
+
+async function sendMeetingInvitationEmails(
+  meeting: typeof meetingsTable.$inferSelect,
+  attendeeIds: number[],
+  meetingLink: string,
+): Promise<void> {
+  const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, meeting.circleId));
+  const circleName = circle?.name ?? "Kinetics Group Innovation Hub";
+  const recipients = await db
+    .select({ name: attendeesTable.name, email: attendeesTable.email })
+    .from(attendeesTable)
+    .where(inArray(attendeesTable.id, attendeeIds));
+
+  for (const recipient of recipients) {
+    try {
+      await sendEmail({
+        to: recipient.email,
+        subject: `You're invited: ${circleName} meeting`,
+        html: buildMeetingInvitationEmail(recipient.name, circleName, meeting.date, meetingLink),
+      });
+    } catch (err) {
+      logger.error({ err, meetingId: meeting.id, email: recipient.email }, "Failed to send meeting invitation");
+    }
+  }
+}
 
 // Set / change the current attendee's RSVP for a meeting (opt in or out).
 router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void> => {

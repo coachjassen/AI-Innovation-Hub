@@ -64,7 +64,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/MessageResponse"
         "400":
-          description: Bad request
+          description: Invalid email address
+        "502":
+          description: Email delivery failed
+        "503":
+          description: Email delivery or public URL is not configured
 
   /auth/verify:
     post:
@@ -85,7 +89,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Attendee"
         "400":
-          description: Invalid or expired token
+          description: Invalid, expired, or already-used token
 
   /auth/logout:
     post:
@@ -970,6 +974,7 @@ components:
       properties:
         email:
           type: string
+          format: email
 
     MagicLinkVerify:
       type: object
@@ -977,6 +982,7 @@ components:
       properties:
         token:
           type: string
+          minLength: 1
 
     # Circle
     Circle:

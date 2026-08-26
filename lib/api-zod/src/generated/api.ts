@@ -20,7 +20,7 @@ export const HealthCheckResponse = zod.object({
  * @summary Request a magic login link
  */
 export const RequestMagicLinkBody = zod.object({
-  "email": zod.string()
+  "email": zod.string().email()
 })
 
 export const RequestMagicLinkResponse = zod.object({
@@ -31,8 +31,11 @@ export const RequestMagicLinkResponse = zod.object({
 /**
  * @summary Verify a magic link token and create session
  */
+
+
+
 export const VerifyMagicLinkBody = zod.object({
-  "token": zod.string()
+  "token": zod.string().min(1)
 })
 
 export const VerifyMagicLinkResponse = zod.object({

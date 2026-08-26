@@ -2,13 +2,18 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { useRequestMagicLink, useGetMe, getGetMeQueryKey, getGetMeQueryOptions } from "@workspace/api-client-react";
+import {
+  useRequestMagicLink,
+  useVerifyMagicLink,
+  useGetMe,
+  getGetMeQueryKey,
+} from "@workspace/api-client-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KineticsLogo } from "@/components/KineticsLogo";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const loginSchema = z.object({
@@ -21,18 +26,58 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const requestMagicLink = useRequestMagicLink();
-  const [isSuccess, setIsSuccess] = useState(false);
-  
+  const verifyMagicLink = useVerifyMagicLink();
+  const [requestSent, setRequestSent] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const handledToken = useRef<string | null>(null);
+
+  const token = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("token")
+    : null;
+  const returnTo = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("returnTo")
+    : null;
+  const configuredBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const artifactBasePath = configuredBasePath || "/ai-innovation-circle";
+  const normalizedReturnTo = returnTo && artifactBasePath && returnTo.startsWith(`${artifactBasePath}/`)
+    ? returnTo.slice(artifactBasePath.length)
+    : returnTo;
+  const safeReturnTo = normalizedReturnTo?.startsWith("/") && !normalizedReturnTo.startsWith("//")
+    ? normalizedReturnTo
+    : null;
+
   // Try to see if already logged in
   const { data: user, isLoading: isUserLoading } = useGetMe({ 
-    query: { retry: false, staleTime: 0, queryKey: getGetMeQueryKey() } 
+    query: { retry: false, staleTime: 0, queryKey: getGetMeQueryKey() }
   });
 
   useEffect(() => {
-    if (user) {
-      setLocation(user.role === 'admin' ? '/admin/dashboard' : '/goals');
+    if (user && !token) {
+      setLocation(safeReturnTo ?? (user.role === 'admin' ? '/admin/dashboard' : '/goals'));
     }
-  }, [user, setLocation]);
+  }, [user, token, safeReturnTo, setLocation]);
+
+  useEffect(() => {
+    if (!token || isUserLoading || user || handledToken.current === token) return;
+    handledToken.current = token;
+    setVerificationError(null);
+
+    verifyMagicLink.mutate(
+      { data: { token } },
+      {
+        onSuccess: (attendee) => {
+          window.history.replaceState(null, "", window.location.pathname);
+          queryClient.setQueryData(getGetMeQueryKey(), attendee);
+          setLocation(safeReturnTo ?? (attendee.role === "admin" ? "/admin/dashboard" : "/goals"));
+        },
+        onError: () => {
+          window.history.replaceState(null, "", window.location.pathname);
+          setVerificationError("This sign-in link is invalid or has expired. Request a new link below.");
+        },
+      },
+    );
+  }, [token, isUserLoading, user, queryClient, safeReturnTo, setLocation, verifyMagicLink]);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -40,26 +85,19 @@ export default function Login() {
   });
 
   const onSubmit = (data: LoginForm) => {
-    setIsSuccess(false);
+    setRequestError(null);
+    setRequestSent(false);
     requestMagicLink.mutate({ data: { email: data.email } }, {
-      onSuccess: async () => {
-        setIsSuccess(true);
-        // POC auto-logs them in. Poll the session a few times to absorb any
-        // brief propagation delay before it becomes readable. A successful
-        // fetch updates the useGetMe cache, and the redirect effect navigates.
-        for (let attempt = 0; attempt < 5; attempt++) {
-          const user = await queryClient
-            .fetchQuery(getGetMeQueryOptions())
-            .catch(() => null);
-          if (user) return;
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-        // Session never became readable — let the user retry instead of
-        // stranding them on the "Signing in…" panel.
-        setIsSuccess(false);
-        form.setError("email", {
-          message: "Sign-in didn't complete. Please try again.",
-        });
+      onSuccess: () => {
+        setRequestSent(true);
+      },
+      onError: (error) => {
+        const status = (error as { status?: number }).status;
+        setRequestError(
+          status === 503
+            ? "Email delivery is not configured yet. Please contact your facilitator."
+            : "We couldn't send a sign-in email. Please try again.",
+        );
       },
     });
   };
@@ -87,22 +125,44 @@ export default function Login() {
         <Card className="border-white/10 shadow-2xl">
           <CardHeader>
             <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Enter your email to sign in.</CardDescription>
+            <CardDescription>We'll email you a secure, one-time sign-in link.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isSuccess ? (
+            {verifyMagicLink.isPending ? (
               <div className="text-center space-y-4 py-4">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 mb-4">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900">Signing in...</h3>
-                <p className="text-sm text-gray-500">Redirecting to your dashboard.</p>
+                <h3 className="text-lg font-medium text-gray-900">Verifying your link...</h3>
+                <p className="text-sm text-gray-500">You’ll be redirected to your dashboard shortly.</p>
+              </div>
+            ) : requestSent ? (
+              <div className="space-y-4 py-4">
+                <div className="rounded-md bg-green-50 p-4 text-sm text-green-800">
+                  Check your inbox for a sign-in link. It expires in 1 hour.
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  If the link expires, return here and request a fresh one. Only the newest link will work.
+                </p>
+                <Button type="button" variant="outline" className="w-full" onClick={() => setRequestSent(false)}>
+                  Use a different email
+                </Button>
               </div>
             ) : (
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {verificationError && (
+                    <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+                      {verificationError}
+                    </div>
+                  )}
+                  {requestError && (
+                    <div className="rounded-md bg-red-50 p-3 text-sm text-red-800" role="alert">
+                      {requestError}
+                    </div>
+                  )}
                   <FormField
                     control={form.control}
                     name="email"
@@ -121,7 +181,7 @@ export default function Login() {
                     className="w-full" 
                     disabled={requestMagicLink.isPending}
                   >
-                    {requestMagicLink.isPending ? "Signing in..." : "Sign in"}
+                    {requestMagicLink.isPending ? "Sending link..." : "Email me a sign-in link"}
                   </Button>
                 </form>
               </Form>
