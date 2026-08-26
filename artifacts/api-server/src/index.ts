@@ -1,6 +1,7 @@
 import path from "path";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runRecoveryBootstrap } from "./lib/recovery-bootstrap";
 
 // Auto-load .env from the repo root when env vars aren't already set
 // (i.e. when running outside Replit/a managed environment).
@@ -34,11 +35,18 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+runRecoveryBootstrap()
+  .then(() => {
+    app.listen(port, (err) => {
+      if (err) {
+        logger.error({ err }, "Error listening on port");
+        process.exit(1);
+      }
 
-  logger.info({ port }, "Server listening");
-});
+      logger.info({ port }, "Server listening");
+    });
+  })
+  .catch((error) => {
+    logger.error({ err: error }, "Recovery bootstrap failed");
+    process.exit(1);
+  });
