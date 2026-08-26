@@ -33,11 +33,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, Users, Target, ClipboardList, Plus } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Upload, Users, Target, ClipboardList, Plus } from "lucide-react";
 
 const MAX_CSV_BYTES = 1_000_000;
 const MAX_IMPORT_ROWS = 1_000;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const attendeeTemplateCsv = [
+  "name,email,company",
+  "Alex Morgan,alex.morgan@example.com,Example Company",
+].join("\n");
 
 type PreviewStatus = "valid" | "invalid" | "duplicate_file" | "duplicate_existing";
 
@@ -108,6 +112,18 @@ function getStatusVariant(status: PreviewStatus): "default" | "secondary" | "des
   if (status === "valid") return "default";
   if (status === "invalid") return "destructive";
   return "secondary";
+}
+
+function downloadAttendeeTemplate() {
+  const blob = new Blob([`${attendeeTemplateCsv}\n`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "attendee-template.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export default function AdminAttendees() {
@@ -316,6 +332,15 @@ export default function AdminAttendees() {
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={downloadAttendeeTemplate}
+            data-testid="button-download-attendee-template"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download CSV template
+          </Button>
           <Dialog
             open={isImportOpen}
             onOpenChange={(open) => {
@@ -374,6 +399,9 @@ export default function AdminAttendees() {
                       <p className="mt-3 font-medium">Choose a CSV contact list</p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Required columns: name and email. Optional column: company.
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Imports are added to the active Hub. The template includes an example row you can replace.
                       </p>
                       <input
                         ref={fileInputRef}
