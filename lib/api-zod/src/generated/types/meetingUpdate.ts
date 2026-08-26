@@ -11,4 +11,8 @@ export interface MeetingUpdate {
   notes?: string;
   slidesPath?: string;
   keyInsight?: string;
+  invitationBody?: string;
+  invitationAttachmentPath?: string;
+  invitationAttachmentName?: string;
+  invitationAttachmentContentType?: string;
 }

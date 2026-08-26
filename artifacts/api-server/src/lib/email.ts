@@ -82,6 +82,36 @@ export function buildMeetingInvitationEmail(
   `;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+export function buildOneOffInvitationEmail(
+  attendeeName: string,
+  circleName: string,
+  meetingDate: string,
+  customBody: string | null,
+  rsvpLink: string,
+): string {
+  const message = customBody?.trim()
+    ? `<p>${escapeHtml(customBody).replaceAll("\n", "<br />")}</p>`
+    : "";
+
+  return `
+    <p>Hi ${escapeHtml(attendeeName)},</p>
+    <p>You are invited to <strong>${escapeHtml(circleName)}</strong> on <strong>${escapeHtml(meetingDate)}</strong>.</p>
+    ${message}
+    <p>Your invitation document and calendar invite are attached.</p>
+    <p>Please let us know whether you can attend:</p>
+    <p><a href="${rsvpLink}" style="background:#1a56db;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">RSVP to this event</a></p>
+  `;
+}
+
 export function buildReminderEmail(
   attendeeName: string,
   circleName: string,

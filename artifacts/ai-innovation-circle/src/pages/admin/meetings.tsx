@@ -22,8 +22,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks, UserRoundPlus } from "lucide-react";
+import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks, UserRoundPlus, Mail } from "lucide-react";
 import { AgendaManager } from "@/components/AgendaManager";
+import { OneOffInvitationManager } from "@/components/OneOffInvitationManager";
 
 export default function AdminMeetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -31,6 +32,7 @@ export default function AdminMeetings() {
   const [agendaMeeting, setAgendaMeeting] = useState<{ id: number; date: string } | null>(null);
   const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
   const [inviteeMeeting, setInviteeMeeting] = useState<{ id: number; date: string } | null>(null);
+  const [invitationMeeting, setInvitationMeeting] = useState<{ id: number; date: string } | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -65,7 +67,11 @@ export default function AdminMeetings() {
         onSuccess: (meeting) => {
           queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
           setIsCreateOpen(false);
-          setInviteeMeeting({ id: meeting.id, date: meeting.date });
+          if (activeCircle?.cadence === 'one-off') {
+            setInvitationMeeting({ id: meeting.id, date: meeting.date });
+          } else {
+            setInviteeMeeting({ id: meeting.id, date: meeting.date });
+          }
         },
         onError: (error) => setCreateError(error.message || "Unable to create the meeting."),
       }
@@ -113,18 +119,27 @@ export default function AdminMeetings() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setInviteeMeeting({ id: m.id, date: m.date })}>
-                <UserRoundPlus className="h-4 w-4 mr-1" />
-                Invitees
-              </Button>
               <Button variant="ghost" size="sm" onClick={() => setRosterMeeting({ id: m.id, date: m.date })}>
                 <Users className="h-4 w-4 mr-1" />
                 RSVPs
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setAgendaMeeting({ id: m.id, date: m.date })}>
-                <ListChecks className="h-4 w-4 mr-1" />
-                Agenda
-              </Button>
+              {activeCircle?.cadence === 'one-off' ? (
+                <Button variant="ghost" size="sm" onClick={() => setInvitationMeeting({ id: m.id, date: m.date })}>
+                  <Mail className="h-4 w-4 mr-1" />
+                  Invitation
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => setInviteeMeeting({ id: m.id, date: m.date })}>
+                    <UserRoundPlus className="h-4 w-4 mr-1" />
+                    Invitees
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setAgendaMeeting({ id: m.id, date: m.date })}>
+                    <ListChecks className="h-4 w-4 mr-1" />
+                    Agenda
+                  </Button>
+                </>
+              )}
               {m.notes && (
                 <Button variant="ghost" size="sm" onClick={() => setExpandedId(isOpen ? null : m.id)}>
                   <FileText className="h-4 w-4 mr-1" />
@@ -257,6 +272,22 @@ export default function AdminMeetings() {
           </DialogHeader>
           {inviteeMeeting && (
             <InviteeManager meetingId={inviteeMeeting.id} onSaved={() => setInviteeMeeting(null)} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={invitationMeeting !== null} onOpenChange={(o) => !o && setInvitationMeeting(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Invitation Setup{invitationMeeting ? ` — ${format(new Date(invitationMeeting.date), "MMMM d, yyyy")}` : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Write the invitation message and manage who receives it.
+            </DialogDescription>
+          </DialogHeader>
+          {invitationMeeting && meetings.find(m => m.id === invitationMeeting.id) && (
+            <OneOffInvitationManager meeting={meetings.find(m => m.id === invitationMeeting.id)!} onDone={() => setInvitationMeeting(null)} />
           )}
         </DialogContent>
       </Dialog>

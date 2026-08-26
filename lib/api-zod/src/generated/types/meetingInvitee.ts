@@ -12,4 +12,7 @@ export interface MeetingInvitee {
   attendeeEmail: string;
   attendeeCompany: string;
   invited: boolean;
+  /** @nullable */
+  invitationSentAt: string | null;
+  invitationSendCount: number;
 }

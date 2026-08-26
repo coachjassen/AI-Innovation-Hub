@@ -16,6 +16,14 @@ export interface Meeting {
   slidesPath?: string | null;
   /** @nullable */
   keyInsight?: string | null;
+  /** @nullable */
+  invitationBody?: string | null;
+  /** @nullable */
+  invitationAttachmentPath?: string | null;
+  /** @nullable */
+  invitationAttachmentName?: string | null;
+  /** @nullable */
+  invitationAttachmentContentType?: string | null;
   createdAt: string;
   /** @nullable */
   myResponse?: string | null;

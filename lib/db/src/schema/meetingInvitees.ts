@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { meetingsTable } from "./meetings";
@@ -14,6 +14,9 @@ export const meetingInviteesTable = pgTable(
     attendeeId: integer("attendee_id")
       .references(() => attendeesTable.id, { onDelete: "cascade" })
       .notNull(),
+    invitationTokenHash: text("invitation_token_hash").unique(),
+    invitationSentAt: timestamp("invitation_sent_at"),
+    invitationSendCount: integer("invitation_send_count").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => ({

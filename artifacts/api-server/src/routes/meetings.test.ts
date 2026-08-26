@@ -1,8 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it, vi, type Mock } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { inArray } from "drizzle-orm";
-import { db, attendeesTable, magicTokensTable } from "@workspace/db";
+import { createHash } from "node:crypto";
+import { and, eq, inArray } from "drizzle-orm";
+import {
+  db,
+  attendeesTable,
+  circlesTable,
+  magicTokensTable,
+  meetingInviteesTable,
+  meetingsTable,
+} from "@workspace/db";
 
 // Spy on the outbound mailer while keeping the real .ics / HTML builders so the
 // confirmation path actually executes. sendEmail itself no-ops in POC mode (no
@@ -11,6 +19,15 @@ vi.mock("../lib/email", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/email")>();
   return { ...actual, sendEmail: vi.fn(async () => ({ sent: true as const })) };
 });
+
+vi.mock("../lib/objectStorage", () => ({
+  ObjectStorageService: class {
+    async getObjectEntityFile() {
+      return { download: async () => [Buffer.from("sample invitation file")] };
+    }
+  },
+  ObjectNotFoundError: class ObjectNotFoundError extends Error {},
+}));
 
 import app from "../app";
 import { sendEmail } from "../lib/email";
@@ -27,6 +44,10 @@ let attendeeCookie: string;
 let meetingId: number;
 let attendeeId: number;
 let adminId: number;
+let oneOffCircleId: number;
+let oneOffMeetingId: number;
+let oneOffAttendeeId: number;
+const ONE_OFF_TOKEN = "a".repeat(64);
 const CIRCLE_ID = 1; // both demo admin and attendees live in circle 1
 
 interface ApiResult {
@@ -126,12 +147,45 @@ beforeAll(async () => {
   });
   expect(created.status).toBe(201);
   meetingId = created.body.id;
+
+  const [oneOffCircle] = await db
+    .insert(circlesTable)
+    .values({ name: `One-off invitation test ${Date.now()}`, cadence: "one-off", status: "active" })
+    .returning({ id: circlesTable.id });
+  oneOffCircleId = oneOffCircle.id;
+  const [oneOffAttendee] = await db
+    .insert(attendeesTable)
+    .values({
+      name: "One-off invitation recipient",
+      email: `one-off-recipient-${Date.now()}@example.test`,
+      company: "Test company",
+      role: "attendee",
+      circleId: oneOffCircleId,
+    })
+    .returning({ id: attendeesTable.id });
+  oneOffAttendeeId = oneOffAttendee.id;
+
+  const oneOffCreated = await api("POST", "/api/meetings", {
+    cookie: adminCookie,
+    body: { circleId: oneOffCircleId, date: "2030-02-15T17:00:00.000Z" },
+  });
+  expect(oneOffCreated.status).toBe(201);
+  oneOffMeetingId = oneOffCreated.body.id;
 });
 
 afterAll(async () => {
   // Cascades remove agenda items, invitees, and responses created during the test.
   if (meetingId) {
     await api("DELETE", `/api/meetings/${meetingId}`, { cookie: adminCookie });
+  }
+  if (oneOffMeetingId) {
+    await db.delete(meetingsTable).where(eq(meetingsTable.id, oneOffMeetingId));
+  }
+  if (oneOffAttendeeId) {
+    await db.delete(attendeesTable).where(eq(attendeesTable.id, oneOffAttendeeId));
+  }
+  if (oneOffCircleId) {
+    await db.delete(circlesTable).where(eq(circlesTable.id, oneOffCircleId));
   }
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve())),
@@ -276,5 +330,104 @@ describe("RSVP confirmation flow", () => {
     // none happened.
     await new Promise((r) => setTimeout(r, 500));
     expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("one-off invitation RSVP flow", () => {
+  it("does not create an inherited agenda and rejects agenda writes", async () => {
+    const agenda = await api("GET", `/api/meetings/${oneOffMeetingId}/agenda`, { cookie: adminCookie });
+    expect(agenda.status).toBe(400);
+
+    const writeAgenda = await api("PUT", `/api/meetings/${oneOffMeetingId}/agenda`, {
+      cookie: adminCookie,
+      body: { items: [{ title: "Should not be saved" }] },
+    });
+    expect(writeAgenda.status).toBe(400);
+  });
+
+  it("preserves invitation contact state while the invitee selection is saved again", async () => {
+    const selected = await api("PUT", `/api/meetings/${oneOffMeetingId}/invitees`, {
+      cookie: adminCookie,
+      body: { attendeeIds: [oneOffAttendeeId] },
+    });
+    expect(selected.status).toBe(200);
+
+    await db
+      .update(meetingInviteesTable)
+      .set({
+        invitationTokenHash: createHash("sha256").update(ONE_OFF_TOKEN).digest("hex"),
+        invitationSentAt: new Date(),
+        invitationSendCount: 1,
+      })
+      .where(and(eq(meetingInviteesTable.meetingId, oneOffMeetingId), eq(meetingInviteesTable.attendeeId, oneOffAttendeeId)));
+
+    const resaved = await api("PUT", `/api/meetings/${oneOffMeetingId}/invitees`, {
+      cookie: adminCookie,
+      body: { attendeeIds: [oneOffAttendeeId] },
+    });
+    expect(resaved.status).toBe(200);
+    const invitee = resaved.body.find((row: { attendeeId: number }) => row.attendeeId === oneOffAttendeeId);
+    expect(invitee).toMatchObject({ invitationSendCount: 1 });
+    expect(invitee.invitationSentAt).toBeTruthy();
+  });
+
+  it("lets an invitee RSVP with the bearer token without a login session", async () => {
+    const before = await api("GET", `/api/one-off-rsvp/${ONE_OFF_TOKEN}`);
+    expect(before.status).toBe(200);
+    expect(before.body).toMatchObject({ meetingId: oneOffMeetingId, status: "no_response" });
+
+    const response = await api("PUT", `/api/one-off-rsvp/${ONE_OFF_TOKEN}`, {
+      body: { status: "attending" },
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("attending");
+
+    const invalid = await api("GET", `/api/one-off-rsvp/${"b".repeat(64)}`);
+    expect(invalid.status).toBe(404);
+  });
+
+  it("requires an uploaded attachment before sending first-time invitations", async () => {
+    const send = await api("POST", `/api/meetings/${oneOffMeetingId}/one-off-invitations/send`, {
+      cookie: adminCookie,
+    });
+    expect(send.status).toBe(400);
+    expect(send.body.error).toContain("Upload an invitation file");
+  });
+
+  it("sends the custom event email with both attachments and a fresh bearer RSVP link", async () => {
+    const configured = await api("PATCH", `/api/meetings/${oneOffMeetingId}`, {
+      cookie: adminCookie,
+      body: {
+        invitationBody: "A tailored invitation message.",
+        invitationAttachmentPath: "/objects/invitations/sample.pdf",
+        invitationAttachmentName: "event-invitation.pdf",
+        invitationAttachmentContentType: "application/pdf",
+      },
+    });
+    expect(configured.status).toBe(200);
+    await db
+      .update(meetingInviteesTable)
+      .set({ invitationTokenHash: null, invitationSentAt: null })
+      .where(and(eq(meetingInviteesTable.meetingId, oneOffMeetingId), eq(meetingInviteesTable.attendeeId, oneOffAttendeeId)));
+
+    sendEmailMock.mockClear();
+    const sent = await api("POST", `/api/meetings/${oneOffMeetingId}/one-off-invitations/send`, {
+      cookie: adminCookie,
+    });
+    expect(sent.status).toBe(200);
+    expect(sent.body).toMatchObject({ sentCount: 1, failures: [] });
+
+    const [email] = sendEmailMock.mock.calls[0] as [{
+      html: string;
+      attachments: Array<{ filename: string; content: string }>;
+    }];
+    expect(email.html).toContain("A tailored invitation message.");
+    expect(email.attachments.map((attachment) => attachment.filename)).toEqual(["event-invitation.pdf", "event.ics"]);
+    expect(email.attachments[1].content).toContain("BEGIN:VCALENDAR");
+
+    const token = email.html.match(/one-off-rsvp\/([a-f0-9]{64})/i)?.[1];
+    expect(token).toBeTruthy();
+    const publicInvitation = await api("GET", `/api/one-off-rsvp/${token}`);
+    expect(publicInvitation.status).toBe(200);
   });
 });

@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CircleProvider } from "@/contexts/CircleContext";
 import Login from "@/pages/auth/login";
+import OneOffRsvpPage from "@/pages/one-off-rsvp";
 
 // Attendee pages
 import AttendeeGoals from "@/pages/attendee/goals";
@@ -62,6 +63,16 @@ function Router() {
   // paths so protected pages and magic links work in both preview and root hosting.
   if (normalizedLocation === "/login") {
     return <Login />;
+  }
+
+  if (normalizedLocation.startsWith("/one-off-rsvp/")) {
+    return (
+      <Switch location={normalizedLocation}>
+        <Route path="/one-off-rsvp/:token">
+          {(params) => <OneOffRsvpPage token={params.token} />}
+        </Route>
+      </Switch>
+    );
   }
 
   if (normalizedLocation === "/admin/accounts") {

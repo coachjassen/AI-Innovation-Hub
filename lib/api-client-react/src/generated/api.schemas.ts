@@ -222,6 +222,14 @@ export interface Meeting {
   slidesPath?: string | null;
   /** @nullable */
   keyInsight?: string | null;
+  /** @nullable */
+  invitationBody?: string | null;
+  /** @nullable */
+  invitationAttachmentPath?: string | null;
+  /** @nullable */
+  invitationAttachmentName?: string | null;
+  /** @nullable */
+  invitationAttachmentContentType?: string | null;
   createdAt: string;
   /** @nullable */
   myResponse?: string | null;
@@ -252,6 +260,50 @@ export interface MeetingInvitee {
   attendeeEmail: string;
   attendeeCompany: string;
   invited: boolean;
+  /** @nullable */
+  invitationSentAt: string | null;
+  invitationSendCount: number;
+}
+
+export interface InvitationDeliveryFailure {
+  attendeeId: number;
+  attendeeName: string;
+  error: string;
+}
+
+export interface InvitationDeliveryResult {
+  sentCount: number;
+  failures: InvitationDeliveryFailure[];
+}
+
+export type OneOffRsvpStatus = typeof OneOffRsvpStatus[keyof typeof OneOffRsvpStatus];
+
+
+export const OneOffRsvpStatus = {
+  attending: 'attending',
+  not_attending: 'not_attending',
+  no_response: 'no_response',
+} as const;
+
+export interface OneOffRsvp {
+  meetingId: number;
+  circleName: string;
+  date: string;
+  /** @nullable */
+  invitationBody?: string | null;
+  status: OneOffRsvpStatus;
+}
+
+export type OneOffRsvpInputStatus = typeof OneOffRsvpInputStatus[keyof typeof OneOffRsvpInputStatus];
+
+
+export const OneOffRsvpInputStatus = {
+  attending: 'attending',
+  not_attending: 'not_attending',
+} as const;
+
+export interface OneOffRsvpInput {
+  status: OneOffRsvpInputStatus;
 }
 
 export type MeetingAttendeeResponseStatus = typeof MeetingAttendeeResponseStatus[keyof typeof MeetingAttendeeResponseStatus];
@@ -310,6 +362,10 @@ export interface MeetingUpdate {
   notes?: string;
   slidesPath?: string;
   keyInsight?: string;
+  invitationBody?: string;
+  invitationAttachmentPath?: string;
+  invitationAttachmentName?: string;
+  invitationAttachmentContentType?: string;
 }
 
 export interface Goal {

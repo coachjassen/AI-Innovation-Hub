@@ -10,6 +10,10 @@ export const meetingsTable = pgTable("meetings", {
   notes: text("notes"),
   slidesPath: text("slides_path"),
   keyInsight: text("key_insight"),
+  invitationBody: text("invitation_body"),
+  invitationAttachmentPath: text("invitation_attachment_path"),
+  invitationAttachmentName: text("invitation_attachment_name"),
+  invitationAttachmentContentType: text("invitation_attachment_content_type"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

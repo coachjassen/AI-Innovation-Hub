@@ -45,6 +45,7 @@ import type {
   GoalWithAttendee,
   GoalsSummary,
   HealthStatus,
+  InvitationDeliveryResult,
   Invite,
   InviteInput,
   InviteUpdate,
@@ -64,6 +65,8 @@ import type {
   MeetingResponseInput,
   MeetingUpdate,
   MessageResponse,
+  OneOffRsvp,
+  OneOffRsvpInput,
   Suggestion,
   SuggestionInput,
   SuggestionWithAttendee,
@@ -2093,6 +2096,297 @@ export function useListMeetingResponses<TData = Awaited<ReturnType<typeof listMe
 
 
 
+
+export const getSendOneOffInvitationsUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/one-off-invitations/send`
+}
+
+/**
+ * @summary Send first-time invitations to selected one-off event attendees (admin only)
+ */
+export const sendOneOffInvitations = async (id: number, options?: RequestInit): Promise<InvitationDeliveryResult> => {
+
+  return customFetch<InvitationDeliveryResult>(getSendOneOffInvitationsUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSendOneOffInvitationsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendOneOffInvitations>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendOneOffInvitations>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['sendOneOffInvitations'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendOneOffInvitations>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  sendOneOffInvitations(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendOneOffInvitationsMutationResult = NonNullable<Awaited<ReturnType<typeof sendOneOffInvitations>>>
+
+    export type SendOneOffInvitationsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Send first-time invitations to selected one-off event attendees (admin only)
+ */
+export const useSendOneOffInvitations = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendOneOffInvitations>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendOneOffInvitations>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getSendOneOffInvitationsMutationOptions(options));
+    }
+
+export const getResendOneOffInvitationUrl = (id: number,
+    attendeeId: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/one-off-invitations/${attendeeId}/resend`
+}
+
+/**
+ * @summary Resend an invitation and rotate its RSVP link (admin only)
+ */
+export const resendOneOffInvitation = async (id: number,
+    attendeeId: number, options?: RequestInit): Promise<InvitationDeliveryResult> => {
+
+  return customFetch<InvitationDeliveryResult>(getResendOneOffInvitationUrl(id,attendeeId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getResendOneOffInvitationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendOneOffInvitation>>, TError,{id: number;attendeeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendOneOffInvitation>>, TError,{id: number;attendeeId: number}, TContext> => {
+
+const mutationKey = ['resendOneOffInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendOneOffInvitation>>, {id: number;attendeeId: number}> = (props) => {
+          const {id,attendeeId} = props ?? {};
+
+          return  resendOneOffInvitation(id,attendeeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendOneOffInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof resendOneOffInvitation>>>
+
+    export type ResendOneOffInvitationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Resend an invitation and rotate its RSVP link (admin only)
+ */
+export const useResendOneOffInvitation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendOneOffInvitation>>, TError,{id: number;attendeeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendOneOffInvitation>>,
+        TError,
+        {id: number;attendeeId: number},
+        TContext
+      > => {
+      return useMutation(getResendOneOffInvitationMutationOptions(options));
+    }
+
+export const getGetOneOffRsvpUrl = (token: string,) => {
+
+
+
+
+  return `/api/one-off-rsvp/${token}`
+}
+
+/**
+ * @summary Get a one-off event invitation and current RSVP without signing in
+ */
+export const getOneOffRsvp = async (token: string, options?: RequestInit): Promise<OneOffRsvp> => {
+
+  return customFetch<OneOffRsvp>(getGetOneOffRsvpUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOneOffRsvpQueryKey = (token: string,) => {
+    return [
+    `/api/one-off-rsvp/${token}`
+    ] as const;
+    }
+
+
+export const getGetOneOffRsvpQueryOptions = <TData = Awaited<ReturnType<typeof getOneOffRsvp>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOneOffRsvp>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOneOffRsvpQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOneOffRsvp>>> = ({ signal }) => getOneOffRsvp(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(token), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOneOffRsvp>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOneOffRsvpQueryResult = NonNullable<Awaited<ReturnType<typeof getOneOffRsvp>>>
+export type GetOneOffRsvpQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a one-off event invitation and current RSVP without signing in
+ */
+
+export function useGetOneOffRsvp<TData = Awaited<ReturnType<typeof getOneOffRsvp>>, TError = ErrorType<void>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOneOffRsvp>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOneOffRsvpQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetOneOffRsvpUrl = (token: string,) => {
+
+
+
+
+  return `/api/one-off-rsvp/${token}`
+}
+
+/**
+ * @summary Set RSVP for a one-off event without signing in
+ */
+export const setOneOffRsvp = async (token: string,
+    oneOffRsvpInput: OneOffRsvpInput, options?: RequestInit): Promise<OneOffRsvp> => {
+
+  return customFetch<OneOffRsvp>(getSetOneOffRsvpUrl(token),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      oneOffRsvpInput,)
+  }
+);}
+
+
+
+
+export const getSetOneOffRsvpMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setOneOffRsvp>>, TError,{token: string;data: BodyType<OneOffRsvpInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setOneOffRsvp>>, TError,{token: string;data: BodyType<OneOffRsvpInput>}, TContext> => {
+
+const mutationKey = ['setOneOffRsvp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setOneOffRsvp>>, {token: string;data: BodyType<OneOffRsvpInput>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  setOneOffRsvp(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetOneOffRsvpMutationResult = NonNullable<Awaited<ReturnType<typeof setOneOffRsvp>>>
+    export type SetOneOffRsvpMutationBody = BodyType<OneOffRsvpInput>
+    export type SetOneOffRsvpMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set RSVP for a one-off event without signing in
+ */
+export const useSetOneOffRsvp = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setOneOffRsvp>>, TError,{token: string;data: BodyType<OneOffRsvpInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setOneOffRsvp>>,
+        TError,
+        {token: string;data: BodyType<OneOffRsvpInput>},
+        TContext
+      > => {
+      return useMutation(getSetOneOffRsvpMutationOptions(options));
+    }
 
 export const getListGoalsUrl = (params?: ListGoalsParams,) => {
   const normalizedParams = new URLSearchParams();

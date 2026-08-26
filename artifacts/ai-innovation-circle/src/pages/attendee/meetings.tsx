@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Calendar, Download, FileText, ChevronDown, Check, X, Users, ListChecks } from "lucide-react";
 import { useState } from "react";
 import { AgendaView } from "@/components/AgendaView";
+import { useActiveCircle } from "@/contexts/CircleContext";
 
 type Meeting = {
   id: number;
@@ -21,6 +22,7 @@ type Meeting = {
 };
 
 export default function AttendeeMeetings() {
+  const { activeCircle } = useActiveCircle();
   const { data: meetings = [], isLoading } = useListMeetings(undefined, {
     query: {
       queryKey: getListMeetingsQueryKey(),
@@ -32,6 +34,7 @@ export default function AttendeeMeetings() {
   const now = new Date();
   const upcomingMeetings = sortedMeetings.filter(m => new Date(m.date) > now).reverse();
   const pastMeetings = sortedMeetings.filter(m => new Date(m.date) <= now);
+  const showAgenda = activeCircle?.cadence !== "one-off";
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
@@ -55,7 +58,7 @@ export default function AttendeeMeetings() {
         ) : (
           <div className="space-y-4">
             {upcomingMeetings.map((meeting) => (
-              <UpcomingMeetingCard key={meeting.id} meeting={meeting} />
+              <UpcomingMeetingCard key={meeting.id} meeting={meeting} showAgenda={showAgenda} />
             ))}
           </div>
         )}
@@ -78,7 +81,7 @@ export default function AttendeeMeetings() {
         ) : (
           <div className="space-y-4">
             {pastMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} meeting={meeting} />
+              <MeetingCard key={meeting.id} meeting={meeting} showAgenda={showAgenda} />
             ))}
           </div>
         )}
@@ -87,7 +90,7 @@ export default function AttendeeMeetings() {
   );
 }
 
-function UpcomingMeetingCard({ meeting }: { meeting: Meeting }) {
+function UpcomingMeetingCard({ meeting, showAgenda }: { meeting: Meeting; showAgenda: boolean }) {
   const queryClient = useQueryClient();
   const setResponse = useSetMeetingResponse();
 
@@ -133,12 +136,14 @@ function UpcomingMeetingCard({ meeting }: { meeting: Meeting }) {
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{meeting.notes}</p>
         )}
 
-        <div className="rounded-md border bg-background/60 p-4">
-          <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
-            <ListChecks className="h-4 w-4 text-primary" /> Agenda
-          </h4>
-          <AgendaView meetingId={meeting.id} />
-        </div>
+        {showAgenda && (
+          <div className="rounded-md border bg-background/60 p-4">
+            <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+              <ListChecks className="h-4 w-4 text-primary" /> Agenda
+            </h4>
+            <AgendaView meetingId={meeting.id} />
+          </div>
+        )}
 
         <div className="flex items-center gap-2 pt-1">
           <Button
@@ -169,7 +174,7 @@ function UpcomingMeetingCard({ meeting }: { meeting: Meeting }) {
   );
 }
 
-function MeetingCard({ meeting }: { meeting: Meeting }) {
+function MeetingCard({ meeting, showAgenda }: { meeting: Meeting; showAgenda: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -196,12 +201,14 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
           )}
         </div>
 
-        <div className="mt-6 border-t pt-4">
-          <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
-            <ListChecks className="h-4 w-4 text-primary" /> Agenda
-          </h4>
-          <AgendaView meetingId={meeting.id} />
-        </div>
+        {showAgenda && (
+          <div className="mt-6 border-t pt-4">
+            <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+              <ListChecks className="h-4 w-4 text-primary" /> Agenda
+            </h4>
+            <AgendaView meetingId={meeting.id} />
+          </div>
+        )}
 
         {meeting.notes && (
           <div className="mt-6 border-t pt-4">

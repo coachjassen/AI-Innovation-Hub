@@ -582,6 +582,93 @@ paths:
                 items:
                   $ref: "#/components/schemas/MeetingAttendeeResponse"
 
+  /meetings/{id}/one-off-invitations/send:
+    post:
+      operationId: sendOneOffInvitations
+      tags: [meetings]
+      summary: Send first-time invitations to selected one-off event attendees (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationDeliveryResult"
+
+  /meetings/{id}/one-off-invitations/{attendeeId}/resend:
+    post:
+      operationId: resendOneOffInvitation
+      tags: [meetings]
+      summary: Resend an invitation and rotate its RSVP link (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attendeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationDeliveryResult"
+
+  /one-off-rsvp/{token}:
+    get:
+      operationId: getOneOffRsvp
+      tags: [meetings]
+      summary: Get a one-off event invitation and current RSVP without signing in
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation and RSVP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneOffRsvp"
+        "404":
+          description: Invitation not found
+    put:
+      operationId: setOneOffRsvp
+      tags: [meetings]
+      summary: Set RSVP for a one-off event without signing in
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OneOffRsvpInput"
+      responses:
+        "200":
+          description: Updated RSVP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OneOffRsvp"
+
   # Goals
   /goals:
     get:
@@ -1312,6 +1399,14 @@ components:
           type: ["string", "null"]
         keyInsight:
           type: ["string", "null"]
+        invitationBody:
+          type: ["string", "null"]
+        invitationAttachmentPath:
+          type: ["string", "null"]
+        invitationAttachmentName:
+          type: ["string", "null"]
+        invitationAttachmentContentType:
+          type: ["string", "null"]
         createdAt:
           type: string
         myResponse:
@@ -1343,7 +1438,7 @@ components:
 
     MeetingInvitee:
       type: object
-      required: [attendeeId, attendeeName, attendeeEmail, attendeeCompany, invited]
+      required: [attendeeId, attendeeName, attendeeEmail, attendeeCompany, invited, invitationSentAt, invitationSendCount]
       properties:
         attendeeId:
           type: integer
@@ -1355,6 +1450,56 @@ components:
           type: string
         invited:
           type: boolean
+        invitationSentAt:
+          type: ["string", "null"]
+        invitationSendCount:
+          type: integer
+
+    InvitationDeliveryFailure:
+      type: object
+      required: [attendeeId, attendeeName, error]
+      properties:
+        attendeeId:
+          type: integer
+        attendeeName:
+          type: string
+        error:
+          type: string
+
+    InvitationDeliveryResult:
+      type: object
+      required: [sentCount, failures]
+      properties:
+        sentCount:
+          type: integer
+        failures:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvitationDeliveryFailure"
+
+    OneOffRsvp:
+      type: object
+      required: [meetingId, circleName, date, status]
+      properties:
+        meetingId:
+          type: integer
+        circleName:
+          type: string
+        date:
+          type: string
+        invitationBody:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [attending, not_attending, no_response]
+
+    OneOffRsvpInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [attending, not_attending]
 
     MeetingAttendeeResponse:
       type: object
@@ -1436,6 +1581,14 @@ components:
         slidesPath:
           type: string
         keyInsight:
+          type: string
+        invitationBody:
+          type: string
+        invitationAttachmentPath:
+          type: string
+        invitationAttachmentName:
+          type: string
+        invitationAttachmentContentType:
           type: string
 
     # Goal

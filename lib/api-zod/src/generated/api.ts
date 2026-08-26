@@ -289,6 +289,10 @@ export const ListMeetingsResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
+  "invitationBody": zod.string().nullish(),
+  "invitationAttachmentPath": zod.string().nullish(),
+  "invitationAttachmentName": zod.string().nullish(),
+  "invitationAttachmentContentType": zod.string().nullish(),
   "createdAt": zod.string(),
   "myResponse": zod.string().nullish(),
   "attendingCount": zod.number().optional(),
@@ -324,6 +328,10 @@ export const GetMeetingResponse = zod.object({
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
+  "invitationBody": zod.string().nullish(),
+  "invitationAttachmentPath": zod.string().nullish(),
+  "invitationAttachmentName": zod.string().nullish(),
+  "invitationAttachmentContentType": zod.string().nullish(),
   "createdAt": zod.string(),
   "myResponse": zod.string().nullish(),
   "attendingCount": zod.number().optional(),
@@ -343,7 +351,11 @@ export const UpdateMeetingBody = zod.object({
   "date": zod.string().optional(),
   "notes": zod.string().optional(),
   "slidesPath": zod.string().optional(),
-  "keyInsight": zod.string().optional()
+  "keyInsight": zod.string().optional(),
+  "invitationBody": zod.string().optional(),
+  "invitationAttachmentPath": zod.string().optional(),
+  "invitationAttachmentName": zod.string().optional(),
+  "invitationAttachmentContentType": zod.string().optional()
 })
 
 export const UpdateMeetingResponse = zod.object({
@@ -353,6 +365,10 @@ export const UpdateMeetingResponse = zod.object({
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
+  "invitationBody": zod.string().nullish(),
+  "invitationAttachmentPath": zod.string().nullish(),
+  "invitationAttachmentName": zod.string().nullish(),
+  "invitationAttachmentContentType": zod.string().nullish(),
   "createdAt": zod.string(),
   "myResponse": zod.string().nullish(),
   "attendingCount": zod.number().optional(),
@@ -387,6 +403,10 @@ export const SetMeetingResponseResponse = zod.object({
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
+  "invitationBody": zod.string().nullish(),
+  "invitationAttachmentPath": zod.string().nullish(),
+  "invitationAttachmentName": zod.string().nullish(),
+  "invitationAttachmentContentType": zod.string().nullish(),
   "createdAt": zod.string(),
   "myResponse": zod.string().nullish(),
   "attendingCount": zod.number().optional(),
@@ -454,7 +474,9 @@ export const ListMeetingInviteesResponseItem = zod.object({
   "attendeeName": zod.string(),
   "attendeeEmail": zod.string(),
   "attendeeCompany": zod.string(),
-  "invited": zod.boolean()
+  "invited": zod.boolean(),
+  "invitationSentAt": zod.string().nullable(),
+  "invitationSendCount": zod.number()
 })
 export const ListMeetingInviteesResponse = zod.array(ListMeetingInviteesResponseItem)
 
@@ -475,7 +497,9 @@ export const SetMeetingInviteesResponseItem = zod.object({
   "attendeeName": zod.string(),
   "attendeeEmail": zod.string(),
   "attendeeCompany": zod.string(),
-  "invited": zod.boolean()
+  "invited": zod.boolean(),
+  "invitationSentAt": zod.string().nullable(),
+  "invitationSendCount": zod.number()
 })
 export const SetMeetingInviteesResponse = zod.array(SetMeetingInviteesResponseItem)
 
@@ -494,6 +518,77 @@ export const ListMeetingResponsesResponseItem = zod.object({
   "status": zod.enum(['attending', 'not_attending', 'no_response'])
 })
 export const ListMeetingResponsesResponse = zod.array(ListMeetingResponsesResponseItem)
+
+
+/**
+ * @summary Send first-time invitations to selected one-off event attendees (admin only)
+ */
+export const SendOneOffInvitationsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendOneOffInvitationsResponse = zod.object({
+  "sentCount": zod.number(),
+  "failures": zod.array(zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "error": zod.string()
+}))
+})
+
+
+/**
+ * @summary Resend an invitation and rotate its RSVP link (admin only)
+ */
+export const ResendOneOffInvitationParams = zod.object({
+  "id": zod.coerce.number(),
+  "attendeeId": zod.coerce.number()
+})
+
+export const ResendOneOffInvitationResponse = zod.object({
+  "sentCount": zod.number(),
+  "failures": zod.array(zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "error": zod.string()
+}))
+})
+
+
+/**
+ * @summary Get a one-off event invitation and current RSVP without signing in
+ */
+export const GetOneOffRsvpParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const GetOneOffRsvpResponse = zod.object({
+  "meetingId": zod.number(),
+  "circleName": zod.string(),
+  "date": zod.string(),
+  "invitationBody": zod.string().nullish(),
+  "status": zod.enum(['attending', 'not_attending', 'no_response'])
+})
+
+
+/**
+ * @summary Set RSVP for a one-off event without signing in
+ */
+export const SetOneOffRsvpParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const SetOneOffRsvpBody = zod.object({
+  "status": zod.enum(['attending', 'not_attending'])
+})
+
+export const SetOneOffRsvpResponse = zod.object({
+  "meetingId": zod.number(),
+  "circleName": zod.string(),
+  "date": zod.string(),
+  "invitationBody": zod.string().nullish(),
+  "status": zod.enum(['attending', 'not_attending', 'no_response'])
+})
 
 
 /**
