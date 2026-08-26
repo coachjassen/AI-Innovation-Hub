@@ -29,6 +29,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe({ query: { retry: false, queryKey: getGetMeQueryKey() } });
   const [location, setLocation] = useLocation();
   const logout = useLogout();
+  const { activeCircle } = useActiveCircle();
   const configuredBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const artifactBasePath = configuredBasePath || "/ai-innovation-circle";
   const internalLocation = location.startsWith(`${artifactBasePath}/`)
@@ -52,6 +53,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, user, internalLocation, setLocation]);
 
+  const isAdmin = user?.role === "admin";
+  const isOneOffHub = activeCircle?.cadence === "one-off";
+  const restrictedOneOffPath = isAdmin
+    ? ["/admin/goals", "/admin/suggestions", "/admin/invites"].some((path) => internalLocation.startsWith(path))
+    : ["/goals", "/suggestions", "/invite"].some((path) => internalLocation.startsWith(path));
+
+  useEffect(() => {
+    if (user && isOneOffHub && restrictedOneOffPath) {
+      setLocation(isAdmin ? "/admin/dashboard" : "/meetings");
+    }
+  }, [isAdmin, isOneOffHub, restrictedOneOffPath, setLocation, user]);
+
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -65,24 +78,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
-  const isAdmin = user.role === "admin";
-
   const adminLinks = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/goals", label: "All Goals", icon: Target },
+    ...(!isOneOffHub ? [{ href: "/admin/goals", label: "All Goals", icon: Target }] : []),
     { href: "/admin/attendees", label: "Attendees", icon: Users },
     { href: "/admin/meetings", label: "Meetings", icon: Calendar },
-    { href: "/admin/suggestions", label: "Suggestions", icon: Lightbulb },
-    { href: "/admin/invites", label: "Invites", icon: UserPlus },
+    ...(!isOneOffHub ? [
+      { href: "/admin/suggestions", label: "Suggestions", icon: Lightbulb },
+      { href: "/admin/invites", label: "Invites", icon: UserPlus },
+    ] : []),
     { href: "/admin/accounts", label: "Administrators", icon: UserCog },
     { href: "/admin/email", label: "Email Triggers", icon: Mail },
   ];
 
   const attendeeLinks = [
-    { href: "/goals", label: "My Goals", icon: Target },
+    ...(!isOneOffHub ? [{ href: "/goals", label: "My Goals", icon: Target }] : []),
     { href: "/meetings", label: "Meetings", icon: Calendar },
-    { href: "/suggestions", label: "Suggestions", icon: Lightbulb },
-    { href: "/invite", label: "Invite Colleague", icon: UserPlus },
+    ...(!isOneOffHub ? [
+      { href: "/suggestions", label: "Suggestions", icon: Lightbulb },
+      { href: "/invite", label: "Invite Colleague", icon: UserPlus },
+    ] : []),
   ];
 
   const links = isAdmin ? adminLinks : attendeeLinks;
