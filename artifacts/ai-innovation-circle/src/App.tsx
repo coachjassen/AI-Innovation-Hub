@@ -64,6 +64,16 @@ function Router() {
     return <Login />;
   }
 
+  if (normalizedLocation === "/admin/accounts") {
+    return (
+      <CircleProvider>
+        <AppLayout>
+          <AdminAccounts />
+        </AppLayout>
+      </CircleProvider>
+    );
+  }
+
   return (
     <Switch location={normalizedLocation}>
       <Route path="/login" component={Login} />
