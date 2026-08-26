@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type ErrorRequestHandler, type Express } from "express";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -96,5 +96,16 @@ app.use(
 );
 
 app.use("/api", router);
+
+// Keep database and implementation details out of browser responses. Individual
+// routes still return their own expected validation errors; this is a last-resort
+// response for unexpected failures, which are retained in the server logs.
+const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  req.log.error({ err }, "Unhandled API error");
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Something went wrong. Please try again or contact an administrator." });
+};
+
+app.use(errorHandler);
 
 export default app;

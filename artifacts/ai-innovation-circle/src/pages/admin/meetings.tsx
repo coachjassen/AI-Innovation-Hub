@@ -50,6 +50,7 @@ export default function AdminMeetings() {
   const past = sorted.filter((m) => new Date(m.date) <= now);
   const isOneOffHub = activeCircle?.cadence === "one-off";
   const itemLabel = isOneOffHub ? "one-off event" : "meeting";
+  const meetingSaveFailure = "Unable to save this meeting. Please try again, or contact an administrator if the problem continues.";
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -75,7 +76,10 @@ export default function AdminMeetings() {
             setInviteeMeeting({ id: meeting.id, date: meeting.date });
           }
         },
-        onError: (error) => setCreateError(error.message || "Unable to create the meeting."),
+        onError: (error) => {
+          const message = error.message || "";
+          setCreateError(message.startsWith("HTTP 500") ? meetingSaveFailure : message || meetingSaveFailure);
+        },
       }
     );
   };
