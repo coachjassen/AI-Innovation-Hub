@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
-  useListAttendees,
-  useCreateAttendee,
   getListAttendeesQueryKey,
   getListCirclesQueryKey,
+  type Attendee,
+  useCreateAttendee,
+  useImportAttendees,
+  useListAttendees,
 } from "@workspace/api-client-react";
 import { useActiveCircle } from "@/contexts/CircleContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,6 +15,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +33,82 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Users, Target, ClipboardList, Plus } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, Users, Target, ClipboardList, Plus } from "lucide-react";
+
+const MAX_CSV_BYTES = 1_000_000;
+const MAX_IMPORT_ROWS = 1_000;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type PreviewStatus = "valid" | "invalid" | "duplicate_file" | "duplicate_existing";
+
+interface PreviewRow {
+  rowNumber: number;
+  name: string;
+  email: string;
+  company: string;
+  status: PreviewStatus;
+  errors: string[];
+}
+
+interface ImportSummary {
+  createdCount: number;
+  skippedCount: number;
+}
+
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentValue = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    const nextCharacter = text[index + 1];
+
+    if (inQuotes) {
+      if (character === '"' && nextCharacter === '"') {
+        currentValue += '"';
+        index += 1;
+      } else if (character === '"') {
+        inQuotes = false;
+      } else {
+        currentValue += character;
+      }
+    } else if (character === '"') {
+      inQuotes = true;
+    } else if (character === ",") {
+      currentRow.push(currentValue);
+      currentValue = "";
+    } else if (character === "\n") {
+      currentRow.push(currentValue);
+      if (currentRow.some((value) => value.trim() !== "")) rows.push(currentRow);
+      currentRow = [];
+      currentValue = "";
+    } else if (character !== "\r") {
+      currentValue += character;
+    }
+  }
+
+  if (currentValue !== "" || currentRow.length > 0) {
+    currentRow.push(currentValue);
+    if (currentRow.some((value) => value.trim() !== "")) rows.push(currentRow);
+  }
+
+  return rows;
+}
+
+function getStatusLabel(status: PreviewStatus): string {
+  if (status === "valid") return "Ready";
+  if (status === "invalid") return "Needs attention";
+  if (status === "duplicate_file") return "Duplicate in file";
+  return "Already registered";
+}
+
+function getStatusVariant(status: PreviewStatus): "default" | "secondary" | "destructive" {
+  if (status === "valid") return "default";
+  if (status === "invalid") return "destructive";
+  return "secondary";
+}
 
 export default function AdminAttendees() {
   const queryClient = useQueryClient();
@@ -31,11 +117,66 @@ export default function AdminAttendees() {
   const { data: attendees = [], isLoading } = useListAttendees(params, {
     query: { enabled: activeCircleId !== null, queryKey: getListAttendeesQueryKey(params) },
   });
+  const { data: allAttendees = [], isLoading: isAllAttendeesLoading } = useListAttendees(undefined, {
+    query: { enabled: activeCircleId !== null, queryKey: getListAttendeesQueryKey() },
+  });
   const createAttendee = useCreateAttendee();
+  const importAttendees = useImportAttendees();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importRows, setImportRows] = useState<PreviewRow[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCreate = (event: React.FormEvent<HTMLFormElement>) => {
+  const existingEmails = useMemo(
+    () => new Set(allAttendees.map((attendee) => attendee.email.trim().toLowerCase())),
+    [allAttendees],
+  );
+  const validImportRows = importRows.filter((row) => row.status === "valid");
+  const skippedImportRows = importRows.length - validImportRows.length;
+  const canImport = activeCircleId !== null && activeCircle?.status === "active";
+
+  const invalidateAttendeeQueries = () => {
+    queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey(params) });
+    queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListCirclesQueryKey() });
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        typeof query.queryKey[0] === "string" &&
+        query.queryKey[0].startsWith("/api/meetings/") &&
+        query.queryKey[0].endsWith("/invitees"),
+    });
+  };
+
+  const addImportedAttendeesToCache = (created: Attendee[]) => {
+    const imported = created.map((attendee) => ({
+      ...attendee,
+      lastActivityAt: null,
+      goalCount: 0,
+      surveyResponseCount: 0,
+    }));
+    const mergeAttendees = (current: typeof attendees | undefined) => {
+      const byId = new Map((current ?? []).map((attendee) => [attendee.id, attendee]));
+      for (const attendee of imported) byId.set(attendee.id, attendee);
+      return [...byId.values()].sort((first, second) => first.name.localeCompare(second.name));
+    };
+
+    queryClient.setQueryData<typeof attendees>(getListAttendeesQueryKey(params), mergeAttendees);
+    queryClient.setQueryData<typeof attendees>(getListAttendeesQueryKey(), mergeAttendees);
+  };
+
+  const resetImport = () => {
+    setImportFileName(null);
+    setImportRows([]);
+    setImportError(null);
+    setImportSummary(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (activeCircleId === null) return;
 
@@ -55,18 +196,112 @@ export default function AdminAttendees() {
       },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey(params) });
-          queryClient.invalidateQueries({ queryKey: getListCirclesQueryKey() });
-          queryClient.invalidateQueries({
-            predicate: (query) =>
-              typeof query.queryKey[0] === "string" &&
-              query.queryKey[0].startsWith("/api/meetings/") &&
-              query.queryKey[0].endsWith("/invitees"),
-          });
+          invalidateAttendeeQueries();
           form.reset();
           setIsAddOpen(false);
         },
         onError: (error) => setCreateError(error.message || "Unable to add attendee."),
+      },
+    );
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImportFileName(file.name);
+    setImportRows([]);
+    setImportSummary(null);
+    setImportError(null);
+
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setImportError("Choose a CSV file.");
+      return;
+    }
+    if (file.size > MAX_CSV_BYTES) {
+      setImportError("CSV files must be smaller than 1 MB.");
+      return;
+    }
+    if (isAllAttendeesLoading) {
+      setImportError("Current attendees are still loading. Please choose the file again in a moment.");
+      return;
+    }
+
+    try {
+      const rows = parseCsv(await file.text());
+      if (rows.length < 2) {
+        setImportError("The CSV must include a header row and at least one contact.");
+        return;
+      }
+      if (rows.length - 1 > MAX_IMPORT_ROWS) {
+        setImportError(`CSV files can contain up to ${MAX_IMPORT_ROWS.toLocaleString()} contacts.`);
+        return;
+      }
+
+      const headers = rows[0].map((header, index) =>
+        header.trim().replace(index === 0 ? /^\uFEFF/ : /^/, "").toLowerCase(),
+      );
+      const nameColumn = headers.indexOf("name");
+      const emailColumn = headers.indexOf("email");
+      const companyColumn = headers.indexOf("company");
+
+      if (nameColumn === -1 || emailColumn === -1) {
+        setImportError('The CSV must have "name" and "email" columns. "company" is optional.');
+        return;
+      }
+
+      const seenEmails = new Set<string>();
+      const previewRows = rows.slice(1).map((values, index): PreviewRow => {
+        const rowNumber = index + 2;
+        const name = values[nameColumn]?.trim() ?? "";
+        const email = values[emailColumn]?.trim().toLowerCase() ?? "";
+        const company = companyColumn >= 0 ? values[companyColumn]?.trim() ?? "" : "";
+        const errors: string[] = [];
+
+        if (!name) errors.push("Name is required");
+        if (!email) errors.push("Email is required");
+        else if (!emailPattern.test(email)) errors.push("Email is not valid");
+
+        let status: PreviewStatus = errors.length > 0 ? "invalid" : "valid";
+        if (status === "valid") {
+          if (existingEmails.has(email)) status = "duplicate_existing";
+          else if (seenEmails.has(email)) status = "duplicate_file";
+          else seenEmails.add(email);
+        }
+
+        return { rowNumber, name, email, company, status, errors };
+      });
+      setImportRows(previewRows);
+    } catch {
+      setImportError("Unable to read this file. Please choose a valid CSV.");
+    }
+  };
+
+  const handleImport = () => {
+    if (!canImport || validImportRows.length === 0) return;
+    setImportError(null);
+
+    importAttendees.mutate(
+      {
+        data: {
+          circleId: activeCircleId,
+          attendees: validImportRows.map(({ name, email, company }) => ({
+            name,
+            email,
+            company: company || undefined,
+          })),
+        },
+      },
+      {
+        onSuccess: (result) => {
+          addImportedAttendeesToCache(result.created);
+          invalidateAttendeeQueries();
+          setImportSummary({
+            createdCount: result.createdCount,
+            skippedCount: skippedImportRows + result.skippedCount,
+          });
+        },
+        onError: (error) => setImportError(error.message || "Unable to import attendees."),
       },
     );
   };
@@ -76,59 +311,239 @@ export default function AdminAttendees() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Attendees</h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-muted-foreground mt-2" data-testid="text-attendee-count">
             {attendees.length} member{attendees.length !== 1 ? "s" : ""} in the hub.
           </p>
         </div>
-        <Dialog
-          open={isAddOpen}
-          onOpenChange={(open) => {
-            setIsAddOpen(open);
-            if (!open) setCreateError(null);
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button disabled={activeCircleId === null}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Attendee
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Attendee</DialogTitle>
-              <DialogDescription>
-                {activeCircle
-                  ? `This attendee will be added to ${activeCircle.name}.`
-                  : "Select a Hub before adding an attendee."}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="attendee-name">Name</Label>
-                <Input id="attendee-name" name="name" required autoComplete="name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="attendee-email">Email</Label>
-                <Input id="attendee-email" name="email" type="email" required autoComplete="email" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="attendee-company">Company <span className="text-muted-foreground">(optional)</span></Label>
-                <Input id="attendee-company" name="company" autoComplete="organization" />
-              </div>
-              {createError && (
-                <p role="alert" className="text-sm text-destructive">{createError}</p>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Dialog
+            open={isImportOpen}
+            onOpenChange={(open) => {
+              setIsImportOpen(open);
+              if (!open) resetImport();
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline" disabled={!canImport} data-testid="button-open-attendee-import">
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{importSummary ? "Import complete" : "Import attendees from CSV"}</DialogTitle>
+                <DialogDescription>
+                  {importSummary
+                    ? "Your Hub roster has been updated."
+                    : activeCircle
+                      ? `Add contacts to ${activeCircle.name}. Use a CSV with name, email, and optional company columns.`
+                      : "Select a Hub before importing attendees."}
+                </DialogDescription>
+              </DialogHeader>
+
+              {importSummary ? (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                    <div>
+                      <p className="font-semibold" data-testid="text-import-created-count">
+                        {importSummary.createdCount} attendee{importSummary.createdCount !== 1 ? "s" : ""} added
+                      </p>
+                      {importSummary.skippedCount > 0 && (
+                        <p className="mt-1 text-sm">
+                          {importSummary.skippedCount} row{importSummary.skippedCount !== 1 ? "s" : ""} skipped because
+                          they were invalid or already registered.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={() => setIsImportOpen(false)}
+                      data-testid="button-close-import-summary"
+                    >
+                      Done
+                    </Button>
+                  </DialogFooter>
+                </div>
+              ) : (
+                <>
+                  {!importFileName && (
+                    <div className="rounded-lg border border-dashed p-8 text-center">
+                      <FileSpreadsheet className="mx-auto h-10 w-10 text-muted-foreground" />
+                      <p className="mt-3 font-medium">Choose a CSV contact list</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Required columns: name and email. Optional column: company.
+                      </p>
+                      <input
+                        ref={fileInputRef}
+                        id="attendee-csv-file"
+                        type="file"
+                        accept=".csv,text/csv"
+                        className="sr-only"
+                        onChange={handleFileChange}
+                        data-testid="input-attendee-csv-file"
+                      />
+                      <Button
+                        type="button"
+                        className="mt-5"
+                        onClick={() => fileInputRef.current?.click()}
+                        data-testid="button-choose-attendee-csv"
+                      >
+                        Choose CSV file
+                      </Button>
+                    </div>
+                  )}
+
+                  {importFileName && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <FileSpreadsheet className="h-5 w-5 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-sm font-medium" data-testid="text-import-file-name">
+                            {importFileName}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          data-testid="button-replace-attendee-csv"
+                        >
+                          Choose different file
+                        </Button>
+                      </div>
+
+                      {importRows.length > 0 && (
+                        <>
+                          <div className="flex flex-wrap gap-2 text-sm" data-testid="text-import-preview-summary">
+                            <Badge>{validImportRows.length} ready to import</Badge>
+                            {skippedImportRows > 0 && (
+                              <Badge variant="secondary">{skippedImportRows} will be skipped</Badge>
+                            )}
+                          </div>
+                          <ScrollArea className="h-72 rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Row</TableHead>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Status</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {importRows.map((row) => (
+                                  <TableRow key={row.rowNumber} data-testid={`row-import-preview-${row.rowNumber}`}>
+                                    <TableCell className="text-muted-foreground">{row.rowNumber}</TableCell>
+                                    <TableCell className="max-w-40 truncate">{row.name || "—"}</TableCell>
+                                    <TableCell className="max-w-56 truncate">{row.email || "—"}</TableCell>
+                                    <TableCell>
+                                      <div className="space-y-1">
+                                        <Badge
+                                          variant={getStatusVariant(row.status)}
+                                          data-testid={`status-import-row-${row.rowNumber}`}
+                                        >
+                                          {getStatusLabel(row.status)}
+                                        </Badge>
+                                        {row.errors.map((error) => (
+                                          <p key={error} className="text-xs text-destructive">{error}</p>
+                                        ))}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </ScrollArea>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {importError && (
+                    <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive" data-testid="alert-import-error">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>{importError}</span>
+                    </div>
+                  )}
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsImportOpen(false)}
+                      data-testid="button-cancel-attendee-import"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleImport}
+                      disabled={validImportRows.length === 0 || importAttendees.isPending}
+                      data-testid="button-confirm-attendee-import"
+                    >
+                      {importAttendees.isPending
+                        ? "Importing..."
+                        : `Import ${validImportRows.length} attendee${validImportRows.length !== 1 ? "s" : ""}`}
+                    </Button>
+                  </DialogFooter>
+                </>
               )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createAttendee.isPending}>
-                  {createAttendee.isPending ? "Adding..." : "Add Attendee"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={isAddOpen}
+            onOpenChange={(open) => {
+              setIsAddOpen(open);
+              if (!open) setCreateError(null);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button disabled={activeCircleId === null} data-testid="button-open-add-attendee">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Attendee
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Attendee</DialogTitle>
+                <DialogDescription>
+                  {activeCircle
+                    ? `This attendee will be added to ${activeCircle.name}.`
+                    : "Select a Hub before adding an attendee."}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="attendee-name">Name</Label>
+                  <Input id="attendee-name" name="name" required autoComplete="name" data-testid="input-attendee-name" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="attendee-email">Email</Label>
+                  <Input id="attendee-email" name="email" type="email" required autoComplete="email" data-testid="input-attendee-email" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="attendee-company">Company <span className="text-muted-foreground">(optional)</span></Label>
+                  <Input id="attendee-company" name="company" autoComplete="organization" data-testid="input-attendee-company" />
+                </div>
+                {createError && (
+                  <p role="alert" className="text-sm text-destructive" data-testid="alert-create-attendee-error">{createError}</p>
+                )}
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} data-testid="button-cancel-add-attendee">
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={createAttendee.isPending} data-testid="button-submit-add-attendee">
+                    {createAttendee.isPending ? "Adding..." : "Add Attendee"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {isLoading ? (
@@ -145,7 +560,7 @@ export default function AdminAttendees() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {attendees.map((a) => (
-            <Card key={a.id}>
+            <Card key={a.id} data-testid={`card-attendee-${a.id}`}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
@@ -153,12 +568,12 @@ export default function AdminAttendees() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold truncate">{a.name}</p>
+                      <p className="font-semibold truncate" data-testid={`text-attendee-name-${a.id}`}>{a.name}</p>
                       {a.role === "admin" && (
                         <Badge variant="secondary" className="shrink-0">Admin</Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+                    <p className="text-xs text-muted-foreground truncate" data-testid={`text-attendee-email-${a.id}`}>{a.email}</p>
                   </div>
                 </div>
 

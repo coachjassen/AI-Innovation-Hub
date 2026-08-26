@@ -235,6 +235,29 @@ paths:
                 items:
                   $ref: "#/components/schemas/AttendeeWithActivity"
 
+  /attendees/import:
+    post:
+      operationId: importAttendees
+      tags: [attendees]
+      summary: Import attendees from CSV rows (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendeeImportInput"
+      responses:
+        "200":
+          description: Import completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendeeImportResult"
+        "400":
+          description: Invalid import payload or Hub
+        "403":
+          description: Admin access required
+
   /attendees/{id}:
     get:
       operationId: getAttendee
@@ -1033,6 +1056,61 @@ components:
           type: string
         circleId:
           type: integer
+
+    AttendeeImportRow:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+
+    AttendeeImportInput:
+      type: object
+      required: [circleId, attendees]
+      properties:
+        circleId:
+          type: integer
+        attendees:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/AttendeeImportRow"
+
+    AttendeeImportSkippedRow:
+      type: object
+      required: [row, email, reason]
+      properties:
+        row:
+          type: integer
+        email:
+          type: string
+        reason:
+          type: string
+          enum: [duplicate_file, duplicate_existing]
+
+    AttendeeImportResult:
+      type: object
+      required: [createdCount, skippedCount, created, skipped]
+      properties:
+        createdCount:
+          type: integer
+        skippedCount:
+          type: integer
+        created:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attendee"
+        skipped:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttendeeImportSkippedRow"
 
     AttendeeWithActivity:
       type: object

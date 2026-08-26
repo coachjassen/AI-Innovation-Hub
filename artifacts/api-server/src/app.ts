@@ -1,5 +1,4 @@
 import express, { type Express } from "express";
-import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -10,6 +9,8 @@ import { logger } from "./lib/logger";
 const PgSession = connectPg(session);
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
@@ -31,11 +32,37 @@ app.use(
   }),
 );
 
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
-app.use(express.json());
+// The web app and API are served from the same origin. Require an exact
+// first-party Origin on writes so a browser cannot attach an admin session to
+// a cross-origin request.
+app.use((req, res, next) => {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    next();
+    return;
+  }
+
+  const origin = req.get("origin");
+  const fetchSite = req.get("sec-fetch-site");
+  if (!origin) {
+    if (fetchSite && fetchSite !== "same-origin") {
+      res.status(403).json({ error: "Cross-origin requests are not allowed" });
+      return;
+    }
+    next();
+    return;
+  }
+
+  const forwardedProto = req.get("x-forwarded-proto")?.split(",")[0] ?? req.protocol;
+  const forwardedHost = req.get("x-forwarded-host")?.split(",")[0] ?? req.get("host");
+  const expectedOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : "";
+  if (origin !== expectedOrigin) {
+    res.status(403).json({ error: "Cross-origin requests are not allowed" });
+    return;
+  }
+
+  next();
+});
+app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // Cookie security settings differ by environment:
@@ -49,7 +76,6 @@ const isReplit = !!process.env.REPL_ID;
 const cookieSecure = isReplit || process.env.COOKIE_SECURE === "true";
 const cookieSameSite = isReplit ? "none" : "lax";
 
-app.set("trust proxy", 1);
 app.use(
   session({
     store: new PgSession({

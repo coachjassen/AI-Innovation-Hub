@@ -98,6 +98,43 @@ export interface AttendeeInput {
   circleId: number;
 }
 
+export interface AttendeeImportRow {
+  /** @minLength 1 */
+  name: string;
+  email: string;
+  company?: string;
+}
+
+export interface AttendeeImportInput {
+  circleId: number;
+  /**
+     * @minItems 1
+     * @maxItems 1000
+     */
+  attendees: AttendeeImportRow[];
+}
+
+export type AttendeeImportSkippedRowReason = typeof AttendeeImportSkippedRowReason[keyof typeof AttendeeImportSkippedRowReason];
+
+
+export const AttendeeImportSkippedRowReason = {
+  duplicate_file: 'duplicate_file',
+  duplicate_existing: 'duplicate_existing',
+} as const;
+
+export interface AttendeeImportSkippedRow {
+  row: number;
+  email: string;
+  reason: AttendeeImportSkippedRowReason;
+}
+
+export interface AttendeeImportResult {
+  createdCount: number;
+  skippedCount: number;
+  created: Attendee[];
+  skipped: AttendeeImportSkippedRow[];
+}
+
 export interface AttendeeWithActivity {
   id: number;
   name: string;

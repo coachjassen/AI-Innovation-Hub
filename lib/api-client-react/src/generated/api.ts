@@ -25,6 +25,8 @@ import type {
   AgendaInput,
   AgendaItem,
   Attendee,
+  AttendeeImportInput,
+  AttendeeImportResult,
   AttendeeInput,
   AttendeeUpdate,
   AttendeeWithActivity,
@@ -898,6 +900,77 @@ export function useListAttendees<TData = Awaited<ReturnType<typeof listAttendees
 
 
 
+
+export const getImportAttendeesUrl = () => {
+
+
+
+
+  return `/api/attendees/import`
+}
+
+/**
+ * @summary Import attendees from CSV rows (admin only)
+ */
+export const importAttendees = async (attendeeImportInput: AttendeeImportInput, options?: RequestInit): Promise<AttendeeImportResult> => {
+
+  return customFetch<AttendeeImportResult>(getImportAttendeesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      attendeeImportInput,)
+  }
+);}
+
+
+
+
+export const getImportAttendeesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAttendees>>, TError,{data: BodyType<AttendeeImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importAttendees>>, TError,{data: BodyType<AttendeeImportInput>}, TContext> => {
+
+const mutationKey = ['importAttendees'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importAttendees>>, {data: BodyType<AttendeeImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importAttendees(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportAttendeesMutationResult = NonNullable<Awaited<ReturnType<typeof importAttendees>>>
+    export type ImportAttendeesMutationBody = BodyType<AttendeeImportInput>
+    export type ImportAttendeesMutationError = ErrorType<void>
+
+    /**
+ * @summary Import attendees from CSV rows (admin only)
+ */
+export const useImportAttendees = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAttendees>>, TError,{data: BodyType<AttendeeImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importAttendees>>,
+        TError,
+        {data: BodyType<AttendeeImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportAttendeesMutationOptions(options));
+    }
 
 export const getGetAttendeeUrl = (id: number,) => {
 

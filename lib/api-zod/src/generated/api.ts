@@ -166,6 +166,43 @@ export const ListAttendeesResponse = zod.array(ListAttendeesResponseItem)
 
 
 /**
+ * @summary Import attendees from CSV rows (admin only)
+ */
+
+export const importAttendeesBodyAttendeesMax = 1000;
+
+
+
+export const ImportAttendeesBody = zod.object({
+  "circleId": zod.number(),
+  "attendees": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().email(),
+  "company": zod.string().optional()
+})).min(1).max(importAttendeesBodyAttendeesMax)
+})
+
+export const ImportAttendeesResponse = zod.object({
+  "createdCount": zod.number(),
+  "skippedCount": zod.number(),
+  "created": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "company": zod.string(),
+  "role": zod.string(),
+  "circleId": zod.number(),
+  "createdAt": zod.string()
+})),
+  "skipped": zod.array(zod.object({
+  "row": zod.number(),
+  "email": zod.string(),
+  "reason": zod.enum(['duplicate_file', 'duplicate_existing'])
+}))
+})
+
+
+/**
  * @summary Get attendee by ID
  */
 export const GetAttendeeParams = zod.object({
