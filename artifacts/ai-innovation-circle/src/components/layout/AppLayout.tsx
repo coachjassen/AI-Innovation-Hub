@@ -19,7 +19,7 @@ import {
   SidebarTrigger
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Target, Users, Calendar, Mail, Lightbulb, UserPlus, LogOut, LayoutDashboard, CircleDot } from "lucide-react";
+import { Target, Users, Calendar, Mail, Lightbulb, UserPlus, LogOut, LayoutDashboard, CircleDot, UserCog } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KineticsLogo } from "@/components/KineticsLogo";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,28 +29,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe({ query: { retry: false, queryKey: getGetMeQueryKey() } });
   const [location, setLocation] = useLocation();
   const logout = useLogout();
+  const configuredBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const artifactBasePath = configuredBasePath || "/ai-innovation-circle";
+  const internalLocation = location.startsWith(`${artifactBasePath}/`)
+    ? location.slice(artifactBasePath.length)
+    : location;
 
   // Redirect to login when unauthenticated — use effect to avoid setState-during-render
   useEffect(() => {
     if (!isLoading && !user) {
-      const configuredBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const artifactBasePath = configuredBasePath || "/ai-innovation-circle";
-      const internalPath = location.startsWith(`${artifactBasePath}/`)
-        ? location.slice(artifactBasePath.length)
-        : location;
-      const returnTo = internalPath.startsWith("/") && !internalPath.startsWith("//")
-        ? `?returnTo=${encodeURIComponent(internalPath)}`
+      const returnTo = internalLocation.startsWith("/") && !internalLocation.startsWith("//")
+        ? `?returnTo=${encodeURIComponent(internalLocation)}`
         : "";
       setLocation(`/login${returnTo}`);
     }
-  }, [isLoading, user, setLocation]);
+  }, [isLoading, user, internalLocation, setLocation]);
 
   // Guard admin-only routes: redirect non-admins away from /admin/* pages
   useEffect(() => {
-    if (!isLoading && user && user.role !== "admin" && location.startsWith("/admin")) {
+    if (!isLoading && user && user.role !== "admin" && internalLocation.startsWith("/admin")) {
       setLocation("/goals");
     }
-  }, [isLoading, user, location, setLocation]);
+  }, [isLoading, user, internalLocation, setLocation]);
 
   if (isLoading) {
     return (
@@ -74,6 +74,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/meetings", label: "Meetings", icon: Calendar },
     { href: "/admin/suggestions", label: "Suggestions", icon: Lightbulb },
     { href: "/admin/invites", label: "Invites", icon: UserPlus },
+    { href: "/admin/accounts", label: "Administrators", icon: UserCog },
     { href: "/admin/email", label: "Email Triggers", icon: Mail },
   ];
 
@@ -118,7 +119,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <Link
                     href="/admin/hubs"
                     className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                      location.startsWith("/admin/hubs") || location.startsWith("/admin/circles")
+                      internalLocation.startsWith("/admin/hubs") || internalLocation.startsWith("/admin/circles")
                         ? "bg-sidebar-accent text-sidebar-foreground font-medium"
                         : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                     }`}
@@ -135,7 +136,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {links.map((link) => {
-                    const isActive = location.startsWith(link.href);
+                    const isActive = internalLocation.startsWith(link.href);
                     return (
                       <SidebarMenuItem key={link.href}>
                         <SidebarMenuButton asChild isActive={isActive} tooltip={link.label}>

@@ -931,6 +931,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminDashboard"
 
+  /admin/accounts:
+    get:
+      operationId: listAdminAccounts
+      tags: [admin]
+      summary: List administrator accounts
+      responses:
+        "200":
+          description: Safe administrator account list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminAccount"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Admin access required
+    post:
+      operationId: createAdminAccount
+      tags: [admin]
+      summary: Create an administrator account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAccountInput"
+      responses:
+        "201":
+          description: Administrator created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateAdminAccountResponse"
+        "400":
+          description: Invalid account or Hub
+        "401":
+          description: Not authenticated
+        "403":
+          description: Admin access required
+        "409":
+          description: Email already exists
+
   # Storage
   /storage/uploads/request-url:
     post:
@@ -1142,6 +1186,58 @@ components:
           type: integer
         surveyResponseCount:
           type: integer
+
+    AdminAccount:
+      type: object
+      required: [id, name, email, company, role, circleId, circleName, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+        role:
+          type: string
+          enum: [admin]
+        circleId:
+          type: integer
+        circleName:
+          type: string
+        createdAt:
+          type: string
+
+    AdminAccountInput:
+      type: object
+      required: [name, email, circleId]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+        circleId:
+          type: integer
+          minimum: 1
+
+    CreateAdminAccountResponse:
+      allOf:
+        - $ref: "#/components/schemas/AdminAccount"
+        - type: object
+          required: [onboardingEmailStatus, message]
+          properties:
+            onboardingEmailStatus:
+              type: string
+              enum: [sent, unavailable, rate_limited, failed]
+            message:
+              type: string
 
     AttendeeUpdate:
       type: object

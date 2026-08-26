@@ -7,6 +7,9 @@
  */
 
 export * from './activityItem';
+export * from './adminAccount';
+export * from './adminAccountInput';
+export * from './adminAccountRole';
 export * from './adminDashboard';
 export * from './adminDashboardGoalsByStatus';
 export * from './adminEmailTrigger';
@@ -28,6 +31,8 @@ export * from './circleInput';
 export * from './circleInputCadence';
 export * from './circleUpdate';
 export * from './circleUpdateCadence';
+export * from './createAdminAccountResponse';
+export * from './createAdminAccountResponseOnboardingEmailStatus';
 export * from './getAdminDashboardParams';
 export * from './getGoalsSummaryParams';
 export * from './goal';

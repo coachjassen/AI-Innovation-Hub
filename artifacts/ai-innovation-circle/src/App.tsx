@@ -23,6 +23,7 @@ import AdminMeetings from "@/pages/admin/meetings";
 import AdminEmail from "@/pages/admin/email";
 import AdminSuggestions from "@/pages/admin/suggestions";
 import AdminInvites from "@/pages/admin/invites";
+import AdminAccounts from "@/pages/admin/accounts";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,18 +50,22 @@ function DefaultRedirect() {
 }
 
 function Router() {
-  const artifactBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-  const browserPath = typeof window === "undefined" ? "" : window.location.pathname.replace(/\/$/, "");
+  const [location] = useLocation();
+  const configuredBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const artifactBasePath = configuredBasePath || "/ai-innovation-circle";
+  const normalizedLocation = location.startsWith(`${artifactBasePath}/`)
+    ? location.slice(artifactBasePath.length)
+    : location;
 
   // The artifact preview proxy can expose the initial URL with its base path
-  // included before Wouter normalizes it. Handle that first so a magic-link
-  // token is never intercepted by the protected layout.
-  if (browserPath === "/login" || browserPath.endsWith("/login")) {
+  // included before Wouter normalizes it. Keep all route matching on internal
+  // paths so protected pages and magic links work in both preview and root hosting.
+  if (normalizedLocation === "/login") {
     return <Login />;
   }
 
   return (
-    <Switch>
+    <Switch location={normalizedLocation}>
       <Route path="/login" component={Login} />
 
       {/* Protected Routes */}
@@ -85,6 +90,7 @@ function Router() {
             <Route path="/admin/email" component={AdminEmail} />
             <Route path="/admin/suggestions" component={AdminSuggestions} />
             <Route path="/admin/invites" component={AdminInvites} />
+            <Route path="/admin/accounts" component={AdminAccounts} />
 
             <Route path="/" component={DefaultRedirect} />
             <Route component={NotFound} />

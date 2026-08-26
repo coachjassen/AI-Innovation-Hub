@@ -776,6 +776,38 @@ export const GetAdminDashboardResponse = zod.object({
 
 
 /**
+ * @summary List administrator accounts
+ */
+export const ListAdminAccountsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "company": zod.string(),
+  "role": zod.enum(['admin']),
+  "circleId": zod.number(),
+  "circleName": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListAdminAccountsResponse = zod.array(ListAdminAccountsResponseItem)
+
+
+/**
+ * @summary Create an administrator account
+ */
+export const createAdminAccountBodyNameMax = 200;
+
+
+
+
+export const CreateAdminAccountBody = zod.object({
+  "name": zod.string().min(1).max(createAdminAccountBodyNameMax),
+  "email": zod.string().email(),
+  "company": zod.string().optional(),
+  "circleId": zod.number().min(1)
+})
+
+
+/**
  * @summary Request a presigned upload URL
  */
 export const RequestUploadUrlBody = zod.object({

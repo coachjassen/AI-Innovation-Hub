@@ -9,6 +9,7 @@ import surveysRouter from "./surveys";
 import suggestionsRouter from "./suggestions";
 import invitesRouter from "./invites";
 import adminRouter from "./admin";
+import adminAccountsRouter from "./adminAccounts";
 import storageRouter from "./storage";
 
 const router: IRouter = Router();
@@ -23,6 +24,7 @@ router.use(surveysRouter);
 router.use(suggestionsRouter);
 router.use(invitesRouter);
 router.use(adminRouter);
+router.use(adminAccountsRouter);
 router.use(storageRouter);
 
 export default router;

@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminAccount,
+  AdminAccountInput,
   AdminDashboard,
   AdminEmailTrigger,
   AgendaInput,
@@ -33,6 +35,7 @@ import type {
   Circle,
   CircleInput,
   CircleUpdate,
+  CreateAdminAccountResponse,
   GetAdminDashboardParams,
   GetGoalsSummaryParams,
   Goal,
@@ -3381,6 +3384,154 @@ export function useGetAdminDashboard<TData = Awaited<ReturnType<typeof getAdminD
 
 
 
+
+export const getListAdminAccountsUrl = () => {
+
+
+
+
+  return `/api/admin/accounts`
+}
+
+/**
+ * @summary List administrator accounts
+ */
+export const listAdminAccounts = async ( options?: RequestInit): Promise<AdminAccount[]> => {
+
+  return customFetch<AdminAccount[]>(getListAdminAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminAccountsQueryKey = () => {
+    return [
+    `/api/admin/accounts`
+    ] as const;
+    }
+
+
+export const getListAdminAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminAccounts>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminAccounts>>> = ({ signal }) => listAdminAccounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminAccounts>>>
+export type ListAdminAccountsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List administrator accounts
+ */
+
+export function useListAdminAccounts<TData = Awaited<ReturnType<typeof listAdminAccounts>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateAdminAccountUrl = () => {
+
+
+
+
+  return `/api/admin/accounts`
+}
+
+/**
+ * @summary Create an administrator account
+ */
+export const createAdminAccount = async (adminAccountInput: AdminAccountInput, options?: RequestInit): Promise<CreateAdminAccountResponse> => {
+
+  return customFetch<CreateAdminAccountResponse>(getCreateAdminAccountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminAccountInput,)
+  }
+);}
+
+
+
+
+export const getCreateAdminAccountMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminAccount>>, TError,{data: BodyType<AdminAccountInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminAccount>>, TError,{data: BodyType<AdminAccountInput>}, TContext> => {
+
+const mutationKey = ['createAdminAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminAccount>>, {data: BodyType<AdminAccountInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminAccount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminAccount>>>
+    export type CreateAdminAccountMutationBody = BodyType<AdminAccountInput>
+    export type CreateAdminAccountMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an administrator account
+ */
+export const useCreateAdminAccount = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminAccount>>, TError,{data: BodyType<AdminAccountInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminAccount>>,
+        TError,
+        {data: BodyType<AdminAccountInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAdminAccountMutationOptions(options));
+    }
 
 export const getRequestUploadUrlUrl = () => {
 

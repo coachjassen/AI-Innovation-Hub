@@ -150,6 +150,51 @@ export interface AttendeeWithActivity {
   surveyResponseCount?: number;
 }
 
+export type AdminAccountRole = typeof AdminAccountRole[keyof typeof AdminAccountRole];
+
+
+export const AdminAccountRole = {
+  admin: 'admin',
+} as const;
+
+export interface AdminAccount {
+  id: number;
+  name: string;
+  email: string;
+  company: string;
+  role: AdminAccountRole;
+  circleId: number;
+  circleName: string;
+  createdAt: string;
+}
+
+export interface AdminAccountInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  email: string;
+  company?: string;
+  /** @minimum 1 */
+  circleId: number;
+}
+
+export type CreateAdminAccountResponseOnboardingEmailStatus = typeof CreateAdminAccountResponseOnboardingEmailStatus[keyof typeof CreateAdminAccountResponseOnboardingEmailStatus];
+
+
+export const CreateAdminAccountResponseOnboardingEmailStatus = {
+  sent: 'sent',
+  unavailable: 'unavailable',
+  rate_limited: 'rate_limited',
+  failed: 'failed',
+} as const;
+
+export type CreateAdminAccountResponse = AdminAccount & {
+  onboardingEmailStatus: CreateAdminAccountResponseOnboardingEmailStatus;
+  message: string;
+};
+
 export interface AttendeeUpdate {
   name?: string;
   company?: string;
