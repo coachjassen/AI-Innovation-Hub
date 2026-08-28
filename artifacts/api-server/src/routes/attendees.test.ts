@@ -22,6 +22,10 @@ const TEST_EMAILS = [
   `csv-import-test-${process.pid}-c@example.com`,
 ];
 const CROSS_HUB_EMAIL = `cross-hub-test-${process.pid}@example.com`;
+const ONE_OFF_EMAILS = [
+  `one-off-attendee-${process.pid}-manual@example.com`,
+  `one-off-attendee-${process.pid}-import@example.com`,
+];
 
 let server: Server;
 let baseUrl: string;
@@ -29,6 +33,7 @@ let adminCookie: string;
 let attendeeCookie: string;
 let inactiveCircleId: number;
 let crossHubCircleId: number;
+let oneOffCircleId: number;
 let testOrigin: string;
 
 interface ApiResult {
@@ -118,6 +123,15 @@ beforeAll(async () => {
     })
     .returning({ id: circlesTable.id });
   crossHubCircleId = crossHubCircle.id;
+  const [oneOffCircle] = await db
+    .insert(circlesTable)
+    .values({
+      name: `One-Off Email Test ${process.pid}`,
+      cadence: "one-off",
+      status: "active",
+    })
+    .returning({ id: circlesTable.id });
+  oneOffCircleId = oneOffCircle.id;
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const { port } = server.address() as AddressInfo;
@@ -130,7 +144,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(attendeesTable).where(inArray(attendeesTable.email, TEST_EMAILS));
   await db.delete(attendeesTable).where(eq(attendeesTable.email, CROSS_HUB_EMAIL));
-  await db.delete(circlesTable).where(inArray(circlesTable.id, [inactiveCircleId, crossHubCircleId]));
+  await db.delete(attendeesTable).where(inArray(attendeesTable.email, ONE_OFF_EMAILS));
+  await db.delete(circlesTable).where(inArray(circlesTable.id, [inactiveCircleId, crossHubCircleId, oneOffCircleId]));
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
@@ -325,5 +340,34 @@ describe("attendee CSV import", () => {
       skippedCount: 1,
       skipped: [{ row: 2, email: CROSS_HUB_EMAIL, reason: "duplicate_existing" }],
     });
+  });
+
+  it("does not send sign-in emails when attendees are added to a one-off Hub", async () => {
+    sendEmailMock.mockClear();
+
+    const manual = await api("POST", "/api/attendees", {
+      cookie: adminCookie,
+      body: {
+        name: "One-Off Manual Attendee",
+        email: ONE_OFF_EMAILS[0],
+        circleId: oneOffCircleId,
+      },
+    });
+    expect(manual.status).toBe(201);
+
+    const imported = await api("POST", "/api/attendees/import", {
+      cookie: adminCookie,
+      body: {
+        circleId: oneOffCircleId,
+        attendees: [{ name: "One-Off Imported Attendee", email: ONE_OFF_EMAILS[1] }],
+      },
+    });
+    expect(imported.status).toBe(200);
+    expect(imported.body).toMatchObject({ createdCount: 1, skippedCount: 0 });
+
+    // Both creation paths respond immediately and intentionally do not enqueue
+    // the recurring-Hub onboarding email for one-off attendees.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(sendEmailMock).not.toHaveBeenCalled();
   });
 });

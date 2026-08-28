@@ -29,7 +29,10 @@ router.post("/attendees", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
-  const [circle] = await db.select({ id: circlesTable.id }).from(circlesTable).where(eq(circlesTable.id, circleId));
+  const [circle] = await db
+    .select({ id: circlesTable.id, cadence: circlesTable.cadence })
+    .from(circlesTable)
+    .where(eq(circlesTable.id, circleId));
   if (!circle) {
     res.status(400).json({ error: "Hub not found" });
     return;
@@ -56,11 +59,13 @@ router.post("/attendees", requireAdmin, async (req, res): Promise<void> => {
   }
 
   res.status(201).json(serializeAttendee(attendee));
-  void sendAttendeeOnboardingEmail(req, attendee).catch((err) => {
-    // The attendee record is valid even when email delivery is unavailable.
-    // The admin can retry sign-in delivery from the login page.
-    req.log?.warn({ err, attendeeId: attendee.id }, "Failed to send attendee onboarding email");
-  });
+  if (circle.cadence !== "one-off") {
+    void sendAttendeeOnboardingEmail(req, attendee).catch((err) => {
+      // The attendee record is valid even when email delivery is unavailable.
+      // The admin can retry sign-in delivery from the login page.
+      req.log?.warn({ err, attendeeId: attendee.id }, "Failed to send attendee onboarding email");
+    });
+  }
 });
 
 router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> => {
@@ -88,7 +93,7 @@ router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> =
 
   const { circleId, attendees } = parsed.data;
   const [circle] = await db
-    .select({ id: circlesTable.id, status: circlesTable.status })
+    .select({ id: circlesTable.id, status: circlesTable.status, cadence: circlesTable.cadence })
     .from(circlesTable)
     .where(eq(circlesTable.id, circleId));
   if (!circle || circle.status !== "active") {
@@ -161,11 +166,13 @@ router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> =
     created: created.map(serializeAttendee),
     skipped,
   }));
-  void Promise.all(
-    created.map((attendee) => sendAttendeeOnboardingEmail(req, attendee)),
-  ).catch((err) => {
-    req.log?.warn({ err, circleId }, "Failed to send one or more onboarding emails after import");
-  });
+  if (circle.cadence !== "one-off") {
+    void Promise.all(
+      created.map((attendee) => sendAttendeeOnboardingEmail(req, attendee)),
+    ).catch((err) => {
+      req.log?.warn({ err, circleId }, "Failed to send one or more onboarding emails after import");
+    });
+  }
 });
 
 router.get("/attendees", requireAdmin, async (req, res): Promise<void> => {
