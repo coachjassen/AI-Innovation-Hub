@@ -398,6 +398,8 @@ describe("one-off invitation RSVP flow", () => {
     const configured = await api("PATCH", `/api/meetings/${oneOffMeetingId}`, {
       cookie: adminCookie,
       body: {
+        keyInsight: "A focused event",
+        notes: "Bring your questions and ideas.",
         invitationBody: "A tailored invitation message.",
         invitationAttachmentPath: "/objects/invitations/sample.pdf",
         invitationAttachmentName: "event-invitation.pdf",
@@ -421,6 +423,8 @@ describe("one-off invitation RSVP flow", () => {
       html: string;
       attachments: Array<{ filename: string; content: string }>;
     }];
+    expect(email.html).toContain("A focused event");
+    expect(email.html).toContain("Bring your questions and ideas.");
     expect(email.html).toContain("A tailored invitation message.");
     expect(email.attachments.map((attachment) => attachment.filename)).toEqual(["event-invitation.pdf", "event.ics"]);
     expect(email.attachments[1].content).toContain("BEGIN:VCALENDAR");

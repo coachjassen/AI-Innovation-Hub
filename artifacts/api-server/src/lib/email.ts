@@ -95,9 +95,19 @@ export function buildOneOffInvitationEmail(
   attendeeName: string,
   circleName: string,
   meetingDate: string,
+  eventFocus: string | null,
+  eventNotes: string | null,
   customBody: string | null,
   rsvpLink: string,
 ): string {
+  const eventDetails = [
+    eventFocus?.trim()
+      ? `<p><strong>Event focus:</strong> ${escapeHtml(eventFocus.trim())}</p>`
+      : "",
+    eventNotes?.trim()
+      ? `<p><strong>Event notes:</strong><br />${escapeHtml(eventNotes.trim()).replaceAll("\n", "<br />")}</p>`
+      : "",
+  ].join("");
   const message = customBody?.trim()
     ? `<p>${escapeHtml(customBody).replaceAll("\n", "<br />")}</p>`
     : "";
@@ -105,6 +115,7 @@ export function buildOneOffInvitationEmail(
   return `
     <p>Hi ${escapeHtml(attendeeName)},</p>
     <p>You are invited to <strong>${escapeHtml(circleName)}</strong> on <strong>${escapeHtml(meetingDate)}</strong>.</p>
+    ${eventDetails ? `<p><strong>Event details</strong></p>${eventDetails}` : ""}
     ${message}
     <p>Your invitation document and calendar invite are attached.</p>
     <p>Please let us know whether you can attend:</p>

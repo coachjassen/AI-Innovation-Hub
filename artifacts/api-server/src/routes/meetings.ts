@@ -719,6 +719,8 @@ async function sendOneOffInvitationEmails(
           recipient.attendeeName,
           circle.name,
           meeting.date,
+          meeting.keyInsight,
+          meeting.notes,
           meeting.invitationBody,
           rsvpLink,
         ),
