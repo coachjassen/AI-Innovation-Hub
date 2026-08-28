@@ -64,7 +64,7 @@ export async function runRecoveryBootstrap(): Promise<void> {
       role: "admin",
       circleId: RECOVERY_ADMIN.circleId,
     })
-    .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
+    .onConflictDoNothing()
     .returning({ id: attendeesTable.id });
 
   if (created) {

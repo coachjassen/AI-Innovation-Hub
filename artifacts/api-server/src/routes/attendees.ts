@@ -61,10 +61,20 @@ router.post("/attendees", requireAdmin, async (req, res): Promise<void> => {
   const [attendee] = await db
     .insert(attendeesTable)
     .values({ name, email, company, role: "attendee", circleId })
-    .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
+    .onConflictDoNothing()
     .returning();
 
   if (!attendee) {
+    const [existingMembership] = await db
+      .select({ circleId: attendeesTable.circleId })
+      .from(attendeesTable)
+      .where(eq(attendeesTable.email, email));
+    if (existingMembership && existingMembership.circleId !== circleId) {
+      res.status(409).json({
+        error: "The attendee database migration must be applied before the same email can be added to another Hub",
+      });
+      return;
+    }
     res.status(409).json({ error: "An attendee with this email already exists in this Hub" });
     return;
   }
@@ -158,7 +168,7 @@ router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> =
         role: "attendee",
         circleId,
       })))
-      .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
+      .onConflictDoNothing()
       .returning();
     const insertedEmails = new Set(createdRows.map((attendee) => attendee.email.toLowerCase()));
 

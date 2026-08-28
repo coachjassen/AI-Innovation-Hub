@@ -79,7 +79,7 @@ router.post("/admin/accounts", requireAdmin, async (req, res): Promise<void> => 
       role: "admin",
       circleId,
     })
-    .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
+    .onConflictDoNothing()
     .returning();
 
   if (!created) {

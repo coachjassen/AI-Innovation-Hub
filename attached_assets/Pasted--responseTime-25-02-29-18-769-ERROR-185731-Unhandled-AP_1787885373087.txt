@@ -1,0 +1,113 @@
+    responseTime: 25
+
+[02:29:18.769] ERROR (185731): Unhandled API error
+
+    req: {
+
+      "id": 12,
+
+      "method": "POST",
+
+      "url": "/api/attendees"
+
+    }
+
+    err: {
+
+      "type": "_DrizzleQueryError",
+
+      "message": "Failed query: insert into \"attendees\" (\"id\", \"name\", \"email\", \"company\", \"role\", \"circle_id\", \"created_at\") values (default, $1, $2, $3, $4, $5, default) on conflict (\"circle_id\",\"email\") do nothing returning \"id\", \"name\", \"email\", \"company\", \"role\", \"circle_id\", \"created_at\"\nparams: Jassen Coach,coach.jassen@gmail.com,,attendee,3: there is no unique or exclusion constraint matching the ON CONFLICT specification",
+
+      "stack":
+
+          Error: Failed query: insert into "attendees" ("id", "name", "email", "company", "role", "circle_id", "created_at") values (default, $1, $2, $3, $4, $5, default) on conflict ("circle_id","email") do nothing returning "id", "name", "email", "company", "role", "circle_id", "created_at"
+
+          params: Jassen Coach,coach.jassen@gmail.com,,attendee,3
+
+              at NodePgPreparedQuery.queryWithCache (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/pg-core/session.ts:73:11)
+
+              at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+              at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)
+
+              at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/artifacts/api-server/src/routes/attendees.ts:50:22)
+
+          caused by: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+
+              at <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11)
+
+              at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+              at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:161:13)
+
+              at async NodePgPreparedQuery.queryWithCache (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/pg-core/session.ts:71:12)
+
+              at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)
+
+              at async <anonymous> (/home/administrator/Projects/AI-Innovation-Hub/artifacts/api-server/src/routes/attendees.ts:50:22)
+
+      "query": "insert into \"attendees\" (\"id\", \"name\", \"email\", \"company\", \"role\", \"circle_id\", \"created_at\") values (default, $1, $2, $3, $4, $5, default) on conflict (\"circle_id\",\"email\") do nothing returning \"id\", \"name\", \"email\", \"company\", \"role\", \"circle_id\", \"created_at\"",
+
+      "params": [
+
+        "Jassen Coach",
+
+        "coach.jassen@gmail.com",
+
+        "",
+
+        "attendee",
+
+        3
+
+      ]
+
+    }
+
+[02:29:19.116] INFO (185731): request errored
+
+    req: {
+
+      "id": 12,
+
+      "method": "POST",
+
+      "url": "/api/attendees"
+
+    }
+
+    res: {
+
+      "statusCode": 500
+
+    }
+
+    responseTime: 406
+
+    err: {
+
+      "type": "Error",
+
+      "message": "failed with status code 500",
+
+      "stack":
+
+          Error: failed with status code 500
+
+              at onResFinished (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)
+
+              at ServerResponse.onResponseComplete (/home/administrator/Projects/AI-Innovation-Hub/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)
+
+              at ServerResponse.emit (node:events:521:24)
+
+              at onFinish (node:_http_outgoing:1079:10)
+
+              at callback (node:internal/streams/writable:764:21)
+
+              at afterWrite (node:internal/streams/writable:708:5)
+
+              at afterWriteTick (node:internal/streams/writable:694:10)
+
+              at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+ 
