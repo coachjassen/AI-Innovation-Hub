@@ -1,8 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it, vi, type Mock } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { eq, inArray } from "drizzle-orm";
-import { db, attendeesTable, circlesTable, magicTokensTable } from "@workspace/db";
+import { and, eq, inArray } from "drizzle-orm";
+import {
+  db,
+  attendeesTable,
+  circlesTable,
+  goalsTable,
+  invitesTable,
+  magicTokensTable,
+} from "@workspace/db";
 
 vi.mock("../lib/email", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/email")>();
@@ -22,6 +29,7 @@ const TEST_EMAILS = [
   `csv-import-test-${process.pid}-c@example.com`,
 ];
 const CROSS_HUB_EMAIL = `cross-hub-test-${process.pid}@example.com`;
+const DELETE_EMAIL = `delete-attendee-test-${process.pid}@example.com`;
 const ONE_OFF_EMAILS = [
   `one-off-attendee-${process.pid}-manual@example.com`,
   `one-off-attendee-${process.pid}-import@example.com`,
@@ -387,5 +395,83 @@ describe("attendee CSV import", () => {
     // the recurring-Hub onboarding email for one-off attendees.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("allows admins to delete an attendee and their Hub activity", async () => {
+    const created = await api("POST", "/api/attendees", {
+      cookie: adminCookie,
+      body: {
+        name: "Delete Me",
+        email: DELETE_EMAIL,
+        company: "Delete Co",
+        circleId: 1,
+      },
+    });
+    expect(created.status).toBe(201);
+
+    const attendeeId = created.body.id as number;
+    const [goal] = await db
+      .insert(goalsTable)
+      .values({
+        attendeeId,
+        timeframe: "This quarter",
+        status: "New",
+      })
+      .returning({ id: goalsTable.id });
+    const [invite] = await db
+      .insert(invitesTable)
+      .values({
+        invitedByAttendeeId: attendeeId,
+        email: `invited-by-${process.pid}@example.com`,
+        circleId: 1,
+      })
+      .returning({ id: invitesTable.id });
+
+    const deleted = await api("DELETE", `/api/attendees/${attendeeId}`, {
+      cookie: adminCookie,
+    });
+    expect(deleted.status).toBe(204);
+    expect(deleted.body).toBeNull();
+
+    const attendee = await db
+      .select({ id: attendeesTable.id })
+      .from(attendeesTable)
+      .where(eq(attendeesTable.id, attendeeId));
+    expect(attendee).toHaveLength(0);
+
+    const remainingGoal = await db
+      .select({ id: goalsTable.id })
+      .from(goalsTable)
+      .where(eq(goalsTable.id, goal.id));
+    const remainingInvite = await db
+      .select({ id: invitesTable.id })
+      .from(invitesTable)
+      .where(eq(invitesTable.id, invite.id));
+    expect(remainingGoal).toHaveLength(0);
+    expect(remainingInvite).toHaveLength(0);
+  });
+
+  it("does not allow attendees to delete memberships or admins to delete administrator accounts", async () => {
+    const attendee = await db
+      .select({ id: attendeesTable.id })
+      .from(attendeesTable)
+      .where(eq(attendeesTable.email, ATTENDEE_EMAIL));
+    expect(attendee).toHaveLength(1);
+
+    const forbidden = await api("DELETE", `/api/attendees/${attendee[0].id}`, {
+      cookie: attendeeCookie,
+    });
+    expect(forbidden.status).toBe(403);
+
+    const admin = await db
+      .select({ id: attendeesTable.id })
+      .from(attendeesTable)
+      .where(and(eq(attendeesTable.email, ADMIN_EMAIL), eq(attendeesTable.role, "admin")));
+    expect(admin).toHaveLength(1);
+
+    const protectedAdmin = await api("DELETE", `/api/attendees/${admin[0].id}`, {
+      cookie: adminCookie,
+    });
+    expect(protectedAdmin.status).toBe(400);
   });
 });

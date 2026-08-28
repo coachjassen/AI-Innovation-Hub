@@ -1348,6 +1348,76 @@ export const useUpdateAttendee = <TError = ErrorType<unknown>,
       return useMutation(getUpdateAttendeeMutationOptions(options));
     }
 
+export const getDeleteAttendeeUrl = (id: number,) => {
+
+
+
+
+  return `/api/attendees/${id}`
+}
+
+/**
+ * @summary Delete an attendee membership and its Hub activity (admin only)
+ */
+export const deleteAttendee = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteAttendeeUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAttendeeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAttendee>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAttendee>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAttendee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAttendee>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAttendee(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAttendeeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAttendee>>>
+
+    export type DeleteAttendeeMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete an attendee membership and its Hub activity (admin only)
+ */
+export const useDeleteAttendee = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAttendee>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAttendee>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAttendeeMutationOptions(options));
+    }
+
 export const getListMeetingsUrl = (params?: ListMeetingsParams,) => {
   const normalizedParams = new URLSearchParams();
 

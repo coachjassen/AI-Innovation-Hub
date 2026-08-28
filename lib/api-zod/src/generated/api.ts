@@ -297,6 +297,14 @@ export const UpdateAttendeeResponse = zod.object({
 
 
 /**
+ * @summary Delete an attendee membership and its Hub activity (admin only)
+ */
+export const DeleteAttendeeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
  * @summary List meetings for the selected circle (admin) or the current attendee's invitations
  */
 export const ListMeetingsQueryParams = zod.object({

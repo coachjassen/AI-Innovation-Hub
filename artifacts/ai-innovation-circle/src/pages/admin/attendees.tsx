@@ -4,6 +4,7 @@ import {
   getListCirclesQueryKey,
   type Attendee,
   useCreateAttendee,
+  useDeleteAttendee,
   useImportAttendees,
   useListAttendees,
 } from "@workspace/api-client-react";
@@ -134,6 +135,7 @@ export default function AdminAttendees() {
     query: { enabled: activeCircleId !== null, queryKey: getListAttendeesQueryKey(params) },
   });
   const createAttendee = useCreateAttendee();
+  const deleteAttendee = useDeleteAttendee();
   const importAttendees = useImportAttendees();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -142,6 +144,8 @@ export default function AdminAttendees() {
   const [importRows, setImportRows] = useState<PreviewRow[]>([]);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Attendee | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const existingEmails = useMemo(
@@ -315,6 +319,21 @@ export default function AdminAttendees() {
           });
         },
         onError: (error) => setImportError(error.message || "Unable to import attendees."),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setDeleteError(null);
+    deleteAttendee.mutate(
+      { id: deleteTarget.id },
+      {
+        onSuccess: () => {
+          invalidateAttendeeQueries();
+          setDeleteTarget(null);
+        },
+        onError: (error) => setDeleteError(error.message || "Unable to delete attendee."),
       },
     );
   };
@@ -620,11 +639,71 @@ export default function AdminAttendees() {
                 <p className="text-[11px] text-muted-foreground">
                   Joined {format(new Date(a.createdAt), "MMM d, yyyy")}
                 </p>
+                {a.role !== "admin" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setDeleteTarget(a);
+                    }}
+                    data-testid={`button-delete-attendee-${a.id}`}
+                  >
+                    Delete attendee
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteAttendee.isPending) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete attendee?</DialogTitle>
+            <DialogDescription>
+              This permanently removes {deleteTarget?.name ?? "this attendee"} from {activeCircle?.name ?? "this Hub"}
+              and deletes their Hub activity, including goals, survey responses, invitations, and meeting RSVP records.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm text-destructive" data-testid="alert-delete-attendee-error">
+              {deleteError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleteAttendee.isPending}
+              data-testid="button-cancel-delete-attendee"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteAttendee.isPending}
+              data-testid="button-confirm-delete-attendee"
+            >
+              {deleteAttendee.isPending ? "Deleting..." : "Delete attendee"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

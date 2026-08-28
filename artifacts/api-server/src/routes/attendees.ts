@@ -1,6 +1,17 @@
 import { Router, type IRouter } from "express";
 import { and, eq, desc, count, inArray } from "drizzle-orm";
-import { db, attendeesTable, goalsTable, surveyResponsesTable, circlesTable } from "@workspace/db";
+import {
+  db,
+  attendeesTable,
+  goalsTable,
+  surveyResponsesTable,
+  circlesTable,
+  suggestionsTable,
+  invitesTable,
+  meetingInviteesTable,
+  meetingResponsesTable,
+  magicTokensTable,
+} from "@workspace/db";
 import { ImportAttendeesBody, ImportAttendeesResponse } from "@workspace/api-zod";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import { sendAttendeeOnboardingEmail } from "../lib/magic-link";
@@ -279,6 +290,35 @@ router.patch("/attendees/:id", requireAuth, async (req, res): Promise<void> => {
   const [updated] = await db.update(attendeesTable).set(updates).where(eq(attendeesTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Attendee not found" }); return; }
   res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+});
+
+router.delete("/attendees/:id", requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [attendee] = await db
+    .select({ id: attendeesTable.id, role: attendeesTable.role })
+    .from(attendeesTable)
+    .where(eq(attendeesTable.id, id));
+  if (!attendee) { res.status(404).json({ error: "Attendee not found" }); return; }
+  if (attendee.role === "admin") {
+    res.status(400).json({ error: "Administrator accounts cannot be deleted here" });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(goalsTable).where(eq(goalsTable.attendeeId, id));
+    await tx.delete(suggestionsTable).where(eq(suggestionsTable.attendeeId, id));
+    await tx.delete(surveyResponsesTable).where(eq(surveyResponsesTable.attendeeId, id));
+    await tx.delete(invitesTable).where(eq(invitesTable.invitedByAttendeeId, id));
+    await tx.delete(meetingInviteesTable).where(eq(meetingInviteesTable.attendeeId, id));
+    await tx.delete(meetingResponsesTable).where(eq(meetingResponsesTable.attendeeId, id));
+    await tx.delete(magicTokensTable).where(eq(magicTokensTable.attendeeId, id));
+    await tx.delete(attendeesTable).where(eq(attendeesTable.id, id));
+  });
+
+  res.status(204).send();
 });
 
 export default router;

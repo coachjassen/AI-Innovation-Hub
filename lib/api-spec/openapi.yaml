@@ -370,6 +370,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Attendee"
+    delete:
+      operationId: deleteAttendee
+      tags: [attendees]
+      summary: Delete an attendee membership and its Hub activity (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Attendee deleted
+        "400":
+          description: Invalid attendee or administrator account
+        "404":
+          description: Attendee not found
 
   # Meetings
   /meetings:
