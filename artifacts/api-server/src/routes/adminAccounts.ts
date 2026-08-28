@@ -79,11 +79,11 @@ router.post("/admin/accounts", requireAdmin, async (req, res): Promise<void> => 
       role: "admin",
       circleId,
     })
-    .onConflictDoNothing({ target: attendeesTable.email })
+    .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
     .returning();
 
   if (!created) {
-    res.status(409).json({ error: "An account with this email already exists" });
+    res.status(409).json({ error: "An account with this email already exists in this Hub" });
     return;
   }
 

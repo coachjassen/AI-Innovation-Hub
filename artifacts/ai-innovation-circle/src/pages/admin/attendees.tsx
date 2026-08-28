@@ -133,9 +133,6 @@ export default function AdminAttendees() {
   const { data: attendees = [], isLoading } = useListAttendees(params, {
     query: { enabled: activeCircleId !== null, queryKey: getListAttendeesQueryKey(params) },
   });
-  const { data: allAttendees = [], isLoading: isAllAttendeesLoading } = useListAttendees(undefined, {
-    query: { enabled: activeCircleId !== null, queryKey: getListAttendeesQueryKey() },
-  });
   const createAttendee = useCreateAttendee();
   const importAttendees = useImportAttendees();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -148,8 +145,8 @@ export default function AdminAttendees() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const existingEmails = useMemo(
-    () => new Set(allAttendees.map((attendee) => attendee.email.trim().toLowerCase())),
-    [allAttendees],
+    () => new Set(attendees.map((attendee) => attendee.email.trim().toLowerCase())),
+    [attendees],
   );
   const validImportRows = importRows.filter((row) => row.status === "valid");
   const skippedImportRows = importRows.length - validImportRows.length;
@@ -238,7 +235,7 @@ export default function AdminAttendees() {
       setImportError("CSV files must be smaller than 1 MB.");
       return;
     }
-    if (isAllAttendeesLoading) {
+    if (isLoading) {
       setImportError("Current attendees are still loading. Please choose the file again in a moment.");
       return;
     }

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, count, inArray } from "drizzle-orm";
+import { and, eq, desc, count, inArray } from "drizzle-orm";
 import { db, attendeesTable, goalsTable, surveyResponsesTable, circlesTable } from "@workspace/db";
 import { ImportAttendeesBody, ImportAttendeesResponse } from "@workspace/api-zod";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
@@ -41,20 +41,20 @@ router.post("/attendees", requireAdmin, async (req, res): Promise<void> => {
   const [existing] = await db
     .select({ id: attendeesTable.id })
     .from(attendeesTable)
-    .where(eq(attendeesTable.email, email));
+    .where(and(eq(attendeesTable.circleId, circleId), eq(attendeesTable.email, email)));
   if (existing) {
-    res.status(409).json({ error: "An attendee with this email already exists" });
+    res.status(409).json({ error: "An attendee with this email already exists in this Hub" });
     return;
   }
 
   const [attendee] = await db
     .insert(attendeesTable)
     .values({ name, email, company, role: "attendee", circleId })
-    .onConflictDoNothing({ target: attendeesTable.email })
+    .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
     .returning();
 
   if (!attendee) {
-    res.status(409).json({ error: "An attendee with this email already exists" });
+    res.status(409).json({ error: "An attendee with this email already exists in this Hub" });
     return;
   }
 
@@ -120,7 +120,7 @@ router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> =
     const existingRows = await tx
       .select({ email: attendeesTable.email })
       .from(attendeesTable)
-      .where(inArray(attendeesTable.email, emails));
+      .where(and(eq(attendeesTable.circleId, circleId), inArray(attendeesTable.email, emails)));
     const existingEmails = new Set(existingRows.map((attendee) => attendee.email.toLowerCase()));
     const seenEmails = new Set<string>();
     const skippedRows: Array<{ row: number; email: string; reason: "duplicate_file" | "duplicate_existing" }> = [];
@@ -147,7 +147,7 @@ router.post("/attendees/import", requireAdmin, async (req, res): Promise<void> =
         role: "attendee",
         circleId,
       })))
-      .onConflictDoNothing({ target: attendeesTable.email })
+      .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
       .returning();
     const insertedEmails = new Set(createdRows.map((attendee) => attendee.email.toLowerCase()));
 
@@ -228,6 +228,10 @@ router.get("/attendees/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (req.session.attendeeRole !== "admin" && req.session.attendeeId !== id) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
 
   const [attendee] = await db.select().from(attendeesTable).where(eq(attendeesTable.id, id));
   if (!attendee) { res.status(404).json({ error: "Attendee not found" }); return; }

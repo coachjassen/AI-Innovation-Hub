@@ -78,5 +78,6 @@ export * from './survey';
 export * from './surveyInput';
 export * from './surveyResponse';
 export * from './surveyResponseInput';
+export * from './switchHubRequest';
 export * from './uploadUrlRequest';
 export * from './uploadUrlResponse';

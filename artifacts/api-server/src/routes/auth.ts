@@ -1,12 +1,13 @@
 import { Router, type IRouter, type Request } from "express";
-import { eq } from "drizzle-orm";
-import { db, attendeesTable } from "@workspace/db";
+import { and, asc, eq, ne } from "drizzle-orm";
+import { db, attendeesTable, circlesTable } from "@workspace/db";
 import {
   GENERIC_MAGIC_LINK_MESSAGE,
   issueMagicLink,
   verifyMagicLink,
 } from "../lib/magic-link";
 import { isSmtpConfigured } from "../lib/email";
+import { requireAuth } from "../middlewares/requireAuth";
 import "../lib/session";
 
 const router: IRouter = Router();
@@ -53,20 +54,21 @@ router.post("/auth/direct-login", async (req, res): Promise<void> => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const [attendee] = await db
+  const accounts = await db
     .select()
     .from(attendeesTable)
-    .where(eq(attendeesTable.email, normalizedEmail));
+    .where(eq(attendeesTable.email, normalizedEmail))
+    .orderBy(asc(attendeesTable.id));
+  const attendee = accounts.find((account) => account.role === "admin");
 
-  if (!attendee) {
+  if (accounts.length === 0) {
     res.status(401).json({ error: "No administrator account found with that email" });
     return;
   }
-  if (attendee.role !== "admin") {
+  if (!attendee) {
     res.status(403).json({ error: "Direct sign-in is limited to administrator accounts" });
     return;
   }
-
   await createSession(req, attendee);
   res.json(serializeAttendee(attendee));
 });
@@ -85,10 +87,19 @@ router.post("/auth/request-link", async (req, res): Promise<void> => {
     return;
   }
 
-  const [attendee] = await db
-    .select()
+  const memberships = await db
+    .select({ attendee: attendeesTable })
     .from(attendeesTable)
-    .where(eq(attendeesTable.email, normalizedEmail));
+    .innerJoin(circlesTable, eq(attendeesTable.circleId, circlesTable.id))
+    .where(and(
+      eq(attendeesTable.email, normalizedEmail),
+      ne(circlesTable.cadence, "one-off"),
+      eq(circlesTable.status, "active"),
+    ))
+    .orderBy(asc(attendeesTable.id));
+  const attendee =
+    memberships.find(({ attendee: membership }) => membership.role === "admin")?.attendee
+    ?? memberships[0]?.attendee;
 
   if (!attendee) {
     // Return the same response when not found (security: don't reveal existence).
@@ -126,6 +137,43 @@ router.post("/auth/verify", async (req, res): Promise<void> => {
   res.json(serializeAttendee(attendee));
 });
 
+router.post("/auth/switch-hub", requireAuth, async (req, res): Promise<void> => {
+  const circleId = Number((req.body as { circleId?: unknown }).circleId);
+  if (!Number.isInteger(circleId) || circleId <= 0) {
+    res.status(400).json({ error: "A valid Hub is required" });
+    return;
+  }
+
+  const [current] = await db
+    .select({ email: attendeesTable.email })
+    .from(attendeesTable)
+    .where(eq(attendeesTable.id, req.session.attendeeId!));
+  if (!current) {
+    req.session.destroy(() => {});
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const [membership] = await db
+    .select({ attendee: attendeesTable })
+    .from(attendeesTable)
+    .innerJoin(circlesTable, eq(attendeesTable.circleId, circlesTable.id))
+    .where(and(
+      eq(attendeesTable.email, current.email),
+      eq(attendeesTable.circleId, circleId),
+      ne(circlesTable.cadence, "one-off"),
+      eq(circlesTable.status, "active"),
+    ));
+  if (!membership) {
+    res.status(403).json({ error: "You do not belong to this Hub" });
+    return;
+  }
+
+  req.session.attendeeId = membership.attendee.id;
+  req.session.attendeeRole = membership.attendee.role;
+  res.json(serializeAttendee(membership.attendee));
+});
+
 // POST /auth/logout
 router.post("/auth/logout", (req, res): void => {
   req.session.destroy(() => {
@@ -134,16 +182,11 @@ router.post("/auth/logout", (req, res): void => {
 });
 
 // GET /auth/me
-router.get("/auth/me", async (req, res): Promise<void> => {
-  if (!req.session.attendeeId) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-
+router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const [attendee] = await db
     .select()
     .from(attendeesTable)
-    .where(eq(attendeesTable.id, req.session.attendeeId));
+    .where(eq(attendeesTable.id, req.session.attendeeId!));
 
   if (!attendee) {
     req.session.destroy(() => {});

@@ -34,6 +34,11 @@ export interface MagicLinkVerify {
   token: string;
 }
 
+export interface SwitchHubRequest {
+  /** @minimum 1 */
+  circleId: number;
+}
+
 /**
  * Recurrence for the Hub, or one-off for a single event
  */

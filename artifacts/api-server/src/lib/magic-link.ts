@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, gt, gte } from "drizzle-orm";
+import { and, asc, eq, gt, gte } from "drizzle-orm";
 import type { Request } from "express";
-import { db, attendeesTable, magicTokensTable } from "@workspace/db";
+import { db, attendeesTable, circlesTable, magicTokensTable } from "@workspace/db";
 import { buildMagicLinkEmail, isSmtpConfigured, sendEmail } from "./email";
 import { logger } from "./logger";
 
@@ -141,9 +141,30 @@ export async function verifyMagicLink(token: string): Promise<typeof attendeesTa
 
   if (!claimed) return null;
 
-  const [attendee] = await db
+  const [claimedMembership] = await db
+    .select({
+      attendee: attendeesTable,
+      cadence: circlesTable.cadence,
+      status: circlesTable.status,
+    })
+    .from(attendeesTable)
+    .innerJoin(circlesTable, eq(attendeesTable.circleId, circlesTable.id))
+    .where(eq(attendeesTable.id, claimed.attendeeId));
+  if (!claimedMembership) return null;
+
+  // Administrator authorization is global to the verified email identity.
+  const [adminMembership] = await db
     .select()
     .from(attendeesTable)
-    .where(eq(attendeesTable.id, claimed.attendeeId));
-  return attendee ?? null;
+    .where(and(
+      eq(attendeesTable.email, claimedMembership.attendee.email),
+      eq(attendeesTable.role, "admin"),
+    ))
+    .orderBy(asc(attendeesTable.id));
+  if (adminMembership) return adminMembership;
+
+  if (claimedMembership.cadence === "one-off" || claimedMembership.status !== "active") {
+    return null;
+  }
+  return claimedMembership.attendee;
 }

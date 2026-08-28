@@ -303,7 +303,7 @@ describe("attendee CSV import", () => {
     )).toBe(true);
   });
 
-  it("rejects an attendee email already registered in another Hub", async () => {
+  it("allows the same attendee email in another Hub but not twice in one Hub", async () => {
     const existing = await db
       .insert(attendeesTable)
       .values({
@@ -324,8 +324,16 @@ describe("attendee CSV import", () => {
         circleId: crossHubCircleId,
       },
     });
-    expect(manual.status).toBe(409);
-    expect(manual.body).toMatchObject({ error: "An attendee with this email already exists" });
+    expect(manual.status).toBe(201);
+    expect(manual.body).toMatchObject({
+      email: CROSS_HUB_EMAIL,
+      circleId: crossHubCircleId,
+    });
+
+    const crossHubDetail = await api("GET", `/api/attendees/${manual.body.id}`, {
+      cookie: attendeeCookie,
+    });
+    expect(crossHubDetail.status).toBe(403);
 
     const imported = await api("POST", "/api/attendees/import", {
       cookie: adminCookie,
@@ -340,6 +348,16 @@ describe("attendee CSV import", () => {
       skippedCount: 1,
       skipped: [{ row: 2, email: CROSS_HUB_EMAIL, reason: "duplicate_existing" }],
     });
+
+    const memberships = await db
+      .select({ id: attendeesTable.id, circleId: attendeesTable.circleId })
+      .from(attendeesTable)
+      .where(eq(attendeesTable.email, CROSS_HUB_EMAIL));
+    expect(memberships).toHaveLength(2);
+    expect(new Set(memberships.map((membership) => membership.circleId))).toEqual(
+      new Set([1, crossHubCircleId]),
+    );
+    expect(new Set(memberships.map((membership) => membership.id)).size).toBe(2);
   });
 
   it("does not send sign-in emails when attendees are added to a one-off Hub", async () => {

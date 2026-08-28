@@ -34,10 +34,13 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 - `artifacts/ai-innovation-circle/src/pages/` — React pages (attendee/ and admin/ subdirs)
 - `scripts/ensure-admin.sql` — idempotent self-hosted bootstrap for the confirmed administrator account
 - `scripts/ensure-one-off-invitation-schema.sql` — idempotent additive schema update for self-hosted one-off invitation support
+- `scripts/migrations/attendees-multi-hub-email.sql` — replaces global attendee email uniqueness with per-Hub uniqueness for self-hosted deployments
 
 ## Architecture decisions
 
 - **Authentication:** Default sign-in uses `POST /api/auth/request-link` to issue a hashed, single-use, one-hour email link; the session is created only when `POST /api/auth/verify` redeems it. Self-hosted deployments can explicitly opt into `AUTH_MODE=direct_admin`, which allows email-only sessions for existing administrator accounts only.
+- **Multi-Hub membership:** An attendee email may have one membership row per Hub, each with its own attendee ID and Hub-scoped data. One login lists all active recurring-Hub memberships and switching Hubs changes the session's active attendee ID. One-off memberships never appear in the authenticated attendee dashboard.
+- **Administrator identity:** Administrator authorization is global to the verified email identity, consistent with administrators being able to manage every Hub. If an email has an administrator membership, login resolves to that administrator account rather than an attendee membership.
 - **Session store:** `connect-pg-simple` backed by a `sessions` table in Postgres. Both the `session` and `sessions` tables exist in the DB.
 - **Invitation files:** Replit deployments use App Storage; self-hosted deployments use the local filesystem. Set `LOCAL_OBJECT_STORAGE_DIR` to a persistent, PM2-writable directory (for example `/var/lib/kinetics-hubs/private-objects`).
 - **API-first:** All contracts live in OpenAPI spec; Orval generates typed hooks used by the frontend. Never hand-write fetch calls in the UI.

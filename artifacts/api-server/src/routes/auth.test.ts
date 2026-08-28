@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { createHash } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
-import { db, attendeesTable, goalsTable, magicTokensTable } from "@workspace/db";
+import { db, attendeesTable, circlesTable, goalsTable, magicTokensTable } from "@workspace/db";
 
 vi.mock("../lib/email", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/email")>();
@@ -18,11 +18,19 @@ const AUTH_EMAIL = `magic-link-auth-${process.pid}@example.test`;
 const OTHER_EMAIL = `magic-link-other-${process.pid}@example.test`;
 const RATE_EMAIL = `magic-link-rate-${process.pid}@example.test`;
 const DIRECT_ADMIN_EMAIL = `direct-admin-${process.pid}@example.test`;
+const ONE_OFF_ONLY_EMAIL = `one-off-only-${process.pid}@example.test`;
+const PRIVATE_OWNER_EMAIL = `private-goal-owner-${process.pid}@example.test`;
 const originalAuthMode = process.env.AUTH_MODE;
 
 let server: Server;
 let baseUrl: string;
 let attendeeIds: number[] = [];
+let recurringCircleId: number;
+let oneOffCircleId: number;
+let recurringMembershipId: number;
+let oneOffOnlyMembershipId: number;
+let mixedRoleAttendeeId: number;
+let directAdminMembershipId: number;
 
 interface ApiResult {
   status: number;
@@ -86,16 +94,64 @@ beforeAll(async () => {
   process.env.SMTP_FROM = "hubs@example.test";
   process.env.APP_URL = "https://hubs.example.test";
 
-  const [auth, other, rate] = await db
+  const [recurringCircle] = await db
+    .insert(circlesTable)
+    .values({
+      name: `Auth Recurring Membership ${process.pid}`,
+      cadence: "quarterly",
+      status: "active",
+    })
+    .returning({ id: circlesTable.id });
+  recurringCircleId = recurringCircle.id;
+  const [oneOffCircle] = await db
+    .insert(circlesTable)
+    .values({
+      name: `Auth One-Off Membership ${process.pid}`,
+      cadence: "one-off",
+      status: "active",
+    })
+    .returning({ id: circlesTable.id });
+  oneOffCircleId = oneOffCircle.id;
+
+  const [
+    auth,
+    other,
+    rate,
+    directAdmin,
+    recurringMembership,
+    oneOffMembership,
+    oneOffOnly,
+    privateOwner,
+    mixedRoleAttendee,
+  ] = await db
     .insert(attendeesTable)
     .values([
       { name: "Magic Link Test", email: AUTH_EMAIL, company: "Test Co", role: "attendee", circleId: 1 },
       { name: "Other Test", email: OTHER_EMAIL, company: "Test Co", role: "attendee", circleId: 1 },
       { name: "Rate Test", email: RATE_EMAIL, company: "Test Co", role: "attendee", circleId: 1 },
       { name: "Direct Admin Test", email: DIRECT_ADMIN_EMAIL, company: "Test Co", role: "admin", circleId: 1 },
+      { name: "Magic Link Test", email: AUTH_EMAIL, company: "Test Co", role: "attendee", circleId: recurringCircleId },
+      { name: "Magic Link Test", email: AUTH_EMAIL, company: "Test Co", role: "attendee", circleId: oneOffCircleId },
+      { name: "One-Off Only Test", email: ONE_OFF_ONLY_EMAIL, company: "Test Co", role: "attendee", circleId: oneOffCircleId },
+      { name: "Private Goal Owner", email: PRIVATE_OWNER_EMAIL, company: "Test Co", role: "attendee", circleId: 1 },
+      { name: "Direct Admin Attendee Membership", email: DIRECT_ADMIN_EMAIL, company: "Test Co", role: "attendee", circleId: recurringCircleId },
     ])
     .returning({ id: attendeesTable.id });
-  attendeeIds = [auth.id, other.id, rate.id];
+  attendeeIds = [
+    auth.id,
+    other.id,
+    rate.id,
+    directAdmin.id,
+    recurringMembership.id,
+    oneOffMembership.id,
+    oneOffOnly.id,
+    privateOwner.id,
+    mixedRoleAttendee.id,
+  ];
+  recurringMembershipId = recurringMembership.id;
+  oneOffOnlyMembershipId = oneOffOnly.id;
+  mixedRoleAttendeeId = mixedRoleAttendee.id;
+  directAdminMembershipId = directAdmin.id;
 
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -109,6 +165,7 @@ afterAll(async () => {
     await db.delete(magicTokensTable).where(inArray(magicTokensTable.attendeeId, attendeeIds));
     await db.delete(attendeesTable).where(inArray(attendeesTable.id, attendeeIds));
   }
+  await db.delete(circlesTable).where(inArray(circlesTable.id, [recurringCircleId, oneOffCircleId]));
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
@@ -129,6 +186,131 @@ describe("magic-link authentication", () => {
     expect(unknown.status).toBe(200);
     expect(known.body).toEqual(unknown.body);
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses one login to list and switch recurring Hub memberships while excluding one-off Hubs", async () => {
+    const cookie = await login(AUTH_EMAIL);
+
+    const circles = await api("GET", "/api/circles", { cookie });
+    expect(circles.status).toBe(200);
+    const circleIds = (circles.body as Array<{ id: number }>).map((circle) => circle.id);
+    expect(circleIds).toContain(1);
+    expect(circleIds).toContain(recurringCircleId);
+    expect(circleIds).not.toContain(oneOffCircleId);
+
+    const switched = await api("POST", "/api/auth/switch-hub", {
+      cookie,
+      body: { circleId: recurringCircleId },
+    });
+    expect(switched.status).toBe(200);
+    expect(switched.body).toMatchObject({
+      id: recurringMembershipId,
+      email: AUTH_EMAIL,
+      circleId: recurringCircleId,
+    });
+
+    const me = await api("GET", "/api/auth/me", { cookie });
+    expect(me.status).toBe(200);
+    expect(me.body).toMatchObject({ id: recurringMembershipId, circleId: recurringCircleId });
+
+    const oneOffSwitch = await api("POST", "/api/auth/switch-hub", {
+      cookie,
+      body: { circleId: oneOffCircleId },
+    });
+    expect(oneOffSwitch.status).toBe(403);
+  });
+
+  it("does not send login links to attendees who only belong to one-off Hubs", async () => {
+    sendEmailMock.mockClear();
+    const response = await api("POST", "/api/auth/request-link", {
+      body: { email: ONE_OFF_ONLY_EMAIL },
+    });
+    expect(response.status).toBe(200);
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a token tied to a one-off-only attendee membership", async () => {
+    const rawToken = `one-off-token-${process.pid}-${Date.now()}`;
+    await db.insert(magicTokensTable).values({
+      token: createHash("sha256").update(rawToken).digest("hex"),
+      attendeeId: oneOffOnlyMembershipId,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const response = await api("POST", "/api/auth/verify", {
+      body: { token: rawToken },
+    });
+    expect(response.status).toBe(400);
+    expect(response.setCookie).toBeNull();
+  });
+
+  it("invalidates an existing attendee session when its Hub becomes inactive", async () => {
+    const sessionEmail = `inactive-session-${process.pid}-${Date.now()}@example.test`;
+    const rawToken = `inactive-session-token-${process.pid}-${Date.now()}`;
+    const [circle] = await db
+      .insert(circlesTable)
+      .values({
+        name: `Inactive Session Test ${process.pid}`,
+        cadence: "monthly",
+        status: "active",
+      })
+      .returning({ id: circlesTable.id });
+    const [membership] = await db
+      .insert(attendeesTable)
+      .values({
+        name: "Inactive Session Test",
+        email: sessionEmail,
+        company: "Test Co",
+        role: "attendee",
+        circleId: circle.id,
+      })
+      .returning({ id: attendeesTable.id });
+    await db.insert(magicTokensTable).values({
+      token: createHash("sha256").update(rawToken).digest("hex"),
+      attendeeId: membership.id,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    try {
+      const verified = await api("POST", "/api/auth/verify", {
+        body: { token: rawToken },
+      });
+      expect(verified.status).toBe(200);
+      expect(verified.setCookie).toBeTruthy();
+
+      await db
+        .update(circlesTable)
+        .set({ status: "inactive" })
+        .where(eq(circlesTable.id, circle.id));
+
+      const me = await api("GET", "/api/auth/me", {
+        cookie: verified.setCookie as string,
+      });
+      expect(me.status).toBe(401);
+    } finally {
+      await db.delete(magicTokensTable).where(eq(magicTokensTable.attendeeId, membership.id));
+      await db.delete(attendeesTable).where(eq(attendeesTable.id, membership.id));
+      await db.delete(circlesTable).where(eq(circlesTable.id, circle.id));
+    }
+  });
+
+  it("treats administrator authorization as global to the verified email", async () => {
+    const rawToken = `mixed-role-token-${process.pid}-${Date.now()}`;
+    await db.insert(magicTokensTable).values({
+      token: createHash("sha256").update(rawToken).digest("hex"),
+      attendeeId: mixedRoleAttendeeId,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const response = await api("POST", "/api/auth/verify", {
+      body: { token: rawToken },
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: directAdminMembershipId,
+      email: DIRECT_ADMIN_EMAIL,
+      role: "admin",
+    });
   });
 
   it("creates a session only after the emailed token is redeemed", async () => {
@@ -234,7 +416,7 @@ describe("magic-link authentication", () => {
   });
 
   it("keeps attendee goals private to their owner", async () => {
-    const ownerCookie = await login(AUTH_EMAIL);
+    const ownerCookie = await login(PRIVATE_OWNER_EMAIL);
     const otherCookie = await login(OTHER_EMAIL);
     const created = await api("POST", "/api/goals", {
       cookie: ownerCookie,

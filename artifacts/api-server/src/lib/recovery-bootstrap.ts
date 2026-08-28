@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { attendeesTable, circlesTable, db } from "@workspace/db";
 import { logger } from "./logger";
 
@@ -38,7 +38,10 @@ export async function runRecoveryBootstrap(): Promise<void> {
       circleId: attendeesTable.circleId,
     })
     .from(attendeesTable)
-    .where(eq(attendeesTable.email, RECOVERY_ADMIN.email));
+    .where(and(
+      eq(attendeesTable.circleId, RECOVERY_ADMIN.circleId),
+      eq(attendeesTable.email, RECOVERY_ADMIN.email),
+    ));
 
   if (existing) {
     logger.info(
@@ -61,7 +64,7 @@ export async function runRecoveryBootstrap(): Promise<void> {
       role: "admin",
       circleId: RECOVERY_ADMIN.circleId,
     })
-    .onConflictDoNothing({ target: attendeesTable.email })
+    .onConflictDoNothing({ target: [attendeesTable.circleId, attendeesTable.email] })
     .returning({ id: attendeesTable.id });
 
   if (created) {

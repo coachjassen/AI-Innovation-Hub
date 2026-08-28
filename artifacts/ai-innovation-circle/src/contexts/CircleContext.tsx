@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useListCircles } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getGetMeQueryKey,
+  useGetMe,
+  useListCircles,
+  useSwitchActiveHub,
+} from "@workspace/api-client-react";
 
 type Circle = { id: number; name: string; cadence: string; status: string; memberCount?: number };
 
@@ -16,32 +22,71 @@ const CircleContext = createContext<CircleContextValue | undefined>(undefined);
 const STORAGE_KEY = "aic.activeCircleId";
 
 export function CircleProvider({ children }: { children: React.ReactNode }) {
-  const { data: circles = [], isLoading } = useListCircles();
-  const [activeCircleId, setActiveCircleIdState] = useState<number | null>(() => {
+  const queryClient = useQueryClient();
+  const { data: circles = [], isLoading: circlesLoading } = useListCircles();
+  const { data: user, isLoading: userLoading } = useGetMe({
+    query: { retry: false, queryKey: getGetMeQueryKey() },
+  });
+  const switchHub = useSwitchActiveHub();
+  const [adminActiveCircleId, setAdminActiveCircleId] = useState<number | null>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? parseInt(stored, 10) : null;
   });
+  const isAdmin = user?.role === "admin";
+  const activeCircleId = isAdmin
+    ? adminActiveCircleId
+    : user?.circleId ?? null;
 
   const setActiveCircleId = (id: number) => {
-    setActiveCircleIdState(id);
-    localStorage.setItem(STORAGE_KEY, String(id));
+    if (isAdmin) {
+      setAdminActiveCircleId(id);
+      localStorage.setItem(STORAGE_KEY, String(id));
+      return;
+    }
+    if (!user || id === user.circleId || switchHub.isPending) return;
+
+    switchHub.mutate(
+      { data: { circleId: id } },
+      {
+        onSuccess: (membership) => {
+          localStorage.setItem(STORAGE_KEY, String(id));
+          queryClient.setQueryData(getGetMeQueryKey(), membership);
+          void queryClient.invalidateQueries();
+        },
+      },
+    );
   };
 
-  // Once circles load, ensure the active id points at a real circle.
+  // Admins may inspect any Hub. Attendee active Hub comes from their
+  // server-side membership session and changes only after a successful switch.
   useEffect(() => {
-    if (circles.length === 0) return;
-    const exists = activeCircleId !== null && circles.some((c) => c.id === activeCircleId);
+    if (!isAdmin || circles.length === 0) return;
+    const exists = adminActiveCircleId !== null && circles.some((c) => c.id === adminActiveCircleId);
     if (!exists) {
       const fallback = circles.find((c) => c.status === "active") ?? circles[0];
-      setActiveCircleIdState(fallback.id);
+      setAdminActiveCircleId(fallback.id);
       localStorage.setItem(STORAGE_KEY, String(fallback.id));
     }
-  }, [circles, activeCircleId]);
+  }, [circles, adminActiveCircleId, isAdmin]);
 
   const value = useMemo<CircleContextValue>(() => {
     const activeCircle = circles.find((c) => c.id === activeCircleId) ?? null;
-    return { circles, activeCircleId, activeCircle, setActiveCircleId, isLoading };
-  }, [circles, activeCircleId, isLoading]);
+    return {
+      circles,
+      activeCircleId,
+      activeCircle,
+      setActiveCircleId,
+      isLoading: circlesLoading || userLoading || switchHub.isPending,
+    };
+  }, [
+    circles,
+    activeCircleId,
+    circlesLoading,
+    userLoading,
+    switchHub.isPending,
+    isAdmin,
+    user,
+  ]);
 
   return <CircleContext.Provider value={value}>{children}</CircleContext.Provider>;
 }

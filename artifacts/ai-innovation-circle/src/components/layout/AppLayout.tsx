@@ -29,7 +29,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useGetMe({ query: { retry: false, queryKey: getGetMeQueryKey() } });
   const [location, setLocation] = useLocation();
   const logout = useLogout();
-  const { activeCircle } = useActiveCircle();
+  const { activeCircle, circles } = useActiveCircle();
   const configuredBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const artifactBasePath = configuredBasePath || "/ai-innovation-circle";
   const internalLocation = location.startsWith(`${artifactBasePath}/`)
@@ -128,21 +128,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-xs text-sidebar-foreground/60">{user.role === 'admin' ? 'Administrator' : 'Consulting Client'}</p>
                 </div>
               </div>
-              {isAdmin && (
+              {(isAdmin || circles.length > 1) && (
                 <div className="space-y-2">
                   <CircleSwitcher />
-                  <Link
-                    href="/admin/hubs"
-                    className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                      internalLocation.startsWith("/admin/hubs") || internalLocation.startsWith("/admin/circles")
-                        ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                    }`}
-                    data-testid="link-hubs-setup"
-                  >
-                    <CircleDot className="h-4 w-4" />
-                    <span>Hubs Setup</span>
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin/hubs"
+                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                        internalLocation.startsWith("/admin/hubs") || internalLocation.startsWith("/admin/circles")
+                          ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      }`}
+                      data-testid="link-hubs-setup"
+                    >
+                      <CircleDot className="h-4 w-4" />
+                      <span>Hubs Setup</span>
+                    </Link>
+                  )}
                 </div>
               )}
             </div>

@@ -159,6 +159,31 @@ paths:
         "401":
           description: Not authenticated
 
+  /auth/switch-hub:
+    post:
+      operationId: switchActiveHub
+      tags: [auth]
+      summary: Switch the current attendee membership to another recurring Hub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwitchHubRequest"
+      responses:
+        "200":
+          description: Active Hub membership switched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendee"
+        "400":
+          description: Invalid Hub
+        "401":
+          description: Not authenticated
+        "403":
+          description: The signed-in email does not belong to this recurring Hub
+
   # Circles
   /circles:
     get:
@@ -1162,6 +1187,14 @@ components:
         token:
           type: string
           minLength: 1
+
+    SwitchHubRequest:
+      type: object
+      required: [circleId]
+      properties:
+        circleId:
+          type: integer
+          minimum: 1
 
     # Circle
     Circle:

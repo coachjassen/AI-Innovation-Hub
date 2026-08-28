@@ -98,6 +98,27 @@ export const GetMeResponse = zod.object({
 
 
 /**
+ * @summary Switch the current attendee membership to another recurring Hub
+ */
+
+
+
+export const SwitchActiveHubBody = zod.object({
+  "circleId": zod.number().min(1)
+})
+
+export const SwitchActiveHubResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "company": zod.string(),
+  "role": zod.string(),
+  "circleId": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary List all circles
  */
 export const ListCirclesResponseItem = zod.object({

@@ -74,6 +74,7 @@ import type {
   SurveyInput,
   SurveyResponse,
   SurveyResponseInput,
+  SwitchHubRequest,
   UploadUrlRequest,
   UploadUrlResponse
 } from './api.schemas';
@@ -603,6 +604,77 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Err
 
 
 
+
+export const getSwitchActiveHubUrl = () => {
+
+
+
+
+  return `/api/auth/switch-hub`
+}
+
+/**
+ * @summary Switch the current attendee membership to another recurring Hub
+ */
+export const switchActiveHub = async (switchHubRequest: SwitchHubRequest, options?: RequestInit): Promise<Attendee> => {
+
+  return customFetch<Attendee>(getSwitchActiveHubUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      switchHubRequest,)
+  }
+);}
+
+
+
+
+export const getSwitchActiveHubMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchActiveHub>>, TError,{data: BodyType<SwitchHubRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof switchActiveHub>>, TError,{data: BodyType<SwitchHubRequest>}, TContext> => {
+
+const mutationKey = ['switchActiveHub'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof switchActiveHub>>, {data: BodyType<SwitchHubRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  switchActiveHub(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SwitchActiveHubMutationResult = NonNullable<Awaited<ReturnType<typeof switchActiveHub>>>
+    export type SwitchActiveHubMutationBody = BodyType<SwitchHubRequest>
+    export type SwitchActiveHubMutationError = ErrorType<void>
+
+    /**
+ * @summary Switch the current attendee membership to another recurring Hub
+ */
+export const useSwitchActiveHub = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchActiveHub>>, TError,{data: BodyType<SwitchHubRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof switchActiveHub>>,
+        TError,
+        {data: BodyType<SwitchHubRequest>},
+        TContext
+      > => {
+      return useMutation(getSwitchActiveHubMutationOptions(options));
+    }
 
 export const getListCirclesUrl = () => {
 
