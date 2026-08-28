@@ -152,6 +152,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(attendeesTable).where(inArray(attendeesTable.email, TEST_EMAILS));
   await db.delete(attendeesTable).where(eq(attendeesTable.email, CROSS_HUB_EMAIL));
+  await db.delete(attendeesTable).where(eq(attendeesTable.email, DELETE_EMAIL));
   await db.delete(attendeesTable).where(inArray(attendeesTable.email, ONE_OFF_EMAILS));
   await db.delete(circlesTable).where(inArray(circlesTable.id, [inactiveCircleId, crossHubCircleId, oneOffCircleId]));
   await new Promise<void>((resolve, reject) =>
@@ -410,6 +411,26 @@ describe("attendee CSV import", () => {
     expect(created.status).toBe(201);
 
     const attendeeId = created.body.id as number;
+    const [otherHubMembership] = await db
+      .insert(attendeesTable)
+      .values({
+        name: "Delete Me",
+        email: DELETE_EMAIL,
+        company: "Delete Co",
+        role: "attendee",
+        circleId: crossHubCircleId,
+      })
+      .returning({ id: attendeesTable.id });
+    const [oneOffMembership] = await db
+      .insert(attendeesTable)
+      .values({
+        name: "Delete Me",
+        email: DELETE_EMAIL,
+        company: "Delete Co",
+        role: "attendee",
+        circleId: oneOffCircleId,
+      })
+      .returning({ id: attendeesTable.id });
     const [goal] = await db
       .insert(goalsTable)
       .values({
@@ -449,6 +470,15 @@ describe("attendee CSV import", () => {
       .where(eq(invitesTable.id, invite.id));
     expect(remainingGoal).toHaveLength(0);
     expect(remainingInvite).toHaveLength(0);
+
+    const remainingMemberships = await db
+      .select({ id: attendeesTable.id, circleId: attendeesTable.circleId })
+      .from(attendeesTable)
+      .where(eq(attendeesTable.email, DELETE_EMAIL));
+    expect(remainingMemberships).toEqual([
+      { id: otherHubMembership.id, circleId: crossHubCircleId },
+      { id: oneOffMembership.id, circleId: oneOffCircleId },
+    ]);
   });
 
   it("does not allow attendees to delete memberships or admins to delete administrator accounts", async () => {

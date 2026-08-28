@@ -672,7 +672,7 @@ export default function AdminAttendees() {
           <DialogHeader>
             <DialogTitle>Delete attendee?</DialogTitle>
             <DialogDescription>
-              This permanently removes {deleteTarget?.name ?? "this attendee"} from {activeCircle?.name ?? "this Hub"}
+              This permanently removes {deleteTarget?.name ?? "this attendee"} from {activeCircle?.name ?? "this Hub"}{" "}
               and deletes their Hub activity, including goals, survey responses, invitations, and meeting RSVP records.
               This action cannot be undone.
             </DialogDescription>
