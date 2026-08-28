@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi, type Mock } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, attendeesTable, circlesTable, magicTokensTable } from "@workspace/db";
 
 vi.mock("../lib/email", async (importOriginal) => {
@@ -21,12 +21,14 @@ const TEST_EMAILS = [
   `csv-import-test-${process.pid}-b@example.com`,
   `csv-import-test-${process.pid}-c@example.com`,
 ];
+const CROSS_HUB_EMAIL = `cross-hub-test-${process.pid}@example.com`;
 
 let server: Server;
 let baseUrl: string;
 let adminCookie: string;
 let attendeeCookie: string;
 let inactiveCircleId: number;
+let crossHubCircleId: number;
 let testOrigin: string;
 
 interface ApiResult {
@@ -107,6 +109,15 @@ beforeAll(async () => {
     })
     .returning({ id: circlesTable.id });
   inactiveCircleId = inactiveCircle.id;
+  const [crossHubCircle] = await db
+    .insert(circlesTable)
+    .values({
+      name: `Cross Hub Test ${process.pid}`,
+      cadence: "monthly",
+      status: "active",
+    })
+    .returning({ id: circlesTable.id });
+  crossHubCircleId = crossHubCircle.id;
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const { port } = server.address() as AddressInfo;
@@ -118,7 +129,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.delete(attendeesTable).where(inArray(attendeesTable.email, TEST_EMAILS));
-  await db.delete(circlesTable).where(inArray(circlesTable.id, [inactiveCircleId]));
+  await db.delete(attendeesTable).where(eq(attendeesTable.email, CROSS_HUB_EMAIL));
+  await db.delete(circlesTable).where(inArray(circlesTable.id, [inactiveCircleId, crossHubCircleId]));
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
@@ -274,5 +286,44 @@ describe("attendee CSV import", () => {
     expect(results.some((result) =>
       result.body.skipped.some((skipped: { reason: string }) => skipped.reason === "duplicate_existing"),
     )).toBe(true);
+  });
+
+  it("rejects an attendee email already registered in another Hub", async () => {
+    const existing = await db
+      .insert(attendeesTable)
+      .values({
+        name: "Cross Hub Existing",
+        email: CROSS_HUB_EMAIL,
+        company: "Existing Company",
+        role: "attendee",
+        circleId: 1,
+      })
+      .returning({ id: attendeesTable.id });
+    expect(existing).toHaveLength(1);
+
+    const manual = await api("POST", "/api/attendees", {
+      cookie: adminCookie,
+      body: {
+        name: "Cross Hub Manual",
+        email: CROSS_HUB_EMAIL,
+        circleId: crossHubCircleId,
+      },
+    });
+    expect(manual.status).toBe(409);
+    expect(manual.body).toMatchObject({ error: "An attendee with this email already exists" });
+
+    const imported = await api("POST", "/api/attendees/import", {
+      cookie: adminCookie,
+      body: {
+        circleId: crossHubCircleId,
+        attendees: [{ name: "Cross Hub Import", email: CROSS_HUB_EMAIL }],
+      },
+    });
+    expect(imported.status).toBe(200);
+    expect(imported.body).toMatchObject({
+      createdCount: 0,
+      skippedCount: 1,
+      skipped: [{ row: 2, email: CROSS_HUB_EMAIL, reason: "duplicate_existing" }],
+    });
   });
 });

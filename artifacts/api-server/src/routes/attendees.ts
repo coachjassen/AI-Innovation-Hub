@@ -47,7 +47,13 @@ router.post("/attendees", requireAdmin, async (req, res): Promise<void> => {
   const [attendee] = await db
     .insert(attendeesTable)
     .values({ name, email, company, role: "attendee", circleId })
+    .onConflictDoNothing({ target: attendeesTable.email })
     .returning();
+
+  if (!attendee) {
+    res.status(409).json({ error: "An attendee with this email already exists" });
+    return;
+  }
 
   res.status(201).json(serializeAttendee(attendee));
   void sendAttendeeOnboardingEmail(req, attendee).catch((err) => {
