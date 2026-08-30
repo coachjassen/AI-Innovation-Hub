@@ -36,6 +36,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 - `scripts/ensure-one-off-invitation-schema.sql` — idempotent additive schema update for self-hosted one-off invitation support
 - `scripts/migrations/attendees-multi-hub-email.sql` — replaces global attendee email uniqueness with per-Hub uniqueness for self-hosted deployments
 - `scripts/migrations/hub-interest-registration.sql` — adds recurring Hub public registration settings and interest records; run before starting the updated API
+- Self-hosted production must set `APP_URL` (or the `PUBLIC_APP_URL` alias) to its canonical HTTPS origin. API startup validates this and transactionally applies the idempotent Hub registration schema before listening.
 
 ## Architecture decisions
 
