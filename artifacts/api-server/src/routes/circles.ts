@@ -8,6 +8,23 @@ const router: IRouter = Router();
 const CADENCES = ["monthly", "quarterly", "one-off"] as const;
 const STATUSES = ["active", "inactive"] as const;
 
+function serializeCircle(
+  circle: typeof circlesTable.$inferSelect,
+  memberCount?: number,
+) {
+  return {
+    id: circle.id,
+    name: circle.name,
+    cadence: circle.cadence,
+    status: circle.status,
+    createdAt: circle.createdAt.toISOString(),
+    ...(memberCount === undefined ? {} : { memberCount }),
+    registrationDescription: circle.registrationDescription,
+    registrationOpen: circle.registrationOpen,
+    hasRegistrationLink: Boolean(circle.registrationTokenHash),
+  };
+}
+
 router.get("/circles", requireAuth, async (req, res): Promise<void> => {
   const memberCount = sql<number>`(
     select count(*) from attendees members where members.circle_id = ${circlesTable.id}
@@ -19,6 +36,9 @@ router.get("/circles", requireAuth, async (req, res): Promise<void> => {
     status: circlesTable.status,
     createdAt: circlesTable.createdAt,
     memberCount,
+    registrationDescription: circlesTable.registrationDescription,
+    registrationOpen: circlesTable.registrationOpen,
+    registrationTokenHash: circlesTable.registrationTokenHash,
   };
 
   if (req.session.attendeeRole === "admin") {
@@ -26,7 +46,7 @@ router.get("/circles", requireAuth, async (req, res): Promise<void> => {
       .select(baseSelection)
       .from(circlesTable)
       .orderBy(asc(circlesTable.name));
-    res.json(rows.map((c) => ({ ...c, memberCount: Number(c.memberCount), createdAt: c.createdAt.toISOString() })));
+    res.json(rows.map((c) => serializeCircle(c, Number(c.memberCount))));
     return;
   }
 
@@ -50,11 +70,23 @@ router.get("/circles", requireAuth, async (req, res): Promise<void> => {
     ))
     .where(and(eq(circlesTable.status, "active"), ne(circlesTable.cadence, "one-off")))
     .orderBy(asc(circlesTable.name));
-  res.json(rows.map((c) => ({ ...c, memberCount: Number(c.memberCount), createdAt: c.createdAt.toISOString() })));
+  res.json(rows.map((c) => serializeCircle(c, Number(c.memberCount))));
 });
 
 router.post("/circles", requireAdmin, async (req, res): Promise<void> => {
-  const { name, cadence, status } = req.body as { name?: string; cadence?: string; status?: string };
+  const {
+    name,
+    cadence,
+    status,
+    registrationDescription,
+    registrationOpen,
+  } = req.body as {
+    name?: string;
+    cadence?: string;
+    status?: string;
+    registrationDescription?: string;
+    registrationOpen?: boolean;
+  };
   if (!name || !cadence || !status) {
     res.status(400).json({ error: "name, cadence, and status are required" });
     return;
@@ -67,8 +99,19 @@ router.post("/circles", requireAdmin, async (req, res): Promise<void> => {
     res.status(400).json({ error: `status must be one of: ${STATUSES.join(", ")}` });
     return;
   }
-  const [circle] = await db.insert(circlesTable).values({ name, cadence, status }).returning();
-  res.status(201).json({ ...circle, memberCount: 0, createdAt: circle.createdAt.toISOString() });
+  const isOneOff = cadence === "one-off";
+  if (isOneOff && registrationOpen) {
+    res.status(400).json({ error: "Public registration is only available for recurring Hubs" });
+    return;
+  }
+  const [circle] = await db.insert(circlesTable).values({
+    name,
+    cadence,
+    status,
+    registrationDescription: isOneOff ? null : registrationDescription?.trim() || null,
+    registrationOpen: isOneOff ? false : registrationOpen ?? false,
+  }).returning();
+  res.status(201).json(serializeCircle(circle, 0));
 });
 
 router.get("/circles/:id", requireAuth, async (req, res): Promise<void> => {
@@ -99,14 +142,26 @@ router.get("/circles/:id", requireAuth, async (req, res): Promise<void> => {
   }
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, id));
   if (!circle) { res.status(404).json({ error: "Circle not found" }); return; }
-  res.json({ ...circle, createdAt: circle.createdAt.toISOString() });
+  res.json(serializeCircle(circle));
 });
 
 router.patch("/circles/:id", requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  const { name, cadence, status } = req.body as { name?: string; cadence?: string; status?: string };
+  const {
+    name,
+    cadence,
+    status,
+    registrationDescription,
+    registrationOpen,
+  } = req.body as {
+    name?: string;
+    cadence?: string;
+    status?: string;
+    registrationDescription?: string;
+    registrationOpen?: boolean;
+  };
   if (cadence !== undefined && !CADENCES.includes(cadence as (typeof CADENCES)[number])) {
     res.status(400).json({ error: `cadence must be one of: ${CADENCES.join(", ")}` });
     return;
@@ -115,13 +170,37 @@ router.patch("/circles/:id", requireAdmin, async (req, res): Promise<void> => {
     res.status(400).json({ error: `status must be one of: ${STATUSES.join(", ")}` });
     return;
   }
-  const updates: Partial<{ name: string; cadence: string; status: string }> = {};
+  const [current] = await db.select().from(circlesTable).where(eq(circlesTable.id, id));
+  if (!current) { res.status(404).json({ error: "Circle not found" }); return; }
+  const nextCadence = cadence ?? current.cadence;
+  if (nextCadence === "one-off" && registrationOpen) {
+    res.status(400).json({ error: "Public registration is only available for recurring Hubs" });
+    return;
+  }
+
+  const updates: Partial<{
+    name: string;
+    cadence: string;
+    status: string;
+    registrationDescription: string | null;
+    registrationOpen: boolean;
+    registrationTokenHash: string | null;
+  }> = {};
   if (name !== undefined) updates.name = name;
   if (cadence !== undefined) updates.cadence = cadence;
   if (status !== undefined) updates.status = status;
+  if (registrationDescription !== undefined) {
+    updates.registrationDescription = registrationDescription.trim() || null;
+  }
+  if (registrationOpen !== undefined) updates.registrationOpen = registrationOpen;
+  if (nextCadence === "one-off") {
+    updates.registrationDescription = null;
+    updates.registrationOpen = false;
+    updates.registrationTokenHash = null;
+  }
   const [circle] = await db.update(circlesTable).set(updates).where(eq(circlesTable.id, id)).returning();
   if (!circle) { res.status(404).json({ error: "Circle not found" }); return; }
-  res.json({ ...circle, createdAt: circle.createdAt.toISOString() });
+  res.json(serializeCircle(circle));
 });
 
 export default router;

@@ -45,6 +45,9 @@ import type {
   GoalWithAttendee,
   GoalsSummary,
   HealthStatus,
+  HubRegistration,
+  HubRegistrationInput,
+  HubRegistrationLink,
   InvitationDeliveryResult,
   Invite,
   InviteInput,
@@ -67,6 +70,7 @@ import type {
   MessageResponse,
   OneOffRsvp,
   OneOffRsvpInput,
+  PublicHubRegistration,
   Suggestion,
   SuggestionInput,
   SuggestionWithAttendee,
@@ -971,6 +975,374 @@ export const useUpdateCircle = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateCircleMutationOptions(options));
+    }
+
+export const getCreateHubRegistrationLinkUrl = (id: number,) => {
+
+
+
+
+  return `/api/circles/${id}/registration-link`
+}
+
+/**
+ * @summary Create or rotate a public Hub registration link (admin only)
+ */
+export const createHubRegistrationLink = async (id: number, options?: RequestInit): Promise<HubRegistrationLink> => {
+
+  return customFetch<HubRegistrationLink>(getCreateHubRegistrationLinkUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCreateHubRegistrationLinkMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHubRegistrationLink>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createHubRegistrationLink>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['createHubRegistrationLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createHubRegistrationLink>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  createHubRegistrationLink(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateHubRegistrationLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createHubRegistrationLink>>>
+
+    export type CreateHubRegistrationLinkMutationError = ErrorType<void>
+
+    /**
+ * @summary Create or rotate a public Hub registration link (admin only)
+ */
+export const useCreateHubRegistrationLink = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHubRegistrationLink>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createHubRegistrationLink>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getCreateHubRegistrationLinkMutationOptions(options));
+    }
+
+export const getListHubRegistrationsUrl = (id: number,) => {
+
+
+
+
+  return `/api/circles/${id}/registrations`
+}
+
+/**
+ * @summary List public interest registrations for a Hub (admin only)
+ */
+export const listHubRegistrations = async (id: number, options?: RequestInit): Promise<HubRegistration[]> => {
+
+  return customFetch<HubRegistration[]>(getListHubRegistrationsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListHubRegistrationsQueryKey = (id: number,) => {
+    return [
+    `/api/circles/${id}/registrations`
+    ] as const;
+    }
+
+
+export const getListHubRegistrationsQueryOptions = <TData = Awaited<ReturnType<typeof listHubRegistrations>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listHubRegistrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListHubRegistrationsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listHubRegistrations>>> = ({ signal }) => listHubRegistrations(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listHubRegistrations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListHubRegistrationsQueryResult = NonNullable<Awaited<ReturnType<typeof listHubRegistrations>>>
+export type ListHubRegistrationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List public interest registrations for a Hub (admin only)
+ */
+
+export function useListHubRegistrations<TData = Awaited<ReturnType<typeof listHubRegistrations>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listHubRegistrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListHubRegistrationsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteHubRegistrationUrl = (id: number,
+    registrationId: number,) => {
+
+
+
+
+  return `/api/circles/${id}/registrations/${registrationId}`
+}
+
+/**
+ * @summary Remove a public interest registration (admin only)
+ */
+export const deleteHubRegistration = async (id: number,
+    registrationId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteHubRegistrationUrl(id,registrationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteHubRegistrationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHubRegistration>>, TError,{id: number;registrationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteHubRegistration>>, TError,{id: number;registrationId: number}, TContext> => {
+
+const mutationKey = ['deleteHubRegistration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteHubRegistration>>, {id: number;registrationId: number}> = (props) => {
+          const {id,registrationId} = props ?? {};
+
+          return  deleteHubRegistration(id,registrationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteHubRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteHubRegistration>>>
+
+    export type DeleteHubRegistrationMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove a public interest registration (admin only)
+ */
+export const useDeleteHubRegistration = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHubRegistration>>, TError,{id: number;registrationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteHubRegistration>>,
+        TError,
+        {id: number;registrationId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteHubRegistrationMutationOptions(options));
+    }
+
+export const getGetPublicHubRegistrationUrl = (token: string,) => {
+
+
+
+
+  return `/api/registration/${token}`
+}
+
+/**
+ * @summary View a public Hub registration page
+ */
+export const getPublicHubRegistration = async (token: string, options?: RequestInit): Promise<PublicHubRegistration> => {
+
+  return customFetch<PublicHubRegistration>(getGetPublicHubRegistrationUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicHubRegistrationQueryKey = (token: string,) => {
+    return [
+    `/api/registration/${token}`
+    ] as const;
+    }
+
+
+export const getGetPublicHubRegistrationQueryOptions = <TData = Awaited<ReturnType<typeof getPublicHubRegistration>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicHubRegistration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicHubRegistrationQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicHubRegistration>>> = ({ signal }) => getPublicHubRegistration(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(token), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicHubRegistration>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicHubRegistrationQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicHubRegistration>>>
+export type GetPublicHubRegistrationQueryError = ErrorType<void>
+
+
+/**
+ * @summary View a public Hub registration page
+ */
+
+export function useGetPublicHubRegistration<TData = Awaited<ReturnType<typeof getPublicHubRegistration>>, TError = ErrorType<void>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicHubRegistration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicHubRegistrationQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSubmitHubRegistrationUrl = (token: string,) => {
+
+
+
+
+  return `/api/registration/${token}`
+}
+
+/**
+ * @summary Register interest in a Hub without signing in
+ */
+export const submitHubRegistration = async (token: string,
+    hubRegistrationInput: HubRegistrationInput, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getSubmitHubRegistrationUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      hubRegistrationInput,)
+  }
+);}
+
+
+
+
+export const getSubmitHubRegistrationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitHubRegistration>>, TError,{token: string;data: BodyType<HubRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitHubRegistration>>, TError,{token: string;data: BodyType<HubRegistrationInput>}, TContext> => {
+
+const mutationKey = ['submitHubRegistration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitHubRegistration>>, {token: string;data: BodyType<HubRegistrationInput>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  submitHubRegistration(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitHubRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof submitHubRegistration>>>
+    export type SubmitHubRegistrationMutationBody = BodyType<HubRegistrationInput>
+    export type SubmitHubRegistrationMutationError = ErrorType<void>
+
+    /**
+ * @summary Register interest in a Hub without signing in
+ */
+export const useSubmitHubRegistration = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitHubRegistration>>, TError,{token: string;data: BodyType<HubRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitHubRegistration>>,
+        TError,
+        {token: string;data: BodyType<HubRegistrationInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitHubRegistrationMutationOptions(options));
     }
 
 export const getCreateAttendeeUrl = () => {

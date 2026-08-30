@@ -2,11 +2,14 @@ import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "rea
 import {
   getListAttendeesQueryKey,
   getListCirclesQueryKey,
+  getListHubRegistrationsQueryKey,
   type Attendee,
   useCreateAttendee,
   useDeleteAttendee,
   useImportAttendees,
   useListAttendees,
+  useListHubRegistrations,
+  useDeleteHubRegistration,
 } from "@workspace/api-client-react";
 import { useActiveCircle } from "@/contexts/CircleContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -137,6 +140,19 @@ export default function AdminAttendees() {
   const createAttendee = useCreateAttendee();
   const deleteAttendee = useDeleteAttendee();
   const importAttendees = useImportAttendees();
+  const deleteRegistration = useDeleteHubRegistration();
+
+  const isRecurring = activeCircle?.cadence !== "one-off";
+  const { data: registrations = [], isLoading: isLoadingRegistrations } = useListHubRegistrations(
+    activeCircleId ?? 0,
+    {
+      query: {
+        enabled: activeCircleId !== null && isRecurring,
+        queryKey: getListHubRegistrationsQueryKey(activeCircleId ?? 0),
+      },
+    }
+  );
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -146,6 +162,7 @@ export default function AdminAttendees() {
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Attendee | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteRegistrationTarget, setDeleteRegistrationTarget] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const existingEmails = useMemo(
@@ -160,6 +177,9 @@ export default function AdminAttendees() {
     queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey(params) });
     queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey() });
     queryClient.invalidateQueries({ queryKey: getListCirclesQueryKey() });
+    if (activeCircleId !== null) {
+      queryClient.invalidateQueries({ queryKey: getListHubRegistrationsQueryKey(activeCircleId) });
+    }
     queryClient.invalidateQueries({
       predicate: (query) =>
         typeof query.queryKey[0] === "string" &&
@@ -335,6 +355,19 @@ export default function AdminAttendees() {
         },
         onError: (error) => setDeleteError(error.message || "Unable to delete attendee."),
       },
+    );
+  };
+
+  const handleDeleteRegistration = () => {
+    if (deleteRegistrationTarget === null || activeCircleId === null) return;
+    deleteRegistration.mutate(
+      { id: activeCircleId, registrationId: deleteRegistrationTarget },
+      {
+        onSuccess: () => {
+          invalidateAttendeeQueries();
+          setDeleteRegistrationTarget(null);
+        },
+      }
     );
   };
 
@@ -659,6 +692,68 @@ export default function AdminAttendees() {
         </div>
       )}
 
+      {/* Registrations Section */}
+      {isRecurring && activeCircleId !== null && (
+        <div className="pt-8 border-t space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">Public Registrations</h2>
+            <p className="text-muted-foreground text-sm max-w-3xl">
+              Pending registrations automatically become attendees when a new meeting is created. You can then select invitees from the meeting screen. No automated emails are sent to pending registrants.
+            </p>
+          </div>
+
+          {isLoadingRegistrations ? (
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : registrations.length === 0 ? (
+            <div className="text-center py-10 border rounded-lg bg-gray-50/50">
+              <ClipboardList className="mx-auto h-8 w-8 text-gray-300 mb-3" />
+              <p className="text-sm text-gray-500">No public registrations.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {registrations.map((r) => {
+                const isPromoted = r.promotedAt !== null;
+                return (
+                  <Card key={r.id} data-testid={`card-registration-${r.id}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold truncate" data-testid={`text-registration-name-${r.id}`}>{r.name}</p>
+                          <p className="text-xs text-muted-foreground truncate" data-testid={`text-registration-email-${r.id}`}>{r.email}</p>
+                        </div>
+                        <Badge variant={isPromoted ? "secondary" : "default"} className="shrink-0 text-[10px]">
+                          {isPromoted ? "Added" : "Pending"}
+                        </Badge>
+                      </div>
+                      {r.company && <p className="text-xs text-muted-foreground truncate">{r.company}</p>}
+                      <div className="flex items-center justify-between border-t pt-3 mt-2">
+                        <p className="text-[11px] text-muted-foreground">
+                          {format(new Date(r.createdAt), "MMM d, yyyy")}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive px-2 text-xs"
+                          onClick={() => setDeleteRegistrationTarget(r.id)}
+                          data-testid={`button-delete-registration-${r.id}`}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <Dialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
@@ -700,6 +795,43 @@ export default function AdminAttendees() {
               data-testid="button-confirm-delete-attendee"
             >
               {deleteAttendee.isPending ? "Deleting..." : "Delete attendee"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={deleteRegistrationTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteRegistration.isPending) {
+            setDeleteRegistrationTarget(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete registration?</DialogTitle>
+            <DialogDescription>
+              This removes the public registration record. If the user has already been promoted to an attendee, their attendee record is unaffected. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteRegistrationTarget(null)}
+              disabled={deleteRegistration.isPending}
+              data-testid="button-cancel-delete-registration"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteRegistration}
+              disabled={deleteRegistration.isPending}
+              data-testid="button-confirm-delete-registration"
+            >
+              {deleteRegistration.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

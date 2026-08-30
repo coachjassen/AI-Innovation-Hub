@@ -1,5 +1,6 @@
 export * from "./circles";
 export * from "./attendees";
+export * from "./hubRegistrations";
 export * from "./magicTokens";
 export * from "./meetings";
 export * from "./meetingInvitees";

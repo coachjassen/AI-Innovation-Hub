@@ -12,4 +12,6 @@ export interface CircleInput {
   /** Recurrence for the Hub, or one-off for a single event */
   cadence: CircleInputCadence;
   status: string;
+  registrationDescription?: string;
+  registrationOpen?: boolean;
 }

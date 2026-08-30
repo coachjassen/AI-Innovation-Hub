@@ -15,4 +15,8 @@ export interface Circle {
   status: string;
   createdAt: string;
   memberCount?: number;
+  /** @nullable */
+  registrationDescription?: string | null;
+  registrationOpen?: boolean;
+  hasRegistrationLink?: boolean;
 }

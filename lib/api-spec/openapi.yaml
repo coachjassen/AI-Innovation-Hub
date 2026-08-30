@@ -261,6 +261,126 @@ paths:
               schema:
                 $ref: "#/components/schemas/Circle"
 
+  /circles/{id}/registration-link:
+    post:
+      operationId: createHubRegistrationLink
+      tags: [circles]
+      summary: Create or rotate a public Hub registration link (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Public registration link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubRegistrationLink"
+        "400":
+          description: Registration links are only available for recurring Hubs
+        "404":
+          description: Hub not found
+        "503":
+          description: Public application URL is not configured
+
+  /circles/{id}/registrations:
+    get:
+      operationId: listHubRegistrations
+      tags: [circles]
+      summary: List public interest registrations for a Hub (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hub interest registrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HubRegistration"
+        "404":
+          description: Hub not found
+
+  /circles/{id}/registrations/{registrationId}:
+    delete:
+      operationId: deleteHubRegistration
+      tags: [circles]
+      summary: Remove a public interest registration (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Registration removed
+        "404":
+          description: Registration not found
+
+  /registration/{token}:
+    get:
+      operationId: getPublicHubRegistration
+      tags: [circles]
+      summary: View a public Hub registration page
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 32
+      responses:
+        "200":
+          description: Public Hub registration details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicHubRegistration"
+        "404":
+          description: Registration link not found
+    post:
+      operationId: submitHubRegistration
+      tags: [circles]
+      summary: Register interest in a Hub without signing in
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 32
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HubRegistrationInput"
+      responses:
+        "200":
+          description: Registration accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invalid registration details or registration is closed
+        "404":
+          description: Registration link not found
+
   # Attendees
   /attendees:
     post:
@@ -1232,6 +1352,12 @@ components:
           type: string
         memberCount:
           type: integer
+        registrationDescription:
+          type: ["string", "null"]
+        registrationOpen:
+          type: boolean
+        hasRegistrationLink:
+          type: boolean
 
     CircleInput:
       type: object
@@ -1245,6 +1371,10 @@ components:
           description: Recurrence for the Hub, or one-off for a single event
         status:
           type: string
+        registrationDescription:
+          type: string
+        registrationOpen:
+          type: boolean
 
     CircleUpdate:
       type: object
@@ -1257,6 +1387,69 @@ components:
           description: Recurrence for the Hub, or one-off for a single event
         status:
           type: string
+        registrationDescription:
+          type: string
+        registrationOpen:
+          type: boolean
+
+    HubRegistrationLink:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+
+    PublicHubRegistration:
+      type: object
+      required: [circleName, cadence, registrationOpen]
+      properties:
+        circleName:
+          type: string
+        cadence:
+          type: string
+          enum: [monthly, quarterly]
+        description:
+          type: ["string", "null"]
+        registrationOpen:
+          type: boolean
+
+    HubRegistration:
+      type: object
+      required: [id, circleId, name, email, company, attendeeId, promotedAt, createdAt]
+      properties:
+        id:
+          type: integer
+        circleId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+        attendeeId:
+          type: ["integer", "null"]
+        promotedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    HubRegistrationInput:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+          maxLength: 200
 
     # Attendee
     Attendee:

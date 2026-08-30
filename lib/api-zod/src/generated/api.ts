@@ -127,7 +127,10 @@ export const ListCirclesResponseItem = zod.object({
   "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string(),
   "createdAt": zod.string(),
-  "memberCount": zod.number().optional()
+  "memberCount": zod.number().optional(),
+  "registrationDescription": zod.string().nullish(),
+  "registrationOpen": zod.boolean().optional(),
+  "hasRegistrationLink": zod.boolean().optional()
 })
 export const ListCirclesResponse = zod.array(ListCirclesResponseItem)
 
@@ -138,7 +141,9 @@ export const ListCirclesResponse = zod.array(ListCirclesResponseItem)
 export const CreateCircleBody = zod.object({
   "name": zod.string(),
   "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
-  "status": zod.string()
+  "status": zod.string(),
+  "registrationDescription": zod.string().optional(),
+  "registrationOpen": zod.boolean().optional()
 })
 
 
@@ -155,7 +160,10 @@ export const GetCircleResponse = zod.object({
   "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string(),
   "createdAt": zod.string(),
-  "memberCount": zod.number().optional()
+  "memberCount": zod.number().optional(),
+  "registrationDescription": zod.string().nullish(),
+  "registrationOpen": zod.boolean().optional(),
+  "hasRegistrationLink": zod.boolean().optional()
 })
 
 
@@ -169,7 +177,9 @@ export const UpdateCircleParams = zod.object({
 export const UpdateCircleBody = zod.object({
   "name": zod.string().optional(),
   "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).optional().describe('Recurrence for the Hub, or one-off for a single event'),
-  "status": zod.string().optional()
+  "status": zod.string().optional(),
+  "registrationDescription": zod.string().optional(),
+  "registrationOpen": zod.boolean().optional()
 })
 
 export const UpdateCircleResponse = zod.object({
@@ -178,7 +188,98 @@ export const UpdateCircleResponse = zod.object({
   "cadence": zod.enum(['monthly', 'quarterly', 'one-off']).describe('Recurrence for the Hub, or one-off for a single event'),
   "status": zod.string(),
   "createdAt": zod.string(),
-  "memberCount": zod.number().optional()
+  "memberCount": zod.number().optional(),
+  "registrationDescription": zod.string().nullish(),
+  "registrationOpen": zod.boolean().optional(),
+  "hasRegistrationLink": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Create or rotate a public Hub registration link (admin only)
+ */
+export const CreateHubRegistrationLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CreateHubRegistrationLinkResponse = zod.object({
+  "url": zod.string().url()
+})
+
+
+/**
+ * @summary List public interest registrations for a Hub (admin only)
+ */
+export const ListHubRegistrationsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListHubRegistrationsResponseItem = zod.object({
+  "id": zod.number(),
+  "circleId": zod.number(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "company": zod.string(),
+  "attendeeId": zod.number().nullable(),
+  "promotedAt": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListHubRegistrationsResponse = zod.array(ListHubRegistrationsResponseItem)
+
+
+/**
+ * @summary Remove a public interest registration (admin only)
+ */
+export const DeleteHubRegistrationParams = zod.object({
+  "id": zod.coerce.number(),
+  "registrationId": zod.coerce.number()
+})
+
+
+/**
+ * @summary View a public Hub registration page
+ */
+export const getPublicHubRegistrationPathTokenMin = 32;
+
+
+
+export const GetPublicHubRegistrationParams = zod.object({
+  "token": zod.coerce.string().min(getPublicHubRegistrationPathTokenMin)
+})
+
+export const GetPublicHubRegistrationResponse = zod.object({
+  "circleName": zod.string(),
+  "cadence": zod.enum(['monthly', 'quarterly']),
+  "description": zod.string().nullish(),
+  "registrationOpen": zod.boolean()
+})
+
+
+/**
+ * @summary Register interest in a Hub without signing in
+ */
+export const submitHubRegistrationPathTokenMin = 32;
+
+
+
+export const SubmitHubRegistrationParams = zod.object({
+  "token": zod.coerce.string().min(submitHubRegistrationPathTokenMin)
+})
+
+export const submitHubRegistrationBodyNameMax = 200;
+
+export const submitHubRegistrationBodyCompanyMax = 200;
+
+
+
+export const SubmitHubRegistrationBody = zod.object({
+  "name": zod.string().min(1).max(submitHubRegistrationBodyNameMax),
+  "email": zod.string().email(),
+  "company": zod.string().max(submitHubRegistrationBodyCompanyMax).optional()
+})
+
+export const SubmitHubRegistrationResponse = zod.object({
+  "message": zod.string()
 })
 
 

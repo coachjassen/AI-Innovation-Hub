@@ -27,7 +27,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 ## Where things live
 
 - `lib/api-spec/openapi.yaml` — source-of-truth API contract
-- `lib/db/src/schema/` — Drizzle ORM schema (circles, attendees, meetings, goals, surveys, suggestions, invites, magicTokens)
+- `lib/db/src/schema/` — Drizzle ORM schema (circles, attendees, Hub registrations, meetings, goals, surveys, suggestions, invites, magicTokens)
 - `lib/api-client-react/src/generated/` — Orval-generated React Query hooks + Zod schemas
 - `artifacts/api-server/src/routes/` — Express route handlers (one file per domain)
 - `artifacts/api-server/src/lib/` — email delivery, magic-link/session helpers, object storage
@@ -35,6 +35,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 - `scripts/ensure-admin.sql` — idempotent self-hosted bootstrap for the confirmed administrator account
 - `scripts/ensure-one-off-invitation-schema.sql` — idempotent additive schema update for self-hosted one-off invitation support
 - `scripts/migrations/attendees-multi-hub-email.sql` — replaces global attendee email uniqueness with per-Hub uniqueness for self-hosted deployments
+- `scripts/migrations/hub-interest-registration.sql` — adds recurring Hub public registration settings and interest records; run before starting the updated API
 
 ## Architecture decisions
 

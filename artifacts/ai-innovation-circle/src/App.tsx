@@ -8,6 +8,8 @@ import { CircleProvider } from "@/contexts/CircleContext";
 import Login from "@/pages/auth/login";
 import OneOffRsvpPage from "@/pages/one-off-rsvp";
 
+import RegisterPage from "@/pages/register";
+
 // Attendee pages
 import AttendeeGoals from "@/pages/attendee/goals";
 import AttendeeMeetings from "@/pages/attendee/meetings";
@@ -70,6 +72,16 @@ function Router() {
       <Switch location={normalizedLocation}>
         <Route path="/one-off-rsvp/:token">
           {(params) => <OneOffRsvpPage token={params.token} />}
+        </Route>
+      </Switch>
+    );
+  }
+
+  if (normalizedLocation.startsWith("/register/")) {
+    return (
+      <Switch location={normalizedLocation}>
+        <Route path="/register/:token">
+          {(params) => <RegisterPage token={params.token} />}
         </Route>
       </Switch>
     );

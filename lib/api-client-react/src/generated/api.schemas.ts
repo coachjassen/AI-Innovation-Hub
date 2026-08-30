@@ -59,6 +59,10 @@ export interface Circle {
   status: string;
   createdAt: string;
   memberCount?: number;
+  /** @nullable */
+  registrationDescription?: string | null;
+  registrationOpen?: boolean;
+  hasRegistrationLink?: boolean;
 }
 
 /**
@@ -78,6 +82,8 @@ export interface CircleInput {
   /** Recurrence for the Hub, or one-off for a single event */
   cadence: CircleInputCadence;
   status: string;
+  registrationDescription?: string;
+  registrationOpen?: boolean;
 }
 
 /**
@@ -97,6 +103,52 @@ export interface CircleUpdate {
   /** Recurrence for the Hub, or one-off for a single event */
   cadence?: CircleUpdateCadence;
   status?: string;
+  registrationDescription?: string;
+  registrationOpen?: boolean;
+}
+
+export interface HubRegistrationLink {
+  url: string;
+}
+
+export type PublicHubRegistrationCadence = typeof PublicHubRegistrationCadence[keyof typeof PublicHubRegistrationCadence];
+
+
+export const PublicHubRegistrationCadence = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+} as const;
+
+export interface PublicHubRegistration {
+  circleName: string;
+  cadence: PublicHubRegistrationCadence;
+  /** @nullable */
+  description?: string | null;
+  registrationOpen: boolean;
+}
+
+export interface HubRegistration {
+  id: number;
+  circleId: number;
+  name: string;
+  email: string;
+  company: string;
+  /** @nullable */
+  attendeeId: number | null;
+  /** @nullable */
+  promotedAt: string | null;
+  createdAt: string;
+}
+
+export interface HubRegistrationInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  email: string;
+  /** @maxLength 200 */
+  company?: string;
 }
 
 export interface Attendee {

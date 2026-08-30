@@ -10,6 +10,8 @@ import {
   getListMeetingsQueryKey,
   getListMeetingInviteesQueryKey,
   getListMeetingResponsesQueryKey,
+  getListAttendeesQueryKey,
+  getListHubRegistrationsQueryKey,
 } from "@workspace/api-client-react";
 import { useActiveCircle } from "@/contexts/CircleContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -69,6 +71,12 @@ export default function AdminMeetings() {
       {
         onSuccess: (meeting) => {
           queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+
+          if (activeCircle?.cadence !== 'one-off') {
+            queryClient.invalidateQueries({ queryKey: getListAttendeesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getListHubRegistrationsQueryKey(activeCircleId!) });
+          }
+
           setIsCreateOpen(false);
           if (activeCircle?.cadence === 'one-off') {
             setInvitationMeeting({ id: meeting.id, date: meeting.date });

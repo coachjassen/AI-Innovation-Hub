@@ -3,6 +3,7 @@ import {
   useListCircles,
   useCreateCircle,
   useUpdateCircle,
+  useCreateHubRegistrationLink,
   getListCirclesQueryKey,
   type CircleInputCadence,
   type CircleUpdateCadence,
@@ -13,9 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { CircleDot, Plus, MoreHorizontal, Pencil, Users, Power, PowerOff, Sparkles } from "lucide-react";
+import { CircleDot, Plus, MoreHorizontal, Pencil, Users, Power, PowerOff, Sparkles, Link2, AlertTriangle, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 type Circle = {
   id: number;
@@ -23,6 +27,9 @@ type Circle = {
   cadence: string;
   status: string;
   memberCount?: number;
+  registrationDescription?: string | null;
+  registrationOpen?: boolean;
+  hasRegistrationLink?: boolean;
 };
 
 const CADENCES = ["monthly", "quarterly", "one-off"] as const;
@@ -35,6 +42,8 @@ export default function AdminCircles() {
   const { data: circles = [], isLoading } = useListCircles();
   const createCircle = useCreateCircle();
   const updateCircle = useUpdateCircle();
+  const createRegistrationLink = useCreateHubRegistrationLink();
+  const { toast } = useToast();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Circle | null>(null);
@@ -72,6 +81,10 @@ export default function AdminCircles() {
           name: (fd.get("name") as string).trim(),
           cadence: fd.get("cadence") as CircleUpdateCadence,
           status: fd.get("status") as string,
+          ...(editing.cadence !== "one-off" ? {
+            registrationOpen: fd.get("registrationOpen") === "on",
+            registrationDescription: fd.get("registrationDescription") as string,
+          } : {})
         },
       },
       {
@@ -81,6 +94,40 @@ export default function AdminCircles() {
         },
       }
     );
+  };
+
+  const handleGenerateLink = async () => {
+    if (!editing) return;
+    createRegistrationLink.mutate({ id: editing.id }, {
+      onSuccess: async (data) => {
+        try {
+          await navigator.clipboard.writeText(data.url);
+        } catch {
+          toast({
+            variant: "destructive",
+            title: "Link created",
+            description: `Copy this registration link: ${data.url}`,
+          });
+          invalidate();
+          setEditing({ ...editing, hasRegistrationLink: true });
+          return;
+        }
+        toast({
+          title: "Link Copied",
+          description: "Registration link has been copied to clipboard.",
+        });
+        invalidate();
+        // Update editing state locally so button reflects change without closing dialog
+        setEditing({ ...editing, hasRegistrationLink: true });
+      },
+      onError: () => {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not generate link.",
+        });
+      }
+    });
   };
 
   const toggleStatus = (c: Circle) => {
@@ -101,18 +148,18 @@ export default function AdminCircles() {
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> New Hub</Button>
+            <Button data-testid="create-hub-trigger"><Plus className="mr-2 h-4 w-4" /> New Hub</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Create Hub</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input name="name" id="name" required placeholder="e.g. FinTech Founders Hub" />
+                <Input name="name" id="name" required placeholder="e.g. FinTech Founders Hub" data-testid="create-hub-name" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cadence">Hub type</Label>
-                <select name="cadence" id="cadence" defaultValue="quarterly" className="w-full border rounded-md px-3 py-2 text-sm capitalize">
+                <select name="cadence" id="cadence" defaultValue="quarterly" className="w-full border rounded-md px-3 py-2 text-sm capitalize" data-testid="create-hub-cadence">
                   {CADENCES.map((c) => <option key={c} value={c}>{cadenceLabel(c)}</option>)}
                 </select>
                 <p className="text-xs text-muted-foreground">
@@ -121,13 +168,13 @@ export default function AdminCircles() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <select name="status" id="status" defaultValue="active" className="w-full border rounded-md px-3 py-2 text-sm capitalize">
+                <select name="status" id="status" defaultValue="active" className="w-full border rounded-md px-3 py-2 text-sm capitalize" data-testid="create-hub-status">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={createCircle.isPending}>Create</Button>
+                <Button type="submit" disabled={createCircle.isPending} data-testid="create-hub-submit">Create</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -193,31 +240,92 @@ export default function AdminCircles() {
       )}
 
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-xl">
           <DialogHeader><DialogTitle>Edit Hub</DialogTitle></DialogHeader>
           {editing && (
-            <form onSubmit={handleEdit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Name</Label>
-                <Input name="name" id="edit-name" required defaultValue={editing.name} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-cadence">Cadence</Label>
-                <select name="cadence" id="edit-cadence" defaultValue={editing.cadence} className="w-full border rounded-md px-3 py-2 text-sm capitalize">
-                  {CADENCES.map((c) => <option key={c} value={c}>{cadenceLabel(c)}</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
-                <select name="status" id="edit-status" defaultValue={editing.status} className="w-full border rounded-md px-3 py-2 text-sm capitalize">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+            <div className="space-y-6">
+              <form id="edit-hub-form" onSubmit={handleEdit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Name</Label>
+                  <Input name="name" id="edit-name" required defaultValue={editing.name} data-testid="edit-hub-name" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-cadence">Cadence</Label>
+                  <select name="cadence" id="edit-cadence" defaultValue={editing.cadence} className="w-full border rounded-md px-3 py-2 text-sm capitalize" data-testid="edit-hub-cadence">
+                    {CADENCES.map((c) => <option key={c} value={c}>{cadenceLabel(c)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <select name="status" id="edit-status" defaultValue={editing.status} className="w-full border rounded-md px-3 py-2 text-sm capitalize" data-testid="edit-hub-status">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+
+                {editing.cadence !== "one-off" && (
+                  <div className="pt-4 border-t space-y-4">
+                    <h3 className="font-semibold text-lg">Public Registration</h3>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Accept Registrations</Label>
+                        <p className="text-sm text-muted-foreground">Allow public users to register interest.</p>
+                      </div>
+                      <Switch
+                        name="registrationOpen"
+                        defaultChecked={editing.registrationOpen}
+                        data-testid="edit-hub-registration-open"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="registrationDescription">Public Description</Label>
+                      <Textarea
+                        name="registrationDescription"
+                        id="registrationDescription"
+                        defaultValue={editing.registrationDescription || ""}
+                        placeholder="Describe the hub for public registrants..."
+                        className="resize-none"
+                        data-testid="edit-hub-registration-desc"
+                      />
+                    </div>
+                  </div>
+                )}
+              </form>
+
+              {editing.cadence !== "one-off" && (
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-medium">Registration Link</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Share this link to invite users to register interest.
+                        {editing.hasRegistrationLink && " Generating a new link will revoke the old one."}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleGenerateLink}
+                      disabled={createRegistrationLink.isPending}
+                      data-testid="edit-hub-generate-link"
+                    >
+                      {editing.hasRegistrationLink ? <RefreshCw className="mr-2 h-4 w-4" /> : <Link2 className="mr-2 h-4 w-4" />}
+                      {editing.hasRegistrationLink ? "Rotate & Copy" : "Generate & Copy"}
+                    </Button>
+                  </div>
+                  {editing.hasRegistrationLink && (
+                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span>Warning: Rotating the link immediately invalidates the previous public URL.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <DialogFooter>
-                <Button type="submit" disabled={updateCircle.isPending}>Save</Button>
+                <Button type="submit" form="edit-hub-form" disabled={updateCircle.isPending} data-testid="edit-hub-submit">Save</Button>
               </DialogFooter>
-            </form>
+            </div>
           )}
         </DialogContent>
       </Dialog>

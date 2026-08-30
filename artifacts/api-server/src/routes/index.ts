@@ -11,6 +11,7 @@ import invitesRouter from "./invites";
 import adminRouter from "./admin";
 import adminAccountsRouter from "./adminAccounts";
 import storageRouter from "./storage";
+import hubRegistrationsRouter from "./hubRegistrations";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(invitesRouter);
 router.use(adminRouter);
 router.use(adminAccountsRouter);
 router.use(storageRouter);
+router.use(hubRegistrationsRouter);
 
 export default router;

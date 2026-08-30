@@ -6,6 +6,7 @@ import {
   db,
   meetingsTable,
   attendeesTable,
+  hubRegistrationsTable,
   meetingInviteesTable,
   meetingResponsesTable,
   agendaItemsTable,
@@ -158,10 +159,58 @@ router.post("/meetings", requireAdmin, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Hub not found" });
     return;
   }
-  const [meeting] = await db
-    .insert(meetingsTable)
-    .values({ circleId, date, notes: notes ?? null, slidesPath: slidesPath ?? null, keyInsight: keyInsight ?? null })
-    .returning();
+  const meeting = await db.transaction(async (tx) => {
+    const [createdMeeting] = await tx
+      .insert(meetingsTable)
+      .values({ circleId, date, notes: notes ?? null, slidesPath: slidesPath ?? null, keyInsight: keyInsight ?? null })
+      .returning();
+
+    if (circle.cadence !== "one-off") {
+      const registrations = await tx
+        .select()
+        .from(hubRegistrationsTable)
+        .where(and(
+          eq(hubRegistrationsTable.circleId, circleId),
+          isNull(hubRegistrationsTable.attendeeId),
+        ));
+
+      for (const registration of registrations) {
+        const [createdAttendee] = await tx
+          .insert(attendeesTable)
+          .values({
+            name: registration.name,
+            email: registration.email,
+            company: registration.company,
+            role: "attendee",
+            circleId: registration.circleId,
+          })
+          .onConflictDoNothing()
+          .returning();
+
+        const attendee = createdAttendee ?? (
+          await tx
+            .select()
+            .from(attendeesTable)
+            .where(and(
+              eq(attendeesTable.circleId, registration.circleId),
+              eq(attendeesTable.email, registration.email),
+            ))
+        )[0];
+
+        if (attendee) {
+          await tx
+            .update(hubRegistrationsTable)
+            .set({ attendeeId: attendee.id, promotedAt: new Date() })
+            .where(and(
+              eq(hubRegistrationsTable.id, registration.id),
+              isNull(hubRegistrationsTable.attendeeId),
+            ));
+        }
+      }
+    }
+
+    return createdMeeting;
+  });
 
   // Carry the agenda forward: recurring hub meetings typically reuse the same
   // agenda, so seed the new meeting with a copy of the most recent existing
