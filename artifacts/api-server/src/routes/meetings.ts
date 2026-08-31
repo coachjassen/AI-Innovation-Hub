@@ -634,6 +634,14 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
   await db.transaction(async (tx) => {
     if (removedAttendeeIds.length > 0) {
       await tx
+        .select({ id: meetingInviteesTable.id })
+        .from(meetingInviteesTable)
+        .where(and(
+          eq(meetingInviteesTable.meetingId, id),
+          inArray(meetingInviteesTable.attendeeId, removedAttendeeIds),
+        ))
+        .for("update");
+      await tx
         .delete(meetingResponsesTable)
         .where(and(eq(meetingResponsesTable.meetingId, id), inArray(meetingResponsesTable.attendeeId, removedAttendeeIds)));
     }
@@ -649,41 +657,112 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
     }
   });
 
-  res.json(await listInviteesForMeeting(meeting));
-
-  // Meeting invitations are best-effort and never roll back a valid invitee
-  // selection if SMTP is unavailable or an individual recipient fails.
   const circle = await getMeetingCircle(meeting);
-  if (addedAttendeeIds.length > 0 && circle?.cadence !== "one-off") {
+  if (attendeeIds.length > 0 && circle?.cadence !== "one-off") {
+    const pendingInvitees = await db
+      .select({ attendeeId: meetingInviteesTable.attendeeId })
+      .from(meetingInviteesTable)
+      .where(and(
+        eq(meetingInviteesTable.meetingId, id),
+        inArray(meetingInviteesTable.attendeeId, attendeeIds),
+        isNull(meetingInviteesTable.invitationSentAt),
+      ));
     const applicationUrl = getApplicationUrl(req);
-    if (applicationUrl) {
-      void sendMeetingInvitationEmails(meeting, addedAttendeeIds, `${applicationUrl}/meetings`).catch((err) => {
-        logger.error({ err, meetingId: meeting.id }, "Failed to send meeting invitation emails");
-      });
+    if (applicationUrl && pendingInvitees.length > 0) {
+      await sendMeetingInvitationEmails(
+        meeting,
+        pendingInvitees.map((invitee) => invitee.attendeeId),
+        `${applicationUrl}/meetings`,
+        applicationUrl,
+      );
     }
   }
+  // Failed deliveries retain a null invitationSentAt value. The response makes
+  // that visible to the admin, and saving the same selection retries them.
+  res.json(await listInviteesForMeeting(meeting));
 });
 
 async function sendMeetingInvitationEmails(
   meeting: typeof meetingsTable.$inferSelect,
   attendeeIds: number[],
   meetingLink: string,
+  applicationUrl: string,
 ): Promise<void> {
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, meeting.circleId));
   const circleName = circle?.name ?? "Kinetics Group Innovation Hub";
+  const agendaRows = await db
+    .select()
+    .from(agendaItemsTable)
+    .where(eq(agendaItemsTable.meetingId, meeting.id))
+    .orderBy(asc(agendaItemsTable.position));
+  const agenda: AgendaSummaryItem[] = agendaRows.map((item) => ({
+    position: item.position,
+    title: item.title,
+    durationMinutes: item.durationMinutes,
+    presenter: item.presenter,
+    description: item.description,
+  }));
+  const icsContent = await buildMeetingIcs({
+    meetingId: meeting.id,
+    circleName,
+    dateIso: meeting.date,
+    agenda,
+    method: "REQUEST",
+  });
   const recipients = await db
-    .select({ name: attendeesTable.name, email: attendeesTable.email })
-    .from(attendeesTable)
-    .where(inArray(attendeesTable.id, attendeeIds));
+    .select({
+      inviteeId: meetingInviteesTable.id,
+      attendeeId: attendeesTable.id,
+      name: attendeesTable.name,
+      email: attendeesTable.email,
+    })
+    .from(meetingInviteesTable)
+    .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
+    .where(and(
+      eq(meetingInviteesTable.meetingId, meeting.id),
+      inArray(meetingInviteesTable.attendeeId, attendeeIds),
+    ));
 
   for (const recipient of recipients) {
+    const invitationToken = createInvitationToken();
+    await db
+      .update(meetingInviteesTable)
+      .set({ invitationTokenHash: hashInvitationToken(invitationToken) })
+      .where(eq(meetingInviteesTable.id, recipient.inviteeId));
     try {
-      await sendEmail({
+      const delivery = await sendEmail({
         to: recipient.email,
         subject: `You're invited: ${circleName} meeting`,
-        html: buildMeetingInvitationEmail(recipient.name, circleName, meeting.date, meetingLink),
+        html: buildMeetingInvitationEmail(
+          recipient.name,
+          circleName,
+          meeting.date,
+          meetingLink,
+          `${applicationUrl}/meeting-rsvp/${invitationToken}`,
+        ),
+        attachments: icsContent
+          ? [{ filename: "meeting.ics", content: icsContent, contentType: "text/calendar; method=REQUEST" }]
+          : undefined,
       });
+      if (!delivery.sent) {
+        await db
+          .update(meetingInviteesTable)
+          .set({ invitationTokenHash: null })
+          .where(eq(meetingInviteesTable.id, recipient.inviteeId));
+        continue;
+      }
+      await db
+        .update(meetingInviteesTable)
+        .set({
+          invitationSentAt: new Date(),
+          invitationSendCount: 1,
+        })
+        .where(eq(meetingInviteesTable.id, recipient.inviteeId));
     } catch (err) {
+      await db
+        .update(meetingInviteesTable)
+        .set({ invitationTokenHash: null })
+        .where(eq(meetingInviteesTable.id, recipient.inviteeId));
       logger.error({ err, meetingId: meeting.id, email: recipient.email }, "Failed to send meeting invitation");
     }
   }
@@ -895,6 +974,120 @@ async function findOneOffRsvp(token: string) {
     .where(eq(meetingInviteesTable.invitationTokenHash, hashInvitationToken(token)));
   return invitation?.circleCadence === "one-off" ? invitation : null;
 }
+
+async function findRecurringMeetingRsvp(token: string) {
+  if (!/^[a-f0-9]{64}$/i.test(token)) return null;
+  const [invitation] = await db
+    .select({
+      attendeeId: attendeesTable.id,
+      attendeeName: attendeesTable.name,
+      meetingId: meetingsTable.id,
+      meetingDate: meetingsTable.date,
+      circleName: circlesTable.name,
+      circleCadence: circlesTable.cadence,
+    })
+    .from(meetingInviteesTable)
+    .innerJoin(meetingsTable, eq(meetingInviteesTable.meetingId, meetingsTable.id))
+    .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
+    .innerJoin(circlesTable, eq(meetingsTable.circleId, circlesTable.id))
+    .where(eq(meetingInviteesTable.invitationTokenHash, hashInvitationToken(token)));
+  return invitation && invitation.circleCadence !== "one-off" ? invitation : null;
+}
+
+async function serializeRecurringMeetingRsvp(
+  invitation: NonNullable<Awaited<ReturnType<typeof findRecurringMeetingRsvp>>>,
+) {
+  const [response] = await db
+    .select({ status: meetingResponsesTable.status })
+    .from(meetingResponsesTable)
+    .where(and(
+      eq(meetingResponsesTable.meetingId, invitation.meetingId),
+      eq(meetingResponsesTable.attendeeId, invitation.attendeeId),
+    ));
+  return {
+    meetingId: invitation.meetingId,
+    circleName: invitation.circleName,
+    date: invitation.meetingDate,
+    attendeeName: invitation.attendeeName,
+    status: response?.status ?? "no_response",
+  };
+}
+
+router.get("/meeting-rsvp/:token", async (req, res): Promise<void> => {
+  const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
+  const invitation = await findRecurringMeetingRsvp(token);
+  if (!invitation) {
+    res.status(404).json({ error: "Invitation not found" });
+    return;
+  }
+  res.set("Cache-Control", "no-store");
+  res.json(await serializeRecurringMeetingRsvp(invitation));
+});
+
+router.put("/meeting-rsvp/:token", async (req, res): Promise<void> => {
+  const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
+  const { status } = req.body as { status?: string };
+  if (status !== "attending" && status !== "not_attending") {
+    res.status(400).json({ error: "status must be 'attending' or 'not_attending'" });
+    return;
+  }
+
+  const result = await db.transaction(async (tx) => {
+    if (!/^[a-f0-9]{64}$/i.test(token)) return null;
+    const [lockedInvitee] = await tx
+      .select({
+        id: meetingInviteesTable.id,
+        meetingId: meetingInviteesTable.meetingId,
+        attendeeId: meetingInviteesTable.attendeeId,
+      })
+      .from(meetingInviteesTable)
+      .where(eq(meetingInviteesTable.invitationTokenHash, hashInvitationToken(token)))
+      .for("update");
+    if (!lockedInvitee) return null;
+
+    const [invitation] = await tx
+      .select({
+        attendeeId: attendeesTable.id,
+        attendeeName: attendeesTable.name,
+        meetingId: meetingsTable.id,
+        meetingDate: meetingsTable.date,
+        circleName: circlesTable.name,
+        circleCadence: circlesTable.cadence,
+      })
+      .from(meetingInviteesTable)
+      .innerJoin(meetingsTable, eq(meetingInviteesTable.meetingId, meetingsTable.id))
+      .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
+      .innerJoin(circlesTable, eq(meetingsTable.circleId, circlesTable.id))
+      .where(eq(meetingInviteesTable.id, lockedInvitee.id));
+    if (!invitation || invitation.circleCadence === "one-off") return null;
+
+    await tx
+      .insert(meetingResponsesTable)
+      .values({
+        meetingId: invitation.meetingId,
+        attendeeId: invitation.attendeeId,
+        status,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [meetingResponsesTable.meetingId, meetingResponsesTable.attendeeId],
+        set: { status, updatedAt: new Date() },
+      });
+    return {
+      meetingId: invitation.meetingId,
+      circleName: invitation.circleName,
+      date: invitation.meetingDate,
+      attendeeName: invitation.attendeeName,
+      status,
+    };
+  });
+  if (!result) {
+    res.status(404).json({ error: "Invitation not found" });
+    return;
+  }
+  res.set("Cache-Control", "no-store");
+  res.json(result);
+});
 
 async function serializeOneOffRsvp(invitation: NonNullable<Awaited<ReturnType<typeof findOneOffRsvp>>>) {
   const [response] = await db

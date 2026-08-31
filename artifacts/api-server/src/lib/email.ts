@@ -73,12 +73,15 @@ export function buildMeetingInvitationEmail(
   circleName: string,
   meetingDate: string,
   meetingLink: string,
+  rsvpLink: string,
 ): string {
   return `
     <p>Hi ${attendeeName},</p>
     <p>You have been invited to the <strong>${circleName}</strong> meeting on <strong>${meetingDate}</strong>.</p>
-    <p>Please sign in to review the agenda and RSVP.</p>
-    <p><a href="${meetingLink}" style="background:#1a56db;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View meeting</a></p>
+    <p>Please let us know whether you can attend. Your response will be saved directly in the Hubs app.</p>
+    <p><a href="${rsvpLink}" style="background:#166534;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">RSVP to this meeting</a></p>
+    <p><a href="${meetingLink}">Sign in to view the meeting details and agenda</a></p>
+    <p>A calendar file is attached for adding the meeting to your calendar.</p>
   `;
 }
 

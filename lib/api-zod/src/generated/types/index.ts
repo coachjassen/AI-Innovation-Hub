@@ -69,6 +69,8 @@ export * from './meetingInvitee';
 export * from './meetingInviteesInput';
 export * from './meetingResponseInput';
 export * from './meetingResponseInputStatus';
+export * from './meetingRsvp';
+export * from './meetingRsvpStatus';
 export * from './meetingUpdate';
 export * from './messageResponse';
 export * from './oneOffRsvp';

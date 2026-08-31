@@ -219,6 +219,7 @@ describe("meeting invitee selection", () => {
     });
     expect(invalidSelection.status).toBe(400);
 
+    sendEmailMock.mockClear();
     const saved = await api("PUT", `/api/meetings/${meetingId}/invitees`, {
       cookie: adminCookie,
       body: { attendeeIds: [attendeeId] },
@@ -236,6 +237,38 @@ describe("meeting invitee selection", () => {
     expect(attendeeMeetings.body.find((meeting: { id: number }) => meeting.id === meetingId)).toMatchObject({
       totalInvited: 1,
     });
+
+    await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    const [invitationEmail] = sendEmailMock.mock.calls[0] as [{
+      html: string;
+      attachments?: Array<{ filename: string; content: string }>;
+    }];
+    const rsvpToken = invitationEmail.html.match(/meeting-rsvp\/([a-f0-9]{64})/i)?.[1];
+    expect(rsvpToken).toBeTruthy();
+    expect(invitationEmail.html).toContain("RSVP to this meeting");
+    expect(invitationEmail.attachments?.[0]?.filename).toBe("meeting.ics");
+    expect(invitationEmail.attachments?.[0]?.content).toContain("BEGIN:VCALENDAR");
+
+    const publicRsvp = await api("GET", `/api/meeting-rsvp/${rsvpToken}`);
+    expect(publicRsvp.status).toBe(200);
+    expect(publicRsvp.body).toMatchObject({
+      meetingId,
+      attendeeName: expect.any(String),
+      status: "no_response",
+    });
+
+    const submittedRsvp = await api("PUT", `/api/meeting-rsvp/${rsvpToken}`, {
+      body: { status: "attending" },
+    });
+    expect(submittedRsvp.status).toBe(200);
+    expect(submittedRsvp.body.status).toBe("attending");
+
+    const updatedRoster = await api("GET", `/api/meetings/${meetingId}/responses`, { cookie: adminCookie });
+    expect(updatedRoster.status).toBe(200);
+    expect(updatedRoster.body[0]).toMatchObject({ attendeeId, status: "attending" });
+
+    const invalidPublicRsvp = await api("GET", `/api/meeting-rsvp/${"c".repeat(64)}`);
+    expect(invalidPublicRsvp.status).toBe(404);
   });
 });
 

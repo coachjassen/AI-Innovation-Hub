@@ -361,10 +361,17 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
     setInvitees.mutate(
       { id: meetingId, data: { attendeeIds: selectedIds } },
       {
-        onSuccess: () => {
+        onSuccess: (savedInvitees) => {
           queryClient.invalidateQueries({ queryKey: getListMeetingInviteesQueryKey(meetingId) });
           queryClient.invalidateQueries({ queryKey: getListMeetingResponsesQueryKey(meetingId) });
           queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+          const undelivered = savedInvitees.filter((invitee) => invitee.invited && !invitee.invitationSentAt);
+          if (undelivered.length > 0) {
+            setSaveError(
+              `${undelivered.length} invitation${undelivered.length === 1 ? "" : "s"} could not be delivered. Check email settings, then save again to retry.`,
+            );
+            return;
+          }
           onSaved();
         },
         onError: (error) => setSaveError(error.message || "Unable to save invitees."),
@@ -438,7 +445,14 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
 }
 
 function RosterList({ meetingId }: { meetingId: number }) {
-  const { data: responses = [], isLoading } = useListMeetingResponses(meetingId);
+  const { data: responses = [], isLoading } = useListMeetingResponses(meetingId, {
+    query: {
+      queryKey: getListMeetingResponsesQueryKey(meetingId),
+      staleTime: 0,
+      refetchOnMount: "always",
+      refetchInterval: 5_000,
+    },
+  });
 
   if (isLoading) {
     return <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-muted animate-pulse rounded" />)}</div>;

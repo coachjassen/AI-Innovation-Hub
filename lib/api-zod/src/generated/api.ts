@@ -735,6 +735,42 @@ export const SetOneOffRsvpResponse = zod.object({
 
 
 /**
+ * @summary Get a recurring meeting invitation and current RSVP without signing in
+ */
+export const GetMeetingRsvpParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const GetMeetingRsvpResponse = zod.object({
+  "meetingId": zod.number(),
+  "circleName": zod.string(),
+  "date": zod.string(),
+  "attendeeName": zod.string(),
+  "status": zod.enum(['attending', 'not_attending', 'no_response'])
+})
+
+
+/**
+ * @summary Set RSVP for a recurring meeting without signing in
+ */
+export const SetMeetingRsvpParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const SetMeetingRsvpBody = zod.object({
+  "status": zod.enum(['attending', 'not_attending'])
+})
+
+export const SetMeetingRsvpResponse = zod.object({
+  "meetingId": zod.number(),
+  "circleName": zod.string(),
+  "date": zod.string(),
+  "attendeeName": zod.string(),
+  "status": zod.enum(['attending', 'not_attending', 'no_response'])
+})
+
+
+/**
  * @summary List goals (own goals for attendee, all for admin)
  */
 export const ListGoalsQueryParams = zod.object({

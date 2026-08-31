@@ -854,6 +854,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/OneOffRsvp"
 
+  /meeting-rsvp/{token}:
+    get:
+      operationId: getMeetingRsvp
+      tags: [meetings]
+      summary: Get a recurring meeting invitation and current RSVP without signing in
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation and RSVP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingRsvp"
+        "404":
+          description: Invitation not found
+    put:
+      operationId: setMeetingRsvp
+      tags: [meetings]
+      summary: Set RSVP for a recurring meeting without signing in
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeetingResponseInput"
+      responses:
+        "200":
+          description: Updated RSVP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingRsvp"
+        "404":
+          description: Invitation not found
+
   # Goals
   /goals:
     get:
@@ -1776,6 +1822,22 @@ components:
         status:
           type: string
           enum: [attending, not_attending]
+
+    MeetingRsvp:
+      type: object
+      required: [meetingId, circleName, date, attendeeName, status]
+      properties:
+        meetingId:
+          type: integer
+        circleName:
+          type: string
+        date:
+          type: string
+        attendeeName:
+          type: string
+        status:
+          type: string
+          enum: [attending, not_attending, no_response]
 
     MeetingAttendeeResponse:
       type: object

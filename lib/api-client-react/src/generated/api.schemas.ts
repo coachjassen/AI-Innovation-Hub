@@ -369,6 +369,23 @@ export interface OneOffRsvpInput {
   status: OneOffRsvpInputStatus;
 }
 
+export type MeetingRsvpStatus = typeof MeetingRsvpStatus[keyof typeof MeetingRsvpStatus];
+
+
+export const MeetingRsvpStatus = {
+  attending: 'attending',
+  not_attending: 'not_attending',
+  no_response: 'no_response',
+} as const;
+
+export interface MeetingRsvp {
+  meetingId: number;
+  circleName: string;
+  date: string;
+  attendeeName: string;
+  status: MeetingRsvpStatus;
+}
+
 export type MeetingAttendeeResponseStatus = typeof MeetingAttendeeResponseStatus[keyof typeof MeetingAttendeeResponseStatus];
 
 

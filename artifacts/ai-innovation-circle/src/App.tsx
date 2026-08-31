@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { CircleProvider } from "@/contexts/CircleContext";
 import Login from "@/pages/auth/login";
 import OneOffRsvpPage from "@/pages/one-off-rsvp";
+import MeetingRsvpPage from "@/pages/meeting-rsvp";
 
 import RegisterPage from "@/pages/register";
 
@@ -72,6 +73,16 @@ function Router() {
       <Switch location={normalizedLocation}>
         <Route path="/one-off-rsvp/:token">
           {(params) => <OneOffRsvpPage token={params.token} />}
+        </Route>
+      </Switch>
+    );
+  }
+
+  if (normalizedLocation.startsWith("/meeting-rsvp/")) {
+    return (
+      <Switch location={normalizedLocation}>
+        <Route path="/meeting-rsvp/:token">
+          {(params) => <MeetingRsvpPage token={params.token} />}
         </Route>
       </Switch>
     );

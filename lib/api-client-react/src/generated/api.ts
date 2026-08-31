@@ -67,6 +67,7 @@ import type {
   MeetingInvitee,
   MeetingInviteesInput,
   MeetingResponseInput,
+  MeetingRsvp,
   MeetingUpdate,
   MessageResponse,
   OneOffRsvp,
@@ -2978,6 +2979,155 @@ export const useSetOneOffRsvp = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSetOneOffRsvpMutationOptions(options));
+    }
+
+export const getGetMeetingRsvpUrl = (token: string,) => {
+
+
+
+
+  return `/api/meeting-rsvp/${token}`
+}
+
+/**
+ * @summary Get a recurring meeting invitation and current RSVP without signing in
+ */
+export const getMeetingRsvp = async (token: string, options?: RequestInit): Promise<MeetingRsvp> => {
+
+  return customFetch<MeetingRsvp>(getGetMeetingRsvpUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMeetingRsvpQueryKey = (token: string,) => {
+    return [
+    `/api/meeting-rsvp/${token}`
+    ] as const;
+    }
+
+
+export const getGetMeetingRsvpQueryOptions = <TData = Awaited<ReturnType<typeof getMeetingRsvp>>, TError = ErrorType<void>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMeetingRsvp>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMeetingRsvpQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMeetingRsvp>>> = ({ signal }) => getMeetingRsvp(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(token), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMeetingRsvp>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMeetingRsvpQueryResult = NonNullable<Awaited<ReturnType<typeof getMeetingRsvp>>>
+export type GetMeetingRsvpQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a recurring meeting invitation and current RSVP without signing in
+ */
+
+export function useGetMeetingRsvp<TData = Awaited<ReturnType<typeof getMeetingRsvp>>, TError = ErrorType<void>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMeetingRsvp>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMeetingRsvpQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetMeetingRsvpUrl = (token: string,) => {
+
+
+
+
+  return `/api/meeting-rsvp/${token}`
+}
+
+/**
+ * @summary Set RSVP for a recurring meeting without signing in
+ */
+export const setMeetingRsvp = async (token: string,
+    meetingResponseInput: MeetingResponseInput, options?: RequestInit): Promise<MeetingRsvp> => {
+
+  return customFetch<MeetingRsvp>(getSetMeetingRsvpUrl(token),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      meetingResponseInput,)
+  }
+);}
+
+
+
+
+export const getSetMeetingRsvpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingRsvp>>, TError,{token: string;data: BodyType<MeetingResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMeetingRsvp>>, TError,{token: string;data: BodyType<MeetingResponseInput>}, TContext> => {
+
+const mutationKey = ['setMeetingRsvp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMeetingRsvp>>, {token: string;data: BodyType<MeetingResponseInput>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  setMeetingRsvp(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMeetingRsvpMutationResult = NonNullable<Awaited<ReturnType<typeof setMeetingRsvp>>>
+    export type SetMeetingRsvpMutationBody = BodyType<MeetingResponseInput>
+    export type SetMeetingRsvpMutationError = ErrorType<void>
+
+    /**
+ * @summary Set RSVP for a recurring meeting without signing in
+ */
+export const useSetMeetingRsvp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingRsvp>>, TError,{token: string;data: BodyType<MeetingResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMeetingRsvp>>,
+        TError,
+        {token: string;data: BodyType<MeetingResponseInput>},
+        TContext
+      > => {
+      return useMutation(getSetMeetingRsvpMutationOptions(options));
     }
 
 export const getListGoalsUrl = (params?: ListGoalsParams,) => {
