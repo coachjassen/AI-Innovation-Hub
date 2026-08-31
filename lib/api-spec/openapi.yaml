@@ -262,6 +262,29 @@ paths:
                 $ref: "#/components/schemas/Circle"
 
   /circles/{id}/registration-link:
+    get:
+      operationId: getHubRegistrationLink
+      tags: [circles]
+      summary: Get the active public Hub registration link (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Active registration link state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubRegistrationLinkState"
+        "400":
+          description: Registration links are only available for recurring Hubs
+        "404":
+          description: Hub not found
+        "503":
+          description: Public application URL is not configured
     post:
       operationId: createHubRegistrationLink
       tags: [circles]
@@ -1399,6 +1422,16 @@ components:
         url:
           type: string
           format: uri
+
+    HubRegistrationLinkState:
+      type: object
+      required: [url, needsRotation]
+      properties:
+        url:
+          type: ["string", "null"]
+          format: uri
+        needsRotation:
+          type: boolean
 
     PublicHubRegistration:
       type: object

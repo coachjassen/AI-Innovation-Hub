@@ -3,7 +3,9 @@ import {
   useListCircles,
   useCreateCircle,
   useUpdateCircle,
+  useGetHubRegistrationLink,
   useCreateHubRegistrationLink,
+  getGetHubRegistrationLinkQueryKey,
   getListCirclesQueryKey,
   type CircleInputCadence,
   type CircleUpdateCadence,
@@ -17,8 +19,19 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { CircleDot, Plus, MoreHorizontal, Pencil, Users, Power, PowerOff, Sparkles, Link2, AlertTriangle, RefreshCw } from "lucide-react";
+import { CircleDot, Plus, MoreHorizontal, Pencil, Users, Power, PowerOff, Sparkles, Link2, AlertTriangle, RefreshCw, Copy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type Circle = {
@@ -47,6 +60,17 @@ export default function AdminCircles() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Circle | null>(null);
+  const registrationLinkHubId = editing && editing.cadence !== "one-off" ? editing.id : 0;
+  const {
+    data: registrationLink,
+    isLoading: isRegistrationLinkLoading,
+    isError: isRegistrationLinkError,
+  } = useGetHubRegistrationLink(registrationLinkHubId, {
+    query: {
+      enabled: registrationLinkHubId > 0,
+      queryKey: getGetHubRegistrationLinkQueryKey(registrationLinkHubId),
+    },
+  });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListCirclesQueryKey() });
 
@@ -96,28 +120,22 @@ export default function AdminCircles() {
     );
   };
 
-  const handleGenerateLink = async () => {
+  const handleGenerateLink = () => {
     if (!editing) return;
+    const isRotation = Boolean(editing.hasRegistrationLink);
     createRegistrationLink.mutate({ id: editing.id }, {
-      onSuccess: async (data) => {
-        try {
-          await navigator.clipboard.writeText(data.url);
-        } catch {
-          toast({
-            variant: "destructive",
-            title: "Link created",
-            description: `Copy this registration link: ${data.url}`,
-          });
-          invalidate();
-          setEditing({ ...editing, hasRegistrationLink: true });
-          return;
-        }
+      onSuccess: (data) => {
+        queryClient.setQueryData(
+          getGetHubRegistrationLinkQueryKey(editing.id),
+          { url: data.url, needsRotation: false },
+        );
         toast({
-          title: "Link Copied",
-          description: "Registration link has been copied to clipboard.",
+          title: isRotation ? "Registration link rotated" : "Registration link generated",
+          description: isRotation
+            ? "The previous public URL is no longer valid."
+            : "The link is saved and ready to copy.",
         });
         invalidate();
-        // Update editing state locally so button reflects change without closing dialog
         setEditing({ ...editing, hasRegistrationLink: true });
       },
       onError: () => {
@@ -128,6 +146,23 @@ export default function AdminCircles() {
         });
       }
     });
+  };
+
+  const handleCopyLink = async () => {
+    if (!registrationLink?.url) return;
+    try {
+      await navigator.clipboard.writeText(registrationLink.url);
+      toast({
+        title: "Link copied",
+        description: "Registration link has been copied to clipboard.",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Could not copy automatically",
+        description: "Select the registration link and copy it manually.",
+      });
+    }
   };
 
   const toggleStatus = (c: Circle) => {
@@ -294,14 +329,86 @@ export default function AdminCircles() {
 
               {editing.cadence !== "one-off" && (
                 <div className="space-y-3 pt-4 border-t">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-medium">Registration Link</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Share this link to invite users to register interest.
-                        {editing.hasRegistrationLink && " Generating a new link will revoke the old one."}
-                      </p>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Registration Link</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Share this saved link to invite users to register interest.
+                    </p>
+                  </div>
+
+                  {isRegistrationLinkLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="registration-link-loading">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading registration link...
                     </div>
+                  ) : isRegistrationLinkError ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      Could not load the saved registration link. Close this window and try again.
+                    </p>
+                  ) : registrationLink?.url ? (
+                    <>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
+                          readOnly
+                          value={registrationLink.url}
+                          aria-label="Saved registration link"
+                          data-testid="edit-hub-registration-link"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleCopyLink}
+                          data-testid="edit-hub-copy-link"
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copy
+                        </Button>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="text-muted-foreground"
+                            disabled={createRegistrationLink.isPending}
+                            data-testid="edit-hub-rotate-link"
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Rotate link
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Rotate registration link?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              The current public URL will stop working immediately. Anyone using the old link will need the replacement URL.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleGenerateLink}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              data-testid="edit-hub-confirm-rotate-link"
+                            >
+                              Rotate link
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  ) : registrationLink?.needsRotation ? (
+                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span>
+                        This link was created before saved links were supported. Generate a replacement once to save and display it here.
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No public registration link has been generated yet.</p>
+                  )}
+
+                  {!registrationLink?.url && !isRegistrationLinkLoading && !isRegistrationLinkError && (
                     <Button
                       type="button"
                       variant="outline"
@@ -309,15 +416,13 @@ export default function AdminCircles() {
                       disabled={createRegistrationLink.isPending}
                       data-testid="edit-hub-generate-link"
                     >
-                      {editing.hasRegistrationLink ? <RefreshCw className="mr-2 h-4 w-4" /> : <Link2 className="mr-2 h-4 w-4" />}
-                      {editing.hasRegistrationLink ? "Rotate & Copy" : "Generate & Copy"}
+                      {createRegistrationLink.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Link2 className="mr-2 h-4 w-4" />
+                      )}
+                      {registrationLink?.needsRotation ? "Generate & save replacement" : "Generate link"}
                     </Button>
-                  </div>
-                  {editing.hasRegistrationLink && (
-                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span>Warning: Rotating the link immediately invalidates the previous public URL.</span>
-                    </div>
                   )}
                 </div>
               )}

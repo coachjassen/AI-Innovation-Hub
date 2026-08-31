@@ -10,6 +10,8 @@ import {
   CreateHubRegistrationLinkParams,
   CreateHubRegistrationLinkResponse,
   DeleteHubRegistrationParams,
+  GetHubRegistrationLinkParams,
+  GetHubRegistrationLinkResponse,
   GetPublicHubRegistrationParams,
   GetPublicHubRegistrationResponse,
   ListHubRegistrationsParams,
@@ -20,6 +22,10 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/requireAuth";
 import { getApplicationUrl } from "../lib/magic-link";
+import {
+  decryptRegistrationToken,
+  encryptRegistrationToken,
+} from "../lib/registration-link-crypto";
 
 const router: IRouter = Router();
 
@@ -34,6 +40,10 @@ function createRegistrationToken(): string {
   return randomBytes(32).toString("hex");
 }
 
+function buildRegistrationUrl(applicationUrl: string, token: string): string {
+  return `${applicationUrl}/register/${encodeURIComponent(token)}`;
+}
+
 async function findRecurringCircleByToken(token: string) {
   const [circle] = await db
     .select()
@@ -45,7 +55,59 @@ async function findRecurringCircleByToken(token: string) {
   return circle ?? null;
 }
 
+router.get("/circles/:id/registration-link", requireAdmin, async (req, res): Promise<void> => {
+  res.set("Cache-Control", "no-store");
+  const params = GetHubRegistrationLinkParams.safeParse(req.params);
+  if (!params.success || !Number.isInteger(params.data.id) || params.data.id <= 0) {
+    res.status(400).json({ error: "Invalid Hub id" });
+    return;
+  }
+
+  const [circle] = await db
+    .select({
+      id: circlesTable.id,
+      cadence: circlesTable.cadence,
+      registrationTokenHash: circlesTable.registrationTokenHash,
+      registrationTokenEncrypted: circlesTable.registrationTokenEncrypted,
+    })
+    .from(circlesTable)
+    .where(eq(circlesTable.id, params.data.id));
+  if (!circle) {
+    res.status(404).json({ error: "Hub not found" });
+    return;
+  }
+  if (circle.cadence === "one-off") {
+    res.status(400).json({ error: "Public registration is only available for recurring Hubs" });
+    return;
+  }
+
+  if (!circle.registrationTokenHash) {
+    res.json(GetHubRegistrationLinkResponse.parse({ url: null, needsRotation: false }));
+    return;
+  }
+
+  const token = circle.registrationTokenEncrypted
+    ? decryptRegistrationToken(circle.registrationTokenEncrypted)
+    : null;
+  if (!token || hashRegistrationToken(token) !== circle.registrationTokenHash) {
+    res.json(GetHubRegistrationLinkResponse.parse({ url: null, needsRotation: true }));
+    return;
+  }
+
+  const applicationUrl = getApplicationUrl(req);
+  if (!applicationUrl) {
+    res.status(503).json({ error: "The public application URL is not configured" });
+    return;
+  }
+
+  res.json(GetHubRegistrationLinkResponse.parse({
+    url: buildRegistrationUrl(applicationUrl, token),
+    needsRotation: false,
+  }));
+});
+
 router.post("/circles/:id/registration-link", requireAdmin, async (req, res): Promise<void> => {
+  res.set("Cache-Control", "no-store");
   const params = CreateHubRegistrationLinkParams.safeParse(req.params);
   if (!params.success || !Number.isInteger(params.data.id) || params.data.id <= 0) {
     res.status(400).json({ error: "Invalid Hub id" });
@@ -74,11 +136,14 @@ router.post("/circles/:id/registration-link", requireAdmin, async (req, res): Pr
   const token = createRegistrationToken();
   await db
     .update(circlesTable)
-    .set({ registrationTokenHash: hashRegistrationToken(token) })
+    .set({
+      registrationTokenHash: hashRegistrationToken(token),
+      registrationTokenEncrypted: encryptRegistrationToken(token),
+    })
     .where(eq(circlesTable.id, circle.id));
 
   res.json(CreateHubRegistrationLinkResponse.parse({
-    url: `${applicationUrl}/register/${encodeURIComponent(token)}`,
+    url: buildRegistrationUrl(applicationUrl, token),
   }));
 });
 

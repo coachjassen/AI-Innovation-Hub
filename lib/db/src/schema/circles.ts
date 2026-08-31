@@ -10,6 +10,7 @@ export const circlesTable = pgTable("circles", {
   registrationDescription: text("registration_description"),
   registrationOpen: boolean("registration_open").notNull().default(false),
   registrationTokenHash: text("registration_token_hash"),
+  registrationTokenEncrypted: text("registration_token_encrypted"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("circles_registration_token_hash_unique").on(table.registrationTokenHash),

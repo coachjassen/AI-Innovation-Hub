@@ -9,7 +9,8 @@ BEGIN;
 ALTER TABLE circles
   ADD COLUMN IF NOT EXISTS registration_description text,
   ADD COLUMN IF NOT EXISTS registration_open boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS registration_token_hash text;
+  ADD COLUMN IF NOT EXISTS registration_token_hash text,
+  ADD COLUMN IF NOT EXISTS registration_token_encrypted text;
 
 CREATE TABLE IF NOT EXISTS hub_registrations (
   id serial PRIMARY KEY,

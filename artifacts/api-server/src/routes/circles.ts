@@ -9,7 +9,17 @@ const CADENCES = ["monthly", "quarterly", "one-off"] as const;
 const STATUSES = ["active", "inactive"] as const;
 
 function serializeCircle(
-  circle: typeof circlesTable.$inferSelect,
+  circle: Pick<
+    typeof circlesTable.$inferSelect,
+    | "id"
+    | "name"
+    | "cadence"
+    | "status"
+    | "createdAt"
+    | "registrationDescription"
+    | "registrationOpen"
+    | "registrationTokenHash"
+  >,
   memberCount?: number,
 ) {
   return {
@@ -185,6 +195,7 @@ router.patch("/circles/:id", requireAdmin, async (req, res): Promise<void> => {
     registrationDescription: string | null;
     registrationOpen: boolean;
     registrationTokenHash: string | null;
+    registrationTokenEncrypted: string | null;
   }> = {};
   if (name !== undefined) updates.name = name;
   if (cadence !== undefined) updates.cadence = cadence;
@@ -197,6 +208,7 @@ router.patch("/circles/:id", requireAdmin, async (req, res): Promise<void> => {
     updates.registrationDescription = null;
     updates.registrationOpen = false;
     updates.registrationTokenHash = null;
+    updates.registrationTokenEncrypted = null;
   }
   const [circle] = await db.update(circlesTable).set(updates).where(eq(circlesTable.id, id)).returning();
   if (!circle) { res.status(404).json({ error: "Circle not found" }); return; }

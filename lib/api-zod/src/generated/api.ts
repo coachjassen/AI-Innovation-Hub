@@ -196,6 +196,19 @@ export const UpdateCircleResponse = zod.object({
 
 
 /**
+ * @summary Get the active public Hub registration link (admin only)
+ */
+export const GetHubRegistrationLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetHubRegistrationLinkResponse = zod.object({
+  "url": zod.string().url().nullable(),
+  "needsRotation": zod.boolean()
+})
+
+
+/**
  * @summary Create or rotate a public Hub registration link (admin only)
  */
 export const CreateHubRegistrationLinkParams = zod.object({

@@ -48,6 +48,7 @@ import type {
   HubRegistration,
   HubRegistrationInput,
   HubRegistrationLink,
+  HubRegistrationLinkState,
   InvitationDeliveryResult,
   Invite,
   InviteInput,
@@ -976,6 +977,83 @@ export const useUpdateCircle = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateCircleMutationOptions(options));
     }
+
+export const getGetHubRegistrationLinkUrl = (id: number,) => {
+
+
+
+
+  return `/api/circles/${id}/registration-link`
+}
+
+/**
+ * @summary Get the active public Hub registration link (admin only)
+ */
+export const getHubRegistrationLink = async (id: number, options?: RequestInit): Promise<HubRegistrationLinkState> => {
+
+  return customFetch<HubRegistrationLinkState>(getGetHubRegistrationLinkUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHubRegistrationLinkQueryKey = (id: number,) => {
+    return [
+    `/api/circles/${id}/registration-link`
+    ] as const;
+    }
+
+
+export const getGetHubRegistrationLinkQueryOptions = <TData = Awaited<ReturnType<typeof getHubRegistrationLink>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHubRegistrationLink>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHubRegistrationLinkQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHubRegistrationLink>>> = ({ signal }) => getHubRegistrationLink(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHubRegistrationLink>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHubRegistrationLinkQueryResult = NonNullable<Awaited<ReturnType<typeof getHubRegistrationLink>>>
+export type GetHubRegistrationLinkQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the active public Hub registration link (admin only)
+ */
+
+export function useGetHubRegistrationLink<TData = Awaited<ReturnType<typeof getHubRegistrationLink>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHubRegistrationLink>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHubRegistrationLinkQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getCreateHubRegistrationLinkUrl = (id: number,) => {
 

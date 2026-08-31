@@ -3,6 +3,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import {
   ensureHubRegistrationSchema,
+  validateProductionSecrets,
   validateSelfHostedApplicationUrl,
 } from "./lib/production-startup";
 import { runRecoveryBootstrap } from "./lib/recovery-bootstrap";
@@ -42,6 +43,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 Promise.resolve()
+  .then(() => validateProductionSecrets())
   .then(() => validateSelfHostedApplicationUrl())
   .then(() => ensureHubRegistrationSchema())
   .then(() => runRecoveryBootstrap())

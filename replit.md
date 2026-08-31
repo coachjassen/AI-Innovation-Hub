@@ -11,7 +11,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — express-session secret
+- Required env: `DATABASE_URL` — Postgres connection string, `SESSION_SECRET` — express-session secret, `REGISTRATION_LINK_ENCRYPTION_KEY` — separate 32+ character secret used to protect saved public registration URLs in production
 
 ## Stack
 
@@ -37,6 +37,7 @@ A full-stack web app for a consulting firm's recurring client forum — manages 
 - `scripts/migrations/attendees-multi-hub-email.sql` — replaces global attendee email uniqueness with per-Hub uniqueness for self-hosted deployments
 - `scripts/migrations/hub-interest-registration.sql` — adds recurring Hub public registration settings and interest records; run before starting the updated API
 - Self-hosted production must set `APP_URL` (or the `PUBLIC_APP_URL` alias) to its canonical HTTPS origin. API startup validates this and transactionally applies the idempotent Hub registration schema before listening.
+- To rotate the registration-link encryption key without invalidating saved URLs, set the old value temporarily as `REGISTRATION_LINK_PREVIOUS_ENCRYPTION_KEY` while the new `REGISTRATION_LINK_ENCRYPTION_KEY` is active, then restart the API. Startup re-encrypts saved tokens under the active key. After that startup succeeds, remove the previous key and restart again.
 
 ## Architecture decisions
 

@@ -47,6 +47,7 @@ export * from './healthStatus';
 export * from './hubRegistration';
 export * from './hubRegistrationInput';
 export * from './hubRegistrationLink';
+export * from './hubRegistrationLinkState';
 export * from './invitationDeliveryFailure';
 export * from './invitationDeliveryResult';
 export * from './invite';

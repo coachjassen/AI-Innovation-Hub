@@ -135,6 +135,27 @@ describe("Hub interest registration", () => {
     const token = publicUrl.pathname.split("/").at(-1);
     expect(token).toHaveLength(64);
 
+    const savedLink = await api("GET", `/api/circles/${circleId}/registration-link`, {
+      cookie: adminCookie,
+    });
+    expect(savedLink.status).toBe(200);
+    expect(savedLink.body).toEqual({
+      url: createdLink.body.url,
+      needsRotation: false,
+    });
+    expect((await api("GET", `/api/circles/${circleId}/registration-link`)).status).toBe(401);
+
+    const [storedLink] = await db
+      .select({
+        tokenHash: circlesTable.registrationTokenHash,
+        encryptedToken: circlesTable.registrationTokenEncrypted,
+      })
+      .from(circlesTable)
+      .where(eq(circlesTable.id, circleId));
+    expect(storedLink.tokenHash).not.toBe(token);
+    expect(storedLink.encryptedToken).toBeTruthy();
+    expect(storedLink.encryptedToken).not.toContain(token);
+
     const details = await api("GET", `/api/registration/${token}`);
     expect(details.status).toBe(200);
     expect(details.body).toMatchObject({
@@ -201,6 +222,36 @@ describe("Hub interest registration", () => {
       .from(meetingInviteesTable)
       .where(eq(meetingInviteesTable.meetingId, createdMeetingId));
     expect(invitees).toHaveLength(0);
+  });
+
+  it("requires one replacement for legacy hash-only links, then saves the new URL", async () => {
+    await db
+      .update(circlesTable)
+      .set({ registrationTokenEncrypted: null })
+      .where(eq(circlesTable.id, circleId));
+
+    const legacyLink = await api("GET", `/api/circles/${circleId}/registration-link`, {
+      cookie: adminCookie,
+    });
+    expect(legacyLink.status).toBe(200);
+    expect(legacyLink.body).toEqual({
+      url: null,
+      needsRotation: true,
+    });
+
+    const replacement = await api("POST", `/api/circles/${circleId}/registration-link`, {
+      cookie: adminCookie,
+    });
+    expect(replacement.status).toBe(200);
+
+    const savedReplacement = await api("GET", `/api/circles/${circleId}/registration-link`, {
+      cookie: adminCookie,
+    });
+    expect(savedReplacement.status).toBe(200);
+    expect(savedReplacement.body).toEqual({
+      url: replacement.body.url,
+      needsRotation: false,
+    });
   });
 
   it("revokes the previous token when a replacement link is generated", async () => {

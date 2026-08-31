@@ -1,11 +1,18 @@
+import { createHash } from "node:crypto";
 import { pool } from "@workspace/db";
 import { logger } from "./logger";
+import {
+  decryptRegistrationToken,
+  rewrapRegistrationToken,
+  validateRegistrationLinkEncryptionConfig,
+} from "./registration-link-crypto";
 
 const HUB_REGISTRATION_SCHEMA_STATEMENTS = [
   `ALTER TABLE circles
     ADD COLUMN IF NOT EXISTS registration_description text,
     ADD COLUMN IF NOT EXISTS registration_open boolean NOT NULL DEFAULT false,
-    ADD COLUMN IF NOT EXISTS registration_token_hash text`,
+    ADD COLUMN IF NOT EXISTS registration_token_hash text,
+    ADD COLUMN IF NOT EXISTS registration_token_encrypted text`,
   `CREATE TABLE IF NOT EXISTS hub_registrations (
     id serial PRIMARY KEY,
     circle_id integer NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
@@ -73,6 +80,10 @@ export function validateSelfHostedApplicationUrl(): string | null {
   return origin;
 }
 
+export function validateProductionSecrets(): void {
+  validateRegistrationLinkEncryptionConfig();
+}
+
 export async function ensureHubRegistrationSchema(): Promise<void> {
   const client = await pool.connect();
   try {
@@ -80,8 +91,37 @@ export async function ensureHubRegistrationSchema(): Promise<void> {
     for (const statement of HUB_REGISTRATION_SCHEMA_STATEMENTS) {
       await client.query(statement);
     }
+    const encryptedLinks = await client.query<{
+      id: number;
+      registration_token_hash: string;
+      registration_token_encrypted: string;
+    }>(
+      `SELECT id, registration_token_hash, registration_token_encrypted
+       FROM circles
+       WHERE registration_token_hash IS NOT NULL
+         AND registration_token_encrypted IS NOT NULL`,
+    );
+    let rewrappedCount = 0;
+    for (const link of encryptedLinks.rows) {
+      const token = decryptRegistrationToken(link.registration_token_encrypted);
+      if (!token) continue;
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      if (tokenHash !== link.registration_token_hash) {
+        throw new Error(`Saved registration link integrity check failed for Hub ${link.id}`);
+      }
+      const rewrapped = rewrapRegistrationToken(link.registration_token_encrypted);
+      if (rewrapped && rewrapped !== link.registration_token_encrypted) {
+        await client.query(
+          `UPDATE circles
+           SET registration_token_encrypted = $1
+           WHERE id = $2 AND registration_token_encrypted = $3`,
+          [rewrapped, link.id, link.registration_token_encrypted],
+        );
+        rewrappedCount += 1;
+      }
+    }
     await client.query("COMMIT");
-    logger.info("Hub registration schema is ready");
+    logger.info({ rewrappedCount }, "Hub registration schema is ready");
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

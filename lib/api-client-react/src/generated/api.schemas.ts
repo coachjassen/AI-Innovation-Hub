@@ -111,6 +111,12 @@ export interface HubRegistrationLink {
   url: string;
 }
 
+export interface HubRegistrationLinkState {
+  /** @nullable */
+  url: string | null;
+  needsRotation: boolean;
+}
+
 export type PublicHubRegistrationCadence = typeof PublicHubRegistrationCadence[keyof typeof PublicHubRegistrationCadence];
 
 
