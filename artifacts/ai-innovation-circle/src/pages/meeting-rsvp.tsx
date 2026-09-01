@@ -30,6 +30,8 @@ export default function MeetingRsvpPage({ token }: { token: string }) {
     },
   });
   const setRsvp = useSetMeetingRsvp();
+  const invitationErrorMessage = error?.message ?? "";
+  const isTemporaryServiceError = /(?:HTTP\s*)?5\d{2}|bad gateway|<html/i.test(invitationErrorMessage);
 
   if (isLoading) {
     return (
@@ -69,11 +71,20 @@ export default function MeetingRsvpPage({ token }: { token: string }) {
                 <LockKeyhole className="h-8 w-8" />
               </div>
               <div className="space-y-2">
-                <CardTitle className="text-2xl">Invitation unavailable</CardTitle>
+                <CardTitle className="text-2xl">
+                  {isTemporaryServiceError ? "Invitation temporarily unavailable" : "Invitation unavailable"}
+                </CardTitle>
                 <CardDescription className="text-sm leading-6">
-                  {error?.message || "This invitation link is invalid or no longer available."}
+                  {isTemporaryServiceError
+                    ? "We couldn’t load this invitation right now. Please try again shortly."
+                    : "This invitation link is invalid or no longer available."}
                 </CardDescription>
               </div>
+              {isTemporaryServiceError && (
+                <Button type="button" variant="outline" onClick={() => window.location.reload()}>
+                  Try again
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
