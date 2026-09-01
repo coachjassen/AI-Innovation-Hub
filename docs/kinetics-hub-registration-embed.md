@@ -6,6 +6,16 @@ The Hubs app serves a small, dependency-free registration widget at:
 
 It opens the existing `/register/:token` page in a responsive modal. The form, validation, duplicate-submission protection, success state, and registration data remain owned by the Hubs app.
 
+## Test it internally
+
+Open the internal preview page on the live Hubs server:
+
+`/registration-widget-preview.html?registrationUrl=<URL-encoded-active-registration-url>`
+
+For example, copy the active registration URL from **Hubs Setup**, URL-encode it, and append it as the `registrationUrl` query parameter. The preview shows a Kinetics-style Innovation Circle advertising card. Click **Register Now** to test the modal and submit a real test registration if desired.
+
+Without a `registrationUrl`, the preview still tests the modal layout and close behavior, but the embedded page will show the invalid-link state.
+
 ## Add it to the Kinetics WordPress page
 
 Replace the existing Innovation Circle registration link with a link that has the `data-kinetics-hub-register` attribute. Keep the normal `href` as a fallback for visitors who have JavaScript disabled.

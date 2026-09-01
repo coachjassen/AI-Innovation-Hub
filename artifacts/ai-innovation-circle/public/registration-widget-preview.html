@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kinetics Hub Registration Widget Preview</title>
+    <style>
+      :root {
+        color: #262626;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f3f5f4;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      header {
+        align-items: center;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        height: 80px;
+        justify-content: space-between;
+        padding: 0 max(24px, calc((100vw - 1180px) / 2));
+      }
+
+      .brand {
+        align-items: center;
+        color: #222;
+        display: flex;
+        font-size: 17px;
+        font-weight: 700;
+        gap: 10px;
+        letter-spacing: 0.04em;
+        line-height: 1;
+      }
+
+      .brand-mark {
+        border-bottom: 24px solid transparent;
+        border-right: 18px solid #00733f;
+        border-top: 24px solid transparent;
+        height: 0;
+        width: 0;
+      }
+
+      nav {
+        color: #222;
+        display: flex;
+        font-size: 13px;
+        font-weight: 700;
+        gap: 28px;
+        text-transform: uppercase;
+      }
+
+      .hero {
+        background: linear-gradient(105deg, #dcebe4 0%, #eef4ef 53%, #d2e6da 100%);
+        min-height: 390px;
+        padding: 74px 24px;
+      }
+
+      .hero-inner {
+        align-items: center;
+        display: grid;
+        gap: 64px;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+        margin: 0 auto;
+        max-width: 1180px;
+      }
+
+      h1 {
+        color: #08733f;
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 1.05;
+        margin: 0 0 18px;
+        max-width: 600px;
+      }
+
+      .hero-copy {
+        color: #33453d;
+        font-size: 20px;
+        line-height: 1.5;
+        max-width: 510px;
+      }
+
+      .card {
+        background: #fff;
+        border-left: 4px solid #61d600;
+        border-radius: 4px;
+        box-shadow: 0 12px 30px rgba(18, 56, 39, 0.16);
+        padding: 34px;
+      }
+
+      .eyebrow {
+        color: #3a8500;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        margin: 0 0 14px;
+        text-transform: uppercase;
+      }
+
+      h2 {
+        color: #08733f;
+        font-size: 28px;
+        line-height: 1.15;
+        margin: 0 0 14px;
+      }
+
+      .card p {
+        color: #454545;
+        line-height: 1.6;
+        margin: 0 0 24px;
+      }
+
+      .register-button {
+        background: #227500;
+        border: 0;
+        border-radius: 3px;
+        color: #fff;
+        cursor: pointer;
+        display: inline-block;
+        font-size: 16px;
+        padding: 14px 24px;
+        text-decoration: none;
+      }
+
+      .register-button:hover,
+      .register-button:focus-visible {
+        background: #145400;
+        outline: 3px solid rgba(97, 214, 0, 0.45);
+        outline-offset: 2px;
+      }
+
+      .instructions {
+        color: #53645b;
+        font-size: 13px;
+        line-height: 1.5;
+        margin: 28px auto;
+        max-width: 1180px;
+        padding: 0 24px;
+      }
+
+      code {
+        background: #e4ebe6;
+        border-radius: 3px;
+        padding: 2px 5px;
+      }
+
+      @media (max-width: 760px) {
+        header {
+          height: 64px;
+        }
+
+        nav {
+          display: none;
+        }
+
+        .hero {
+          padding: 48px 20px;
+        }
+
+        .hero-inner {
+          gap: 32px;
+          grid-template-columns: 1fr;
+        }
+
+        .card {
+          padding: 26px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>KINETICS<br />GROUP</span>
+      </div>
+      <nav aria-label="Preview navigation">
+        <span>About</span>
+        <span>Services</span>
+        <span>Events</span>
+        <span>Contact Us</span>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-inner">
+          <div>
+            <p class="eyebrow">Kinetics events</p>
+            <h1>Learn AI together. Build confidence.</h1>
+            <p class="hero-copy">
+              A collaborative working group for small and medium New Zealand
+              business managers navigating AI.
+            </p>
+          </div>
+
+          <article class="card">
+            <p class="eyebrow">Free programme</p>
+            <h2>AI Innovation Circle</h2>
+            <p>
+              Join other business managers for honest, practical conversations
+              about what is working, what is not, and what to try next.
+            </p>
+            <a
+              id="hub-register"
+              class="register-button"
+              href=""
+              data-kinetics-hub-register
+              data-hub-title="AI Innovation Circle"
+            >
+              Register Now
+            </a>
+          </article>
+        </div>
+      </section>
+
+      <p class="instructions">
+        Internal preview only. Add an active registration URL as
+        <code>?registrationUrl=...</code> to this page URL to test the live
+        form. Without one, the modal will show the invalid-link state.
+      </p>
+    </main>
+
+    <script>
+      (function () {
+        var registrationUrl = new URLSearchParams(window.location.search).get("registrationUrl");
+        var fallbackUrl = new URL("./register/preview", window.location.href).href;
+        var link = document.getElementById("hub-register");
+        link.href = registrationUrl || fallbackUrl;
+        if (registrationUrl) link.setAttribute("data-registration-url", registrationUrl);
+      })();
+    </script>
+    <script src="./kinetics-hub-registration.js"></script>
+  </body>
+</html>
