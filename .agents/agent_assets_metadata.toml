@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "IBhFWudshNUQ5WO1jTGBA"
+uri = "file://docs/Kinetics_Group_Innovation_Hubs_Attendee_Flows.pdf"
+type = "pdf"
+title = "Kinetics attendee registration flows — PDF"
+description = "A seven-page visual stakeholder brief covering recurring Hub registration, recurring meeting RSVP, One-Off event RSVP, login, attendee dialogs, and mobile views."
+
+[[outputs]]
+id = "6b31E6EIKtRZVt9uI5nCM"
+uri = "file://docs/Kinetics_Group_Innovation_Hubs_Attendee_Flows.docx"
+type = "word_document"
+title = "Kinetics attendee registration flows — editable Word document"
+description = "An editable version of the stakeholder brief with all eleven application screenshots embedded."
