@@ -210,7 +210,7 @@ function CircleSwitcher() {
         <CircleDot className="h-3 w-3 text-[hsl(var(--brand-lime))]" /> Active Hub
       </p>
       <Select
-        value={activeCircleId !== null ? String(activeCircleId) : undefined}
+        value={activeCircleId !== null ? String(activeCircleId) : ""}
         onValueChange={(v) => setActiveCircleId(parseInt(v, 10))}
       >
         <SelectTrigger

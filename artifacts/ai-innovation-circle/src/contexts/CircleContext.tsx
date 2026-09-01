@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetMeQueryKey,
+  getListCirclesQueryKey,
   useGetMe,
   useListCircles,
   useSwitchActiveHub,
@@ -23,9 +24,14 @@ const STORAGE_KEY = "aic.activeCircleId";
 
 export function CircleProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const { data: circles = [], isLoading: circlesLoading } = useListCircles();
   const { data: user, isLoading: userLoading } = useGetMe({
     query: { retry: false, queryKey: getGetMeQueryKey() },
+  });
+  const { data: circles = [], isLoading: circlesLoading } = useListCircles({
+    query: {
+      enabled: !!user,
+      queryKey: getListCirclesQueryKey(),
+    },
   });
   const switchHub = useSwitchActiveHub();
   const [adminActiveCircleId, setAdminActiveCircleId] = useState<number | null>(() => {
