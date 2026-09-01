@@ -339,13 +339,22 @@ export default function AdminMeetings() {
 
 function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: () => void }) {
   const queryClient = useQueryClient();
-  const { data: invitees = [], isLoading, isError, error } = useListMeetingInvitees(meetingId);
+  const { data: invitees, isLoading, isError, error } = useListMeetingInvitees(meetingId);
   const setInvitees = useSetMeetingInvitees();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const inviteeList = invitees ?? [];
 
   useEffect(() => {
-    setSelectedIds(invitees.filter((invitee) => invitee.invited).map((invitee) => invitee.attendeeId));
+    const nextSelectedIds = (invitees ?? [])
+      .filter((invitee) => invitee.invited)
+      .map((invitee) => invitee.attendeeId);
+    setSelectedIds((current) => {
+      const isSameSelection =
+        current.length === nextSelectedIds.length &&
+        current.every((id) => nextSelectedIds.includes(id));
+      return isSameSelection ? current : nextSelectedIds;
+    });
   }, [invitees]);
 
   const toggleInvitee = (attendeeId: number, checked: boolean) => {
@@ -391,17 +400,17 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
     );
   }
 
-  if (invitees.length === 0) {
+  if (inviteeList.length === 0) {
     return <p className="py-6 text-center text-sm text-muted-foreground">No attendee members are available in this Hub yet.</p>;
   }
 
-  const allSelected = selectedIds.length === invitees.length;
+  const allSelected = selectedIds.length === inviteeList.length;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="text-muted-foreground">{selectedIds.length} of {invitees.length} selected</span>
+        <span className="text-muted-foreground">{selectedIds.length} of {inviteeList.length} selected</span>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(invitees.map((invitee) => invitee.attendeeId))} disabled={allSelected || setInvitees.isPending}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(inviteeList.map((invitee) => invitee.attendeeId))} disabled={allSelected || setInvitees.isPending}>
             Select all
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0 || setInvitees.isPending}>
@@ -410,7 +419,7 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
         </div>
       </div>
       <div className="max-h-[45vh] divide-y overflow-y-auto rounded-md border">
-        {invitees.map((invitee) => {
+        {inviteeList.map((invitee) => {
           const isSelected = selectedIds.includes(invitee.attendeeId);
           return (
             <label
