@@ -588,6 +588,147 @@ router.get("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
   res.json(await listInviteesForMeeting(meeting));
 });
 
+router.post("/meetings/:id/registrations/:registrationId", requireAdmin, async (req, res): Promise<void> => {
+  const rawMeetingId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const rawRegistrationId = Array.isArray(req.params.registrationId)
+    ? req.params.registrationId[0]
+    : req.params.registrationId;
+  const meetingId = parseInt(rawMeetingId, 10);
+  const registrationId = parseInt(rawRegistrationId, 10);
+  if (isNaN(meetingId) || isNaN(registrationId) || meetingId <= 0 || registrationId <= 0) {
+    res.status(400).json({ error: "Invalid meeting or registration" });
+    return;
+  }
+
+  const [meeting] = await db
+    .select()
+    .from(meetingsTable)
+    .where(eq(meetingsTable.id, meetingId));
+  if (!meeting) {
+    res.status(404).json({ error: "Meeting not found" });
+    return;
+  }
+
+  const circle = await getMeetingCircle(meeting);
+  if (!circle) {
+    res.status(404).json({ error: "Hub not found" });
+    return;
+  }
+  if (circle.cadence === "one-off") {
+    res.status(400).json({ error: "Public registrations can only be added to recurring meetings" });
+    return;
+  }
+
+  const [registration] = await db
+    .select()
+    .from(hubRegistrationsTable)
+    .where(and(
+      eq(hubRegistrationsTable.id, registrationId),
+      eq(hubRegistrationsTable.circleId, meeting.circleId),
+    ));
+  if (!registration) {
+    res.status(404).json({ error: "Registration not found" });
+    return;
+  }
+
+  const existingByEmail = await db
+    .select({ id: attendeesTable.id, role: attendeesTable.role })
+    .from(attendeesTable)
+    .where(and(
+      eq(attendeesTable.circleId, meeting.circleId),
+      eq(attendeesTable.email, registration.email),
+    ));
+  if (existingByEmail[0]?.role === "admin") {
+    res.status(400).json({ error: "A public registration cannot be promoted to an administrator" });
+    return;
+  }
+
+  const attendee = await db.transaction(async (tx) => {
+    let current = registration.attendeeId
+      ? (await tx
+        .select()
+        .from(attendeesTable)
+        .where(and(
+          eq(attendeesTable.id, registration.attendeeId),
+          eq(attendeesTable.circleId, meeting.circleId),
+        )))[0]
+      : undefined;
+
+    if (!current) {
+      const [created] = await tx
+        .insert(attendeesTable)
+        .values({
+          name: registration.name,
+          email: registration.email,
+          company: registration.company,
+          role: "attendee",
+          circleId: meeting.circleId,
+        })
+        .onConflictDoNothing()
+        .returning();
+      current = created ?? (
+        await tx
+          .select()
+          .from(attendeesTable)
+          .where(and(
+            eq(attendeesTable.circleId, meeting.circleId),
+            eq(attendeesTable.email, registration.email),
+          ))
+      )[0];
+    }
+
+    if (!current || current.role === "admin") {
+      return null;
+    }
+
+    await tx
+      .update(hubRegistrationsTable)
+      .set({
+        attendeeId: current.id,
+        promotedAt: registration.promotedAt ?? new Date(),
+      })
+      .where(and(
+        eq(hubRegistrationsTable.id, registration.id),
+        isNull(hubRegistrationsTable.attendeeId),
+      ));
+
+    await tx
+      .insert(meetingInviteesTable)
+      .values({ meetingId, attendeeId: current.id })
+      .onConflictDoNothing();
+
+    return current;
+  });
+
+  if (!attendee) {
+    res.status(400).json({ error: "Registration could not be promoted to an attendee" });
+    return;
+  }
+
+  let invitee = (await listInviteesForMeeting(meeting))
+    .find((candidate) => candidate.attendeeId === attendee.id);
+  if (!invitee) {
+    res.status(500).json({ error: "Invitee could not be added to the meeting" });
+    return;
+  }
+
+  if (!invitee.invitationSentAt) {
+    const applicationUrl = getApplicationUrl(req);
+    if (applicationUrl) {
+      await sendMeetingInvitationEmails(
+        meeting,
+        [attendee.id],
+        `${applicationUrl}/meetings`,
+        applicationUrl,
+      );
+      invitee = (await listInviteesForMeeting(meeting))
+        .find((candidate) => candidate.attendeeId === attendee.id) ?? invitee;
+    }
+  }
+
+  res.json(invitee);
+});
+
 router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);

@@ -2613,6 +2613,78 @@ export const useSetMeetingInvitees = <TError = ErrorType<unknown>,
       return useMutation(getSetMeetingInviteesMutationOptions(options));
     }
 
+export const getAddHubRegistrationToMeetingUrl = (id: number,
+    registrationId: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/registrations/${registrationId}`
+}
+
+/**
+ * @summary Promote a Hub registration and add it to a recurring meeting (admin only)
+ */
+export const addHubRegistrationToMeeting = async (id: number,
+    registrationId: number, options?: RequestInit): Promise<MeetingInvitee> => {
+
+  return customFetch<MeetingInvitee>(getAddHubRegistrationToMeetingUrl(id,registrationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAddHubRegistrationToMeetingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addHubRegistrationToMeeting>>, TError,{id: number;registrationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addHubRegistrationToMeeting>>, TError,{id: number;registrationId: number}, TContext> => {
+
+const mutationKey = ['addHubRegistrationToMeeting'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addHubRegistrationToMeeting>>, {id: number;registrationId: number}> = (props) => {
+          const {id,registrationId} = props ?? {};
+
+          return  addHubRegistrationToMeeting(id,registrationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddHubRegistrationToMeetingMutationResult = NonNullable<Awaited<ReturnType<typeof addHubRegistrationToMeeting>>>
+
+    export type AddHubRegistrationToMeetingMutationError = ErrorType<void>
+
+    /**
+ * @summary Promote a Hub registration and add it to a recurring meeting (admin only)
+ */
+export const useAddHubRegistrationToMeeting = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addHubRegistrationToMeeting>>, TError,{id: number;registrationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addHubRegistrationToMeeting>>,
+        TError,
+        {id: number;registrationId: number},
+        TContext
+      > => {
+      return useMutation(getAddHubRegistrationToMeetingMutationOptions(options));
+    }
+
 export const getListMeetingResponsesUrl = (id: number,) => {
 
 

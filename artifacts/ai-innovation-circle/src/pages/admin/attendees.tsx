@@ -3,12 +3,17 @@ import {
   getListAttendeesQueryKey,
   getListCirclesQueryKey,
   getListHubRegistrationsQueryKey,
+  getListMeetingInviteesQueryKey,
+  getListMeetingResponsesQueryKey,
+  getListMeetingsQueryKey,
   type Attendee,
   useCreateAttendee,
   useDeleteAttendee,
   useImportAttendees,
   useListAttendees,
   useListHubRegistrations,
+  useListMeetings,
+  useAddHubRegistrationToMeeting,
   useDeleteHubRegistration,
 } from "@workspace/api-client-react";
 import { useActiveCircle } from "@/contexts/CircleContext";
@@ -37,7 +42,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Upload, Users, Target, ClipboardList, Plus } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarPlus,
+  CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Upload,
+  Users,
+  Target,
+  ClipboardList,
+  Plus,
+} from "lucide-react";
 
 const MAX_CSV_BYTES = 1_000_000;
 const MAX_IMPORT_ROWS = 1_000;
@@ -143,6 +160,12 @@ export default function AdminAttendees() {
   const deleteRegistration = useDeleteHubRegistration();
 
   const isRecurring = activeCircle?.cadence !== "one-off";
+  const { data: meetings = [], isLoading: isLoadingMeetings } = useListMeetings(params, {
+    query: {
+      enabled: activeCircleId !== null && isRecurring,
+      queryKey: getListMeetingsQueryKey(params),
+    },
+  });
   const { data: registrations = [], isLoading: isLoadingRegistrations } = useListHubRegistrations(
     activeCircleId ?? 0,
     {
@@ -152,6 +175,7 @@ export default function AdminAttendees() {
       },
     }
   );
+  const addRegistrationToMeeting = useAddHubRegistrationToMeeting();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -163,6 +187,9 @@ export default function AdminAttendees() {
   const [deleteTarget, setDeleteTarget] = useState<Attendee | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteRegistrationTarget, setDeleteRegistrationTarget] = useState<number | null>(null);
+  const [registrationToAdd, setRegistrationToAdd] = useState<number | null>(null);
+  const [selectedMeetingId, setSelectedMeetingId] = useState("");
+  const [addRegistrationError, setAddRegistrationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const existingEmails = useMemo(
@@ -368,6 +395,49 @@ export default function AdminAttendees() {
           setDeleteRegistrationTarget(null);
         },
       }
+    );
+  };
+
+  const openAddRegistration = (registrationId: number) => {
+    setRegistrationToAdd(registrationId);
+    setSelectedMeetingId("");
+    setAddRegistrationError(null);
+  };
+
+  const closeAddRegistration = () => {
+    if (addRegistrationToMeeting.isPending) return;
+    setRegistrationToAdd(null);
+    setSelectedMeetingId("");
+    setAddRegistrationError(null);
+  };
+
+  const handleAddRegistrationToMeeting = () => {
+    if (registrationToAdd === null || !selectedMeetingId) return;
+    const meetingId = Number(selectedMeetingId);
+    setAddRegistrationError(null);
+    addRegistrationToMeeting.mutate(
+      { id: meetingId, registrationId: registrationToAdd },
+      {
+        onSuccess: (invitee) => {
+          invalidateAttendeeQueries();
+          queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey(params) });
+          queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListMeetingInviteesQueryKey(meetingId) });
+          queryClient.invalidateQueries({ queryKey: getListMeetingResponsesQueryKey(meetingId) });
+
+          if (!invitee.invitationSentAt) {
+            setAddRegistrationError(
+              "The attendee was added, but the meeting invitation could not be delivered. Check email settings and try again.",
+            );
+            return;
+          }
+
+          closeAddRegistration();
+        },
+        onError: (error) => {
+          setAddRegistrationError(error.message || "Unable to add this registration to the meeting.");
+        },
+      },
     );
   };
 
@@ -698,7 +768,7 @@ export default function AdminAttendees() {
           <div className="space-y-1">
             <h2 className="text-2xl font-bold tracking-tight">Public Registrations</h2>
             <p className="text-muted-foreground text-sm max-w-3xl">
-              Pending registrations automatically become attendees when a new meeting is created. You can then select invitees from the meeting screen. No automated emails are sent to pending registrants.
+              Pending registrations automatically become attendees when a new meeting is created. For meetings that already exist, use Add to meeting to promote and invite someone directly. No login links are sent from registration.
             </p>
           </div>
 
@@ -730,21 +800,41 @@ export default function AdminAttendees() {
                         </Badge>
                       </div>
                       {r.company && <p className="text-xs text-muted-foreground truncate">{r.company}</p>}
-                      <div className="flex items-center justify-between border-t pt-3 mt-2">
+                      <div className="flex items-center justify-between gap-2 border-t pt-3 mt-2">
                         <p className="text-[11px] text-muted-foreground">
                           {format(new Date(r.createdAt), "MMM d, yyyy")}
                         </p>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive px-2 text-xs"
-                          onClick={() => setDeleteRegistrationTarget(r.id)}
-                          data-testid={`button-delete-registration-${r.id}`}
-                        >
-                          Delete
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {!isPromoted && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => openAddRegistration(r.id)}
+                              disabled={isLoadingMeetings || meetings.length === 0}
+                              title={meetings.length === 0 ? "Create a meeting first" : undefined}
+                              data-testid={`button-add-registration-to-meeting-${r.id}`}
+                            >
+                              <CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
+                              Add to meeting
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive px-2 text-xs"
+                            onClick={() => setDeleteRegistrationTarget(r.id)}
+                            data-testid={`button-delete-registration-${r.id}`}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </div>
+                      {!isPromoted && meetings.length === 0 && !isLoadingMeetings && (
+                        <p className="text-[11px] text-muted-foreground">Create a meeting before adding this person.</p>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -832,6 +922,81 @@ export default function AdminAttendees() {
               data-testid="button-confirm-delete-registration"
             >
               {deleteRegistration.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={registrationToAdd !== null}
+        onOpenChange={(open) => {
+          if (!open) closeAddRegistration();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add registration to a meeting</DialogTitle>
+            <DialogDescription>
+              Promote {registrations.find((registration) => registration.id === registrationToAdd)?.name ?? "this person"} to the Hub and send the selected meeting invitation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {isLoadingMeetings ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading meetings...
+              </div>
+            ) : meetings.length === 0 ? (
+              <p className="py-4 text-sm text-muted-foreground">
+                There are no meetings in this Hub yet. Create a meeting first, then return here to add this registration.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="registration-meeting">Meeting</Label>
+                <select
+                  id="registration-meeting"
+                  value={selectedMeetingId}
+                  onChange={(event) => setSelectedMeetingId(event.target.value)}
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  disabled={addRegistrationToMeeting.isPending}
+                  data-testid="select-registration-meeting"
+                >
+                  <option value="">Choose a meeting...</option>
+                  {[...meetings]
+                    .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
+                    .map((meeting) => (
+                      <option key={meeting.id} value={meeting.id}>
+                        {format(new Date(meeting.date), "MMMM d, yyyy")}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  This also sends the normal personalized RSVP email and calendar invite. If delivery fails, you can try again.
+                </p>
+              </div>
+            )}
+            {addRegistrationError && (
+              <p role="alert" className="text-sm text-destructive" data-testid="alert-add-registration-error">
+                {addRegistrationError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeAddRegistration}
+              disabled={addRegistrationToMeeting.isPending}
+              data-testid="button-cancel-add-registration"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddRegistrationToMeeting}
+              disabled={addRegistrationToMeeting.isPending || !selectedMeetingId || meetings.length === 0}
+              data-testid="button-confirm-add-registration"
+            >
+              {addRegistrationToMeeting.isPending ? "Adding..." : "Add and send invitation"}
             </Button>
           </DialogFooter>
         </DialogContent>

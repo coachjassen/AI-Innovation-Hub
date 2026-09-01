@@ -7,6 +7,7 @@ import {
   db,
   attendeesTable,
   circlesTable,
+  hubRegistrationsTable,
   magicTokensTable,
   meetingInviteesTable,
   meetingsTable,
@@ -36,6 +37,7 @@ const sendEmailMock = sendEmail as unknown as Mock;
 
 const ADMIN_EMAIL = "admin@demo.com";
 const ATTENDEE_EMAIL = "marcus@techvision.com";
+const LATE_REGISTRATION_EMAIL = `late-registration-${process.pid}@example.test`;
 
 let server: Server;
 let baseUrl: string;
@@ -187,6 +189,8 @@ afterAll(async () => {
   if (oneOffCircleId) {
     await db.delete(circlesTable).where(eq(circlesTable.id, oneOffCircleId));
   }
+  await db.delete(hubRegistrationsTable).where(eq(hubRegistrationsTable.email, LATE_REGISTRATION_EMAIL));
+  await db.delete(attendeesTable).where(eq(attendeesTable.email, LATE_REGISTRATION_EMAIL));
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve())),
   );
@@ -269,6 +273,87 @@ describe("meeting invitee selection", () => {
 
     const invalidPublicRsvp = await api("GET", `/api/meeting-rsvp/${"c".repeat(64)}`);
     expect(invalidPublicRsvp.status).toBe(404);
+  });
+
+  it("promotes a registration made after meeting creation and invites it idempotently", async () => {
+    const [registration] = await db
+      .insert(hubRegistrationsTable)
+      .values({
+        circleId: CIRCLE_ID,
+        name: "Late Registration",
+        email: LATE_REGISTRATION_EMAIL,
+        company: "Late Company",
+      })
+      .returning();
+
+    const unauthorized = await api(
+      "POST",
+      `/api/meetings/${meetingId}/registrations/${registration.id}`,
+      { cookie: attendeeCookie },
+    );
+    expect(unauthorized.status).toBe(403);
+
+    sendEmailMock.mockClear();
+    const added = await api(
+      "POST",
+      `/api/meetings/${meetingId}/registrations/${registration.id}`,
+      { cookie: adminCookie },
+    );
+    expect(added.status).toBe(200);
+    expect(added.body).toMatchObject({
+      attendeeName: "Late Registration",
+      attendeeEmail: LATE_REGISTRATION_EMAIL,
+      attendeeCompany: "Late Company",
+      invited: true,
+      invitationSendCount: 1,
+    });
+    expect(added.body.invitationSentAt).toBeTruthy();
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    const [invitation] = sendEmailMock.mock.calls[0] as [{
+      to: string;
+      html: string;
+      attachments?: Array<{ filename: string; content: string }>;
+    }];
+    expect(invitation.to).toBe(LATE_REGISTRATION_EMAIL);
+    expect(invitation.html).toContain("meeting-rsvp/");
+    expect(invitation.attachments?.[0]?.filename).toBe("meeting.ics");
+
+    const [promoted] = await db
+      .select()
+      .from(hubRegistrationsTable)
+      .where(eq(hubRegistrationsTable.id, registration.id));
+    expect(promoted.attendeeId).toBe(added.body.attendeeId);
+    expect(promoted.promotedAt).toBeInstanceOf(Date);
+
+    const invitees = await db
+      .select()
+      .from(meetingInviteesTable)
+      .where(and(
+        eq(meetingInviteesTable.meetingId, meetingId),
+        eq(meetingInviteesTable.attendeeId, added.body.attendeeId),
+      ));
+    expect(invitees).toHaveLength(1);
+
+    sendEmailMock.mockClear();
+    const repeated = await api(
+      "POST",
+      `/api/meetings/${meetingId}/registrations/${registration.id}`,
+      { cookie: adminCookie },
+    );
+    expect(repeated.status).toBe(200);
+    expect(repeated.body).toMatchObject({
+      attendeeId: added.body.attendeeId,
+      invited: true,
+      invitationSendCount: 1,
+    });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+
+    const oneOffAttempt = await api(
+      "POST",
+      `/api/meetings/${oneOffMeetingId}/registrations/${registration.id}`,
+      { cookie: adminCookie },
+    );
+    expect(oneOffAttempt.status).toBe(400);
   });
 });
 

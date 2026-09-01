@@ -648,6 +648,25 @@ export const SetMeetingInviteesResponse = zod.array(SetMeetingInviteesResponseIt
 
 
 /**
+ * @summary Promote a Hub registration and add it to a recurring meeting (admin only)
+ */
+export const AddHubRegistrationToMeetingParams = zod.object({
+  "id": zod.coerce.number(),
+  "registrationId": zod.coerce.number()
+})
+
+export const AddHubRegistrationToMeetingResponse = zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "attendeeEmail": zod.string(),
+  "attendeeCompany": zod.string(),
+  "invited": zod.boolean(),
+  "invitationSentAt": zod.string().nullable(),
+  "invitationSendCount": zod.number()
+})
+
+
+/**
  * @summary List all RSVP responses for a meeting (admin only)
  */
 export const ListMeetingResponsesParams = zod.object({

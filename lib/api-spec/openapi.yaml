@@ -746,6 +746,34 @@ paths:
                 items:
                   $ref: "#/components/schemas/MeetingInvitee"
 
+  /meetings/{id}/registrations/{registrationId}:
+    post:
+      operationId: addHubRegistrationToMeeting
+      tags: [meetings]
+      summary: Promote a Hub registration and add it to a recurring meeting (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Promoted registration added to the meeting's invitees
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingInvitee"
+        "400":
+          description: Registration cannot be added to this meeting
+        "404":
+          description: Meeting or registration not found
+
   /meetings/{id}/responses:
     get:
       operationId: listMeetingResponses
