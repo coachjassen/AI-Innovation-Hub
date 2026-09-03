@@ -8,23 +8,22 @@ import {
 } from "./lib/production-startup";
 import { runRecoveryBootstrap } from "./lib/recovery-bootstrap";
 
-// Auto-load .env from the repo root when env vars aren't already set
-// (i.e. when running outside Replit/a managed environment).
+// Auto-load .env when running outside Replit/a managed environment. Node's
+// loader preserves variables already supplied by PM2/the host, while filling
+// in values that exist only in the file.
 // process.loadEnvFile() is built into Node.js 22.9+ — no extra packages needed.
-if (!process.env["DATABASE_URL"] || !process.env["SESSION_SECRET"]) {
-  const candidates = [
-    path.resolve(__dirname, "../../.env"), // dist/ → repo root
-    path.resolve(process.cwd(), ".env"), // wherever PM2 was launched from
-  ];
-  for (const p of candidates) {
-    try {
-      (
-        process as NodeJS.Process & { loadEnvFile?: (p: string) => void }
-      ).loadEnvFile?.(p);
-      break;
-    } catch {
-      // File not found at this path — try the next candidate
-    }
+const candidates = [
+  path.resolve(process.cwd(), ".env"), // wherever PM2 was launched from
+  path.resolve(__dirname, "../../../.env"), // api-server/dist/ → repo root
+];
+for (const p of candidates) {
+  try {
+    (
+      process as NodeJS.Process & { loadEnvFile?: (p: string) => void }
+    ).loadEnvFile?.(p);
+    break;
+  } catch {
+    // File not found at this path — try the next candidate
   }
 }
 
