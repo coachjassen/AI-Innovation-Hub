@@ -222,6 +222,72 @@ describe("Hub interest registration", () => {
       .from(meetingInviteesTable)
       .where(eq(meetingInviteesTable.meetingId, createdMeetingId));
     expect(invitees).toHaveLength(0);
+
+    const deletedAttendee = await api("DELETE", `/api/attendees/${attendee.id}`, {
+      cookie: adminCookie,
+    });
+    expect(deletedAttendee.status).toBe(204);
+
+    const registrationsAfterDelete = await db
+      .select()
+      .from(hubRegistrationsTable)
+      .where(and(
+        eq(hubRegistrationsTable.circleId, circleId),
+        eq(hubRegistrationsTable.email, REGISTRATION_EMAIL),
+      ));
+    expect(registrationsAfterDelete).toHaveLength(0);
+
+    const reregistered = await api("POST", `/api/registration/${token}`, {
+      body: {
+        name: "Taylor Rejoined",
+        email: REGISTRATION_EMAIL,
+        company: "New Prospect Co",
+      },
+    });
+    expect(reregistered.status).toBe(200);
+
+    const [pendingAgain] = await db
+      .select()
+      .from(hubRegistrationsTable)
+      .where(and(
+        eq(hubRegistrationsTable.circleId, circleId),
+        eq(hubRegistrationsTable.email, REGISTRATION_EMAIL),
+      ));
+    expect(pendingAgain).toMatchObject({
+      name: "Taylor Rejoined",
+      company: "New Prospect Co",
+      attendeeId: null,
+      promotedAt: null,
+    });
+
+    await db
+      .update(hubRegistrationsTable)
+      .set({
+        name: "Legacy Deleted Attendee",
+        company: "Former Company",
+        promotedAt: new Date("2030-01-01T00:00:00.000Z"),
+      })
+      .where(eq(hubRegistrationsTable.id, pendingAgain.id));
+
+    const recoveredLegacyRegistration = await api("POST", `/api/registration/${token}`, {
+      body: {
+        name: "Taylor Current",
+        email: REGISTRATION_EMAIL,
+        company: "Current Company",
+      },
+    });
+    expect(recoveredLegacyRegistration.status).toBe(200);
+
+    const [refreshedLegacyRegistration] = await db
+      .select()
+      .from(hubRegistrationsTable)
+      .where(eq(hubRegistrationsTable.id, pendingAgain.id));
+    expect(refreshedLegacyRegistration).toMatchObject({
+      name: "Taylor Current",
+      company: "Current Company",
+      attendeeId: null,
+      promotedAt: null,
+    });
   });
 
   it("requires one replacement for legacy hash-only links, then saves the new URL", async () => {

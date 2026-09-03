@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, ne } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   circlesTable,
@@ -267,7 +267,23 @@ router.post("/registration/:token", async (req, res): Promise<void> => {
       email,
       company,
     })
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      target: [hubRegistrationsTable.circleId, hubRegistrationsTable.email],
+      set: {
+        name,
+        company,
+        attendeeId: null,
+        promotedAt: null,
+        createdAt: new Date(),
+      },
+      // A deleted attendee leaves legacy promoted registrations with no linked
+      // membership. Refresh only that orphaned state; active memberships and
+      // genuinely pending registrations remain idempotent and undisclosed.
+      setWhere: and(
+        isNull(hubRegistrationsTable.attendeeId),
+        isNotNull(hubRegistrationsTable.promotedAt),
+      ),
+    })
     .returning({ id: hubRegistrationsTable.id });
 
   res.json(SubmitHubRegistrationResponse.parse({ message: REGISTRATION_SUCCESS_MESSAGE }));

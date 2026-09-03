@@ -11,6 +11,7 @@ import {
   meetingInviteesTable,
   meetingResponsesTable,
   magicTokensTable,
+  hubRegistrationsTable,
 } from "@workspace/db";
 import { ImportAttendeesBody, ImportAttendeesResponse } from "@workspace/api-zod";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
@@ -325,6 +326,7 @@ router.delete("/attendees/:id", requireAdmin, async (req, res): Promise<void> =>
     await tx.delete(meetingInviteesTable).where(eq(meetingInviteesTable.attendeeId, id));
     await tx.delete(meetingResponsesTable).where(eq(meetingResponsesTable.attendeeId, id));
     await tx.delete(magicTokensTable).where(eq(magicTokensTable.attendeeId, id));
+    await tx.delete(hubRegistrationsTable).where(eq(hubRegistrationsTable.attendeeId, id));
     await tx.delete(attendeesTable).where(eq(attendeesTable.id, id));
   });
 
