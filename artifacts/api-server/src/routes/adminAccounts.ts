@@ -91,7 +91,7 @@ router.post("/admin/accounts", requireAdmin, async (req, res): Promise<void> => 
   const onboardingEmailStatus =
     onboarding.ok
       ? "sent"
-      : onboarding.reason === "smtp_unavailable" || onboarding.reason === "application_url_missing"
+      : onboarding.reason === "email_unavailable" || onboarding.reason === "application_url_missing"
         ? "unavailable"
         : onboarding.reason === "rate_limited"
           ? "rate_limited"

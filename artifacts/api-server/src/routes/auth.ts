@@ -6,7 +6,7 @@ import {
   issueMagicLink,
   verifyMagicLink,
 } from "../lib/magic-link";
-import { isSmtpConfigured } from "../lib/email";
+import { isEmailConfigured } from "../lib/email";
 import { requireAuth } from "../middlewares/requireAuth";
 import "../lib/session";
 
@@ -82,7 +82,7 @@ router.post("/auth/request-link", async (req, res): Promise<void> => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  if (!isSmtpConfigured()) {
+  if (!isEmailConfigured()) {
     res.status(503).json({ error: "Email delivery is not configured. Please contact your facilitator." });
     return;
   }
@@ -113,7 +113,7 @@ router.post("/auth/request-link", async (req, res): Promise<void> => {
       result.reason === "application_url_missing"
         ? "Sign-in is not configured with a public application URL. Please contact your facilitator."
         : "We couldn't send the sign-in email. Please try again.";
-    res.status(result.reason === "smtp_unavailable" ? 503 : 502).json({ error: message });
+    res.status(result.reason === "email_unavailable" ? 503 : 502).json({ error: message });
     return;
   }
 

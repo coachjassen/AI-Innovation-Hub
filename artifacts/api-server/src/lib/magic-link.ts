@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, asc, eq, gt, gte } from "drizzle-orm";
 import type { Request } from "express";
 import { db, attendeesTable, circlesTable, magicTokensTable } from "@workspace/db";
-import { buildMagicLinkEmail, isSmtpConfigured, sendEmail } from "./email";
+import { buildMagicLinkEmail, isEmailConfigured, sendEmail } from "./email";
 import { logger } from "./logger";
 
 export const MAGIC_LINK_TTL_MS = 60 * 60 * 1000;
@@ -43,14 +43,14 @@ export function getApplicationUrl(req: Request): string | null {
 
 export type MagicLinkIssueResult =
   | { ok: true }
-  | { ok: false; reason: "smtp_unavailable" | "rate_limited" | "application_url_missing" | "delivery_failed" };
+  | { ok: false; reason: "email_unavailable" | "rate_limited" | "application_url_missing" | "delivery_failed" };
 
 /**
  * Issues the latest sign-in link for an attendee and sends it. Older pending
  * links are marked used so only the newest email can authenticate.
  */
 export async function issueMagicLink(req: Request, attendee: typeof attendeesTable.$inferSelect): Promise<MagicLinkIssueResult> {
-  if (!isSmtpConfigured()) return { ok: false, reason: "smtp_unavailable" };
+  if (!isEmailConfigured()) return { ok: false, reason: "email_unavailable" };
 
   const applicationUrl = getApplicationUrl(req);
   if (!applicationUrl) return { ok: false, reason: "application_url_missing" };
@@ -97,7 +97,7 @@ export async function issueMagicLink(req: Request, attendee: typeof attendeesTab
         .update(magicTokensTable)
         .set({ used: true })
         .where(eq(magicTokensTable.id, tokenRecord.id));
-      return { ok: false, reason: "smtp_unavailable" };
+      return { ok: false, reason: "email_unavailable" };
     }
     return { ok: true };
   } catch (err) {

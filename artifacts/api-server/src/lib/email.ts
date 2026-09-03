@@ -13,17 +13,134 @@ export interface EmailOptions {
 
 export type EmailDeliveryResult =
   | { sent: true }
-  | { sent: false; reason: "smtp_unavailable" };
+  | { sent: false; reason: "email_unavailable" };
 
-export function isSmtpConfigured(): boolean {
+type EmailProvider = "smtp" | "graph";
+
+function getEmailProvider(): EmailProvider {
+  return process.env.EMAIL_PROVIDER === "graph" ? "graph" : "smtp";
+}
+
+function isGraphConfigured(): boolean {
+  const { GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, GRAPH_SENDER_EMAIL } = process.env;
+  return Boolean(GRAPH_TENANT_ID && GRAPH_CLIENT_ID && GRAPH_CLIENT_SECRET && GRAPH_SENDER_EMAIL);
+}
+
+function isSmtpConfiguredInternal(): boolean {
   const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
   return Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS && SMTP_FROM);
 }
 
+export function isEmailConfigured(): boolean {
+  return getEmailProvider() === "graph" ? isGraphConfigured() : isSmtpConfiguredInternal();
+}
+
+// Kept as a compatibility alias for callers that still use the old name.
+export const isSmtpConfigured = isEmailConfigured;
+
+let graphAccessToken: { value: string; expiresAt: number } | null = null;
+
+async function getGraphAccessToken(): Promise<string> {
+  const { GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET } = process.env;
+  if (!GRAPH_TENANT_ID || !GRAPH_CLIENT_ID || !GRAPH_CLIENT_SECRET) {
+    throw new Error("Microsoft Graph email configuration is incomplete");
+  }
+
+  if (graphAccessToken && graphAccessToken.expiresAt > Date.now() + 60_000) {
+    return graphAccessToken.value;
+  }
+
+  const tokenResponse = await fetch(
+    `https://login.microsoftonline.com/${encodeURIComponent(GRAPH_TENANT_ID)}/oauth2/v2.0/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: GRAPH_CLIENT_ID,
+        client_secret: GRAPH_CLIENT_SECRET,
+        scope: "https://graph.microsoft.com/.default",
+        grant_type: "client_credentials",
+      }),
+    },
+  );
+
+  if (!tokenResponse.ok) {
+    graphAccessToken = null;
+    throw new Error(`Microsoft Graph token request failed with status ${tokenResponse.status}`);
+  }
+
+  const token = (await tokenResponse.json()) as {
+    access_token?: unknown;
+    expires_in?: unknown;
+  };
+  if (typeof token.access_token !== "string" || typeof token.expires_in !== "number") {
+    graphAccessToken = null;
+    throw new Error("Microsoft Graph token response was invalid");
+  }
+
+  graphAccessToken = {
+    value: token.access_token,
+    expiresAt: Date.now() + token.expires_in * 1000,
+  };
+  return token.access_token;
+}
+
+async function sendWithGraph(opts: EmailOptions): Promise<void> {
+  const { GRAPH_SENDER_EMAIL } = process.env;
+  if (!GRAPH_SENDER_EMAIL) throw new Error("GRAPH_SENDER_EMAIL is not configured");
+
+  const attachments = opts.attachments?.map((attachment) => ({
+    "@odata.type": "#microsoft.graph.fileAttachment",
+    name: attachment.filename,
+    contentType: attachment.contentType ?? "application/octet-stream",
+    contentBytes: Buffer.isBuffer(attachment.content)
+      ? attachment.content.toString("base64")
+      : Buffer.from(attachment.content, "utf8").toString("base64"),
+  }));
+
+  const response = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(GRAPH_SENDER_EMAIL)}/sendMail`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${await getGraphAccessToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: {
+          subject: opts.subject,
+          body: { contentType: "HTML", content: opts.html },
+          toRecipients: (Array.isArray(opts.to) ? opts.to : [opts.to]).map((address) => ({
+            emailAddress: { address },
+          })),
+          ...(attachments?.length ? { attachments } : {}),
+        },
+        saveToSentItems: false,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    graphAccessToken = null;
+    throw new Error(`Microsoft Graph sendMail failed with status ${response.status}`);
+  }
+}
+
 /**
- * Single email-sending function. Swap the implementation here to change provider.
+ * Single email-sending function. The provider is selected with EMAIL_PROVIDER.
  */
 export async function sendEmail(opts: EmailOptions): Promise<EmailDeliveryResult> {
+  if (getEmailProvider() === "graph") {
+    if (!isGraphConfigured()) {
+      logger.warn({ to: opts.to, subject: opts.subject }, "Microsoft Graph email is not configured — email suppressed");
+      return { sent: false, reason: "email_unavailable" };
+    }
+
+    await sendWithGraph(opts);
+    logger.info({ to: opts.to, subject: opts.subject }, "Email sent");
+    return { sent: true };
+  }
+
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
 
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
@@ -31,7 +148,7 @@ export async function sendEmail(opts: EmailOptions): Promise<EmailDeliveryResult
       { to: opts.to, subject: opts.subject },
       "SMTP not configured — email suppressed",
     );
-    return { sent: false, reason: "smtp_unavailable" };
+    return { sent: false, reason: "email_unavailable" };
   }
 
   try {

@@ -116,7 +116,7 @@ export default function AdminEmail() {
       <Card className="border-amber-200 bg-amber-50">
         <CardContent className="p-4">
           <p className="text-sm text-amber-800">
-            <strong>POC mode:</strong> Email is suppressed when SMTP is not configured. To enable real delivery, set <code className="bg-amber-100 px-1 rounded">SMTP_HOST</code>, <code className="bg-amber-100 px-1 rounded">SMTP_USER</code>, <code className="bg-amber-100 px-1 rounded">SMTP_PASS</code>, <code className="bg-amber-100 px-1 rounded">SMTP_PORT</code>, and <code className="bg-amber-100 px-1 rounded">SMTP_FROM</code> as environment secrets.
+             <strong>Email delivery:</strong> Configure Microsoft Graph application permissions with <code className="bg-amber-100 px-1 rounded">EMAIL_PROVIDER=graph</code>, the Graph tenant/application settings, and <code className="bg-amber-100 px-1 rounded">GRAPH_SENDER_EMAIL</code>. SMTP remains supported as an alternative.
           </p>
         </CardContent>
       </Card>

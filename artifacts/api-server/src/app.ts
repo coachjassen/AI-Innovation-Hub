@@ -12,6 +12,33 @@ const app: Express = express();
 
 app.set("trust proxy", 1);
 
+// In self-hosted production, HTTPS is the only supported public protocol.
+// Apache/nginx terminates TLS and must pass X-Forwarded-Proto: https. The
+// redirect keeps direct HTTP requests from accidentally using the app without
+// the secure session-cookie and origin protections.
+app.use((req, res, next) => {
+  const selfHostedProduction =
+    process.env.NODE_ENV === "production" && process.env.REPL_ID === undefined;
+  const enforceHttps = process.env.ENFORCE_HTTPS !== "false";
+  if (!selfHostedProduction || !enforceHttps || req.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https" || req.protocol === "https") {
+    next();
+    return;
+  }
+
+  const configuredOrigin = process.env.APP_URL ?? process.env.PUBLIC_APP_URL;
+  if (!configuredOrigin) {
+    res.status(400).json({ error: "HTTPS is required" });
+    return;
+  }
+
+  try {
+    const secureUrl = new URL(req.originalUrl, configuredOrigin);
+    res.redirect(308, secureUrl.toString());
+  } catch {
+    res.status(400).json({ error: "HTTPS is required" });
+  }
+});
+
 app.use(
   pinoHttp({
     logger,
