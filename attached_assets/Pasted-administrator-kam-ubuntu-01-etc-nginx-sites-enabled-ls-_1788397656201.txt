@@ -1,0 +1,75 @@
+administrator@kam-ubuntu-01:/etc/nginx/sites-enabled$ ls
+kinetics-hubs  kineticshubs
+administrator@kam-ubuntu-01:/etc/nginx/sites-enabled$ cat kinetics
+cat: kinetics: No such file or directory
+administrator@kam-ubuntu-01:/etc/nginx/sites-enabled$ cat kineticshubs
+server {
+    listen 80;
+    server_name kam-ubuntu-01;
+ 
+    root /home/administrator/Projects/AI-Innovation-Hub/artifacts/ai-innovation-circle/dist/public;
+    index index.html;
+ 
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+ 
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+ 
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+administrator@kam-ubuntu-01:/etc/nginx/sites-enabled$ cat kinetics-hubs
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+ 
+    # Replace this with the internal DNS name covered by the certificate.
+    server_name INTERNAL_HOSTNAME;
+ 
+    ssl_certificate     /etc/nginx/tls/kinetics-hubs.fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/kinetics-hubs.key;
+ 
+    client_max_body_size 25m;
+ 
+    # Change this if your project is stored somewhere else.
+    root /opt/kinetics-hubs/artifacts/ai-innovation-circle/dist/public;
+    index index.html;
+ 
+    # Exact /api request
+    location = /api {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+ 
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $http_x_forwarded_host;
+    }
+ 
+    # All API requests
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+ 
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+ 
+        # Apache supplies hubs.kinetics.co.nz here.
+        proxy_set_header X-Forwarded-Host $http_x_forwarded_host;
+ 
+        proxy_read_timeout 60s;
+    }
+ 
+    # React single-page application
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+administrator@kam-ubuntu-01:/etc/nginx/sites-enabled$
