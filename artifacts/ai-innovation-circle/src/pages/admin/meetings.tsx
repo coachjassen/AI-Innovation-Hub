@@ -292,7 +292,7 @@ export default function AdminMeetings() {
                   id="durationMinutes"
                   min={1}
                   max={1440}
-                  step={15}
+                  step={1}
                   defaultValue={60}
                   required
                 />
@@ -375,7 +375,7 @@ export default function AdminMeetings() {
                   id="schedule-duration"
                   min={1}
                   max={1440}
-                  step={15}
+                  step={1}
                   defaultValue={scheduleMeeting.durationMinutes}
                   required
                 />
