@@ -28,6 +28,70 @@ import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X
 import { AgendaManager } from "@/components/AgendaManager";
 import { OneOffInvitationManager } from "@/components/OneOffInvitationManager";
 
+const MEETING_TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
+  const hour = Math.floor(index / 4);
+  const minute = (index % 4) * 15;
+  const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  const label = new Intl.DateTimeFormat("en-NZ", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2026, 0, 1, hour, minute)));
+  return { value, label };
+});
+
+function nearestMeetingTime(value: string): string {
+  const [hour, minute] = value.split(":").map(Number);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return "09:00";
+  const totalMinutes = Math.min((hour * 60) + minute, (23 * 60) + 59);
+  const rounded = Math.floor(totalMinutes / 15) * 15;
+  return `${String(Math.floor(rounded / 60)).padStart(2, "0")}:${String(rounded % 60).padStart(2, "0")}`;
+}
+
+function meetingDateParts(value: string): { date: string; time: string } {
+  const naive = value.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?/);
+  if (naive && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) {
+    return { date: naive[1], time: nearestMeetingTime(naive[2] ?? "09:00") };
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { date: "", time: "09:00" };
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Pacific/Auckland",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(parsed);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    time: nearestMeetingTime(`${get("hour")}:${get("minute")}`),
+  };
+}
+
+function MeetingTimeSelect({ name, defaultValue = "09:00" }: {
+  name: string;
+  defaultValue?: string;
+}) {
+  return (
+    <select
+      name={name}
+      defaultValue={defaultValue}
+      required
+      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      {MEETING_TIME_OPTIONS.map((option) => (
+        <option key={option.value} value={option.value}>{option.label}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function AdminMeetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [scheduleMeeting, setScheduleMeeting] = useState<{
@@ -69,7 +133,7 @@ export default function AdminMeetings() {
       {
         data: {
           circleId: activeCircleId,
-          date: fd.get("date") as string,
+          date: `${fd.get("meetingDate")}T${fd.get("meetingTime")}`,
           durationMinutes: Number(fd.get("durationMinutes")),
           notes: (fd.get("notes") as string) || undefined,
           keyInsight: (fd.get("keyInsight") as string) || undefined,
@@ -114,7 +178,7 @@ export default function AdminMeetings() {
       {
         id: scheduleMeeting.id,
         data: {
-          date: fd.get("date") as string,
+          date: `${fd.get("meetingDate")}T${fd.get("meetingTime")}`,
           durationMinutes: Number(fd.get("durationMinutes")),
         },
       },
@@ -277,11 +341,19 @@ export default function AdminMeetings() {
                   </p>
                 </div>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="date">Date and time (New Zealand)</Label>
-                <Input type="datetime-local" name="date" id="date" step={900} required />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="meetingDate">Date (New Zealand)</Label>
+                  <Input type="date" name="meetingDate" id="meetingDate" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="meetingTime">Time (New Zealand)</Label>
+                  <MeetingTimeSelect name="meetingTime" />
+                </div>
+              </div>
+              <div>
                 <p className="text-xs text-muted-foreground">
-                  Saved in Pacific/Auckland time, including daylight saving.
+                  Times are available in 15-minute blocks and saved in Pacific/Auckland time.
                 </p>
               </div>
               <div className="space-y-2">
@@ -357,16 +429,24 @@ export default function AdminMeetings() {
           </DialogHeader>
           {scheduleMeeting && (
             <form onSubmit={handleScheduleUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="schedule-date">Date and time (New Zealand)</Label>
-                <Input
-                  type="datetime-local"
-                  name="date"
-                  id="schedule-date"
-                  step={900}
-                  defaultValue={scheduleMeeting.date.slice(0, 16)}
-                  required
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="schedule-date">Date (New Zealand)</Label>
+                  <Input
+                    type="date"
+                    name="meetingDate"
+                    id="schedule-date"
+                    defaultValue={meetingDateParts(scheduleMeeting.date).date}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="schedule-time">Time (New Zealand)</Label>
+                  <MeetingTimeSelect
+                    name="meetingTime"
+                    defaultValue={meetingDateParts(scheduleMeeting.date).time}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="schedule-duration">Duration (minutes)</Label>
