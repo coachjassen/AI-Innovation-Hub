@@ -3,3 +3,4 @@
 - [drizzle-kit push needs a TTY](db-push-tty.md) — push always prompts (connect-pg-simple `session` table not in schema); apply new-table DDL directly via SQL instead
 - [Artifact-prefixed routes](artifact-prefixed-login-routes.md) — preview URLs can include the artifact prefix even when Vite reports `/`; normalize paths before authentication and route matching
 - [Self-hosted environment ownership](self-hosted-env-ownership.md) — the update process runs as the deployment user; owner-only environment files must remain owned by that user
+- [Meeting time picker](meeting-time-picker.md) — native datetime step did not constrain choices; keep the explicit 15-minute NZ-time dropdown
