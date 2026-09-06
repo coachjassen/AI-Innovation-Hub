@@ -285,6 +285,72 @@ export interface AgendaSummaryItem {
   description: string | null;
 }
 
+const MEETING_TIME_ZONE = "Pacific/Auckland";
+
+/**
+ * Meeting dates entered by admins do not include an offset. Interpret those
+ * wall-clock values in New Zealand rather than in the API server's timezone.
+ * Explicitly offset timestamps are already unambiguous and are preserved.
+ */
+function parseMeetingDate(dateIso: string): Date | null {
+  if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(dateIso)) {
+    const parsed = new Date(dateIso);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const match = dateIso.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (!match) return null;
+
+  const [, year, month, day, hour = "00", minute = "00", second = "00"] = match;
+  const desiredWallClock = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  );
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MEETING_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  // Refine the UTC guess until formatting it in Auckland produces the desired
+  // wall-clock value. This automatically accounts for NZST and NZDT.
+  let utcGuess = desiredWallClock;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = Object.fromEntries(
+      formatter
+        .formatToParts(new Date(utcGuess))
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, Number(part.value)]),
+    );
+    const observedWallClock = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    const correction = desiredWallClock - observedWallClock;
+    utcGuess += correction;
+    if (correction === 0) break;
+  }
+
+  const parsed = new Date(utcGuess);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
 /**
  * Build an .ics calendar event for a meeting. Returns the raw ICS string, or
  * null if the date could not be parsed (caller should skip the attachment).
@@ -306,8 +372,8 @@ export async function buildMeetingIcs(opts: {
    */
   sequence?: number;
 }): Promise<string | null> {
-  const start = new Date(opts.dateIso);
-  if (isNaN(start.getTime())) return null;
+  const start = parseMeetingDate(opts.dateIso);
+  if (!start) return null;
 
   // Default to 60 minutes if no agenda durations are provided.
   const summed = opts.agenda.reduce((acc, a) => acc + (a.durationMinutes ?? 0), 0);

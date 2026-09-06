@@ -275,6 +275,19 @@ describe("meeting invitee selection", () => {
     expect(invalidPublicRsvp.status).toBe(404);
   });
 
+  it("does not send email when an admin changes a meeting date and time", async () => {
+    sendEmailMock.mockClear();
+
+    const updated = await api("PATCH", `/api/meetings/${meetingId}`, {
+      cookie: adminCookie,
+      body: { date: "2026-09-30T10:00" },
+    });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.date).toBe("2026-09-30T10:00");
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
   it("promotes a registration made after meeting creation and invites it idempotently", async () => {
     const [registration] = await db
       .insert(hubRegistrationsTable)

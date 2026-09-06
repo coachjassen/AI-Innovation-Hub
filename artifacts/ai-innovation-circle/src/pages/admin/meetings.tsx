@@ -238,8 +238,11 @@ export default function AdminMeetings() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input type="date" name="date" id="date" required />
+                <Label htmlFor="date">Date and time (New Zealand)</Label>
+                <Input type="datetime-local" name="date" id="date" required />
+                <p className="text-xs text-muted-foreground">
+                  Saved in Pacific/Auckland time, including daylight saving.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="keyInsight">{isOneOffHub ? "Event Focus (optional)" : "Key Insight (optional)"}</Label>
