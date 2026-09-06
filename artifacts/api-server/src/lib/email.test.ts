@@ -34,4 +34,22 @@ describe("buildMeetingIcs", () => {
 
     expect(value).toContain("DTSTART:20260714T210000Z");
   });
+
+  it("uses the explicit meeting duration instead of agenda totals", async () => {
+    const value = await buildMeetingIcs({
+      meetingId: 4,
+      circleName: "Test Hub",
+      dateIso: "2026-07-15T09:00",
+      durationMinutes: 90,
+      agenda: [{
+        position: 1,
+        title: "Short agenda item",
+        durationMinutes: 15,
+        presenter: null,
+        description: null,
+      }],
+    });
+
+    expect(value).toContain("DURATION:PT90M");
+  });
 });

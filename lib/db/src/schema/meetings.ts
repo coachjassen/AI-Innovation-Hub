@@ -7,6 +7,7 @@ export const meetingsTable = pgTable("meetings", {
   id: serial("id").primaryKey(),
   circleId: integer("circle_id").references(() => circlesTable.id).notNull(),
   date: text("date").notNull(), // ISO date string
+  durationMinutes: integer("duration_minutes").notNull().default(60),
   notes: text("notes"),
   slidesPath: text("slides_path"),
   keyInsight: text("key_insight"),

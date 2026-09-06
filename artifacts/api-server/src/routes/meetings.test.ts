@@ -145,9 +145,15 @@ beforeAll(async () => {
 
   const created = await api("POST", "/api/meetings", {
     cookie: adminCookie,
-    body: { circleId: CIRCLE_ID, date: "2030-01-15T17:00:00.000Z", notes: "rsvp/agenda test" },
+    body: {
+      circleId: CIRCLE_ID,
+      date: "2030-01-15T17:00:00.000Z",
+      durationMinutes: 90,
+      notes: "rsvp/agenda test",
+    },
   });
   expect(created.status).toBe(201);
+  expect(created.body.durationMinutes).toBe(90);
   meetingId = created.body.id;
 
   const [oneOffCircle] = await db
@@ -280,11 +286,12 @@ describe("meeting invitee selection", () => {
 
     const updated = await api("PATCH", `/api/meetings/${meetingId}`, {
       cookie: adminCookie,
-      body: { date: "2026-09-30T10:00" },
+      body: { date: "2026-09-30T10:00", durationMinutes: 75 },
     });
 
     expect(updated.status).toBe(200);
     expect(updated.body.date).toBe("2026-09-30T10:00");
+    expect(updated.body.durationMinutes).toBe(75);
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
 

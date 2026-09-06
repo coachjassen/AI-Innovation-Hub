@@ -10,6 +10,11 @@ export interface Meeting {
   id: number;
   circleId: number;
   date: string;
+  /**
+     * @minimum 1
+     * @maximum 1440
+     */
+  durationMinutes: number;
   /** @nullable */
   notes?: string | null;
   /** @nullable */

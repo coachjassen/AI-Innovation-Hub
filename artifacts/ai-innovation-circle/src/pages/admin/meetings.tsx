@@ -30,6 +30,11 @@ import { OneOffInvitationManager } from "@/components/OneOffInvitationManager";
 
 export default function AdminMeetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [scheduleMeeting, setScheduleMeeting] = useState<{
+    id: number;
+    date: string;
+    durationMinutes: number;
+  } | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [agendaMeeting, setAgendaMeeting] = useState<{ id: number; date: string } | null>(null);
   const [rosterMeeting, setRosterMeeting] = useState<{ id: number; date: string } | null>(null);
@@ -44,6 +49,7 @@ export default function AdminMeetings() {
     query: { enabled: activeCircleId !== null, queryKey: getListMeetingsQueryKey(params) },
   });
   const createMeeting = useCreateMeeting();
+  const updateMeeting = useUpdateMeeting();
   const deleteMeeting = useDeleteMeeting();
 
   const sorted = [...meetings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -64,6 +70,7 @@ export default function AdminMeetings() {
         data: {
           circleId: activeCircleId,
           date: fd.get("date") as string,
+          durationMinutes: Number(fd.get("durationMinutes")),
           notes: (fd.get("notes") as string) || undefined,
           keyInsight: (fd.get("keyInsight") as string) || undefined,
         },
@@ -99,6 +106,27 @@ export default function AdminMeetings() {
     });
   };
 
+  const handleScheduleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!scheduleMeeting) return;
+    const fd = new FormData(e.currentTarget);
+    updateMeeting.mutate(
+      {
+        id: scheduleMeeting.id,
+        data: {
+          date: fd.get("date") as string,
+          durationMinutes: Number(fd.get("durationMinutes")),
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+          setScheduleMeeting(null);
+        },
+      },
+    );
+  };
+
   const MeetingRow = ({ m }: { m: (typeof meetings)[0] }) => {
     const isOpen = expandedId === m.id;
     const attending = m.attendingCount ?? 0;
@@ -113,6 +141,9 @@ export default function AdminMeetings() {
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 {format(new Date(m.date), "MMMM d, yyyy")}
+                <span className="text-muted-foreground">
+                  · {format(new Date(m.date), "h:mm a")} · {m.durationMinutes} min
+                </span>
               </div>
               {m.keyInsight && (
                 <p className="text-sm text-muted-foreground ml-6 italic">"{m.keyInsight}"</p>
@@ -168,6 +199,15 @@ export default function AdminMeetings() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => setScheduleMeeting({
+                      id: m.id,
+                      date: m.date,
+                      durationMinutes: m.durationMinutes,
+                    })}
+                  >
+                    <Clock className="mr-2 h-4 w-4" /> Edit schedule
+                  </DropdownMenuItem>
                   <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(m.id)}>
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                   </DropdownMenuItem>
@@ -245,6 +285,19 @@ export default function AdminMeetings() {
                 </p>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="durationMinutes">Duration (minutes)</Label>
+                <Input
+                  type="number"
+                  name="durationMinutes"
+                  id="durationMinutes"
+                  min={1}
+                  max={1440}
+                  step={15}
+                  defaultValue={60}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="keyInsight">{isOneOffHub ? "Event Focus (optional)" : "Key Insight (optional)"}</Label>
                 <Input name="keyInsight" id="keyInsight" placeholder={isOneOffHub ? "What is this event about?" : "One memorable takeaway..."} />
               </div>
@@ -291,6 +344,47 @@ export default function AdminMeetings() {
             </DialogTitle>
           </DialogHeader>
           {agendaMeeting && <AgendaManager meetingId={agendaMeeting.id} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scheduleMeeting !== null} onOpenChange={(open) => !open && setScheduleMeeting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit schedule</DialogTitle>
+            <DialogDescription>
+              Changes are saved silently and do not send or resend invitations.
+            </DialogDescription>
+          </DialogHeader>
+          {scheduleMeeting && (
+            <form onSubmit={handleScheduleUpdate} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="schedule-date">Date and time (New Zealand)</Label>
+                <Input
+                  type="datetime-local"
+                  name="date"
+                  id="schedule-date"
+                  defaultValue={scheduleMeeting.date.slice(0, 16)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="schedule-duration">Duration (minutes)</Label>
+                <Input
+                  type="number"
+                  name="durationMinutes"
+                  id="schedule-duration"
+                  min={1}
+                  max={1440}
+                  step={15}
+                  defaultValue={scheduleMeeting.durationMinutes}
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={updateMeeting.isPending}>Save schedule</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -8,6 +8,11 @@
 
 export interface MeetingUpdate {
   date?: string;
+  /**
+     * @minimum 1
+     * @maximum 1440
+     */
+  durationMinutes?: number;
   notes?: string;
   slidesPath?: string;
   keyInsight?: string;

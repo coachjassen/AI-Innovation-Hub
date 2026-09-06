@@ -1735,7 +1735,7 @@ components:
     # Meeting
     Meeting:
       type: object
-      required: [id, circleId, date, createdAt]
+      required: [id, circleId, date, durationMinutes, createdAt]
       properties:
         id:
           type: integer
@@ -1743,6 +1743,11 @@ components:
           type: integer
         date:
           type: string
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          default: 60
         notes:
           type: ["string", "null"]
         slidesPath:
@@ -1930,6 +1935,11 @@ components:
           type: integer
         date:
           type: string
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          default: 60
         notes:
           type: string
         slidesPath:
@@ -1942,6 +1952,10 @@ components:
       properties:
         date:
           type: string
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
         notes:
           type: string
         slidesPath:

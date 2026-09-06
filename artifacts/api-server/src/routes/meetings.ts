@@ -34,6 +34,7 @@ function serializeMeeting(m: typeof meetingsTable.$inferSelect) {
     id: m.id,
     circleId: m.circleId,
     date: m.date,
+    durationMinutes: m.durationMinutes,
     notes: m.notes,
     slidesPath: m.slidesPath,
     keyInsight: m.keyInsight,
@@ -146,11 +147,15 @@ router.get("/meetings", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.post("/meetings", requireAdmin, async (req, res): Promise<void> => {
-  const { circleId, date, notes, slidesPath, keyInsight } = req.body as {
-    circleId?: number; date?: string; notes?: string; slidesPath?: string; keyInsight?: string;
+  const { circleId, date, durationMinutes = 60, notes, slidesPath, keyInsight } = req.body as {
+    circleId?: number; date?: string; durationMinutes?: number; notes?: string; slidesPath?: string; keyInsight?: string;
   };
   if (!circleId || !date) {
     res.status(400).json({ error: "circleId and date are required" });
+    return;
+  }
+  if (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 1440) {
+    res.status(400).json({ error: "durationMinutes must be a whole number between 1 and 1440" });
     return;
   }
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, circleId));
@@ -161,7 +166,14 @@ router.post("/meetings", requireAdmin, async (req, res): Promise<void> => {
   const meeting = await db.transaction(async (tx) => {
     const [createdMeeting] = await tx
       .insert(meetingsTable)
-      .values({ circleId, date, notes: notes ?? null, slidesPath: slidesPath ?? null, keyInsight: keyInsight ?? null })
+      .values({
+        circleId,
+        date,
+        durationMinutes,
+        notes: notes ?? null,
+        slidesPath: slidesPath ?? null,
+        keyInsight: keyInsight ?? null,
+      })
       .returning();
 
     if (circle.cadence !== "one-off") {
@@ -297,6 +309,7 @@ router.patch("/meetings/:id", requireAdmin, async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const {
     date,
+    durationMinutes,
     notes,
     slidesPath,
     keyInsight,
@@ -305,10 +318,17 @@ router.patch("/meetings/:id", requireAdmin, async (req, res): Promise<void> => {
     invitationAttachmentName,
     invitationAttachmentContentType,
   } = req.body as {
-    date?: string; notes?: string; slidesPath?: string; keyInsight?: string;
+    date?: string; durationMinutes?: number; notes?: string; slidesPath?: string; keyInsight?: string;
     invitationBody?: string; invitationAttachmentPath?: string;
     invitationAttachmentName?: string; invitationAttachmentContentType?: string;
   };
+  if (
+    durationMinutes !== undefined
+    && (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 1440)
+  ) {
+    res.status(400).json({ error: "durationMinutes must be a whole number between 1 and 1440" });
+    return;
+  }
 
   const [existing] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Meeting not found" }); return; }
@@ -354,11 +374,12 @@ router.patch("/meetings/:id", requireAdmin, async (req, res): Promise<void> => {
   }
 
   const updates: Partial<{
-    date: string; notes: string; slidesPath: string; keyInsight: string;
+    date: string; durationMinutes: number; notes: string; slidesPath: string; keyInsight: string;
     invitationBody: string; invitationAttachmentPath: string;
     invitationAttachmentName: string; invitationAttachmentContentType: string;
   }> = {};
   if (date !== undefined) updates.date = date;
+  if (durationMinutes !== undefined) updates.durationMinutes = durationMinutes;
   if (notes !== undefined) updates.notes = notes;
   if (slidesPath !== undefined) updates.slidesPath = slidesPath;
   if (keyInsight !== undefined) updates.keyInsight = keyInsight;
@@ -759,6 +780,7 @@ async function sendMeetingInvitationEmails(
     meetingId: meeting.id,
     circleName,
     dateIso: meeting.date,
+    durationMinutes: meeting.durationMinutes,
     agenda,
     method: "REQUEST",
   });
@@ -883,6 +905,7 @@ async function sendOneOffInvitationEmails(
     meetingId: meeting.id,
     circleName: circle.name,
     dateIso: meeting.date,
+    durationMinutes: meeting.durationMinutes,
     agenda: [],
     method: "REQUEST",
   });
@@ -1256,6 +1279,7 @@ router.put("/meetings/:id/response", requireAuth, async (req, res): Promise<void
           meetingId: id,
           circleName,
           dateIso: meeting.date,
+          durationMinutes: meeting.durationMinutes,
           agenda,
         });
 

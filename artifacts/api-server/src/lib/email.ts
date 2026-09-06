@@ -359,6 +359,7 @@ export async function buildMeetingIcs(opts: {
   meetingId: number;
   circleName: string;
   dateIso: string;
+  durationMinutes?: number;
   agenda: AgendaSummaryItem[];
   /**
    * iCalendar METHOD (e.g. "REQUEST"). When set, the event is emitted as a
@@ -375,9 +376,9 @@ export async function buildMeetingIcs(opts: {
   const start = parseMeetingDate(opts.dateIso);
   if (!start) return null;
 
-  // Default to 60 minutes if no agenda durations are provided.
-  const summed = opts.agenda.reduce((acc, a) => acc + (a.durationMinutes ?? 0), 0);
-  const durationMinutes = summed > 0 ? summed : 60;
+  const durationMinutes = Number.isInteger(opts.durationMinutes) && opts.durationMinutes! > 0
+    ? opts.durationMinutes!
+    : 60;
 
   const agendaLines = opts.agenda
     .map((a) => {

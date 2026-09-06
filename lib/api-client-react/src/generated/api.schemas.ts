@@ -279,6 +279,11 @@ export interface Meeting {
   id: number;
   circleId: number;
   date: string;
+  /**
+     * @minimum 1
+     * @maximum 1440
+     */
+  durationMinutes: number;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
@@ -432,6 +437,11 @@ export interface AgendaInput {
 export interface MeetingInput {
   circleId: number;
   date: string;
+  /**
+     * @minimum 1
+     * @maximum 1440
+     */
+  durationMinutes?: number;
   notes?: string;
   slidesPath?: string;
   keyInsight?: string;
@@ -439,6 +449,11 @@ export interface MeetingInput {
 
 export interface MeetingUpdate {
   date?: string;
+  /**
+     * @minimum 1
+     * @maximum 1440
+     */
+  durationMinutes?: number;
   notes?: string;
   slidesPath?: string;
   keyInsight?: string;

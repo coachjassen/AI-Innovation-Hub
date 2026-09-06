@@ -425,10 +425,16 @@ export const ListMeetingsQueryParams = zod.object({
   "circleId": zod.coerce.number().optional()
 })
 
+export const listMeetingsResponseDurationMinutesDefault = 60;
+export const listMeetingsResponseDurationMinutesMax = 1440;
+
+
+
 export const ListMeetingsResponseItem = zod.object({
   "id": zod.number(),
   "circleId": zod.number(),
   "date": zod.string(),
+  "durationMinutes": zod.number().min(1).max(listMeetingsResponseDurationMinutesMax).default(listMeetingsResponseDurationMinutesDefault),
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
@@ -448,9 +454,15 @@ export const ListMeetingsResponse = zod.array(ListMeetingsResponseItem)
 /**
  * @summary Create a meeting (admin only)
  */
+export const createMeetingBodyDurationMinutesDefault = 60;
+export const createMeetingBodyDurationMinutesMax = 1440;
+
+
+
 export const CreateMeetingBody = zod.object({
   "circleId": zod.number(),
   "date": zod.string(),
+  "durationMinutes": zod.number().min(1).max(createMeetingBodyDurationMinutesMax).default(createMeetingBodyDurationMinutesDefault),
   "notes": zod.string().optional(),
   "slidesPath": zod.string().optional(),
   "keyInsight": zod.string().optional()
@@ -464,10 +476,16 @@ export const GetMeetingParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const getMeetingResponseDurationMinutesDefault = 60;
+export const getMeetingResponseDurationMinutesMax = 1440;
+
+
+
 export const GetMeetingResponse = zod.object({
   "id": zod.number(),
   "circleId": zod.number(),
   "date": zod.string(),
+  "durationMinutes": zod.number().min(1).max(getMeetingResponseDurationMinutesMax).default(getMeetingResponseDurationMinutesDefault),
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
@@ -490,8 +508,13 @@ export const UpdateMeetingParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const updateMeetingBodyDurationMinutesMax = 1440;
+
+
+
 export const UpdateMeetingBody = zod.object({
   "date": zod.string().optional(),
+  "durationMinutes": zod.number().min(1).max(updateMeetingBodyDurationMinutesMax).optional(),
   "notes": zod.string().optional(),
   "slidesPath": zod.string().optional(),
   "keyInsight": zod.string().optional(),
@@ -501,10 +524,16 @@ export const UpdateMeetingBody = zod.object({
   "invitationAttachmentContentType": zod.string().optional()
 })
 
+export const updateMeetingResponseDurationMinutesDefault = 60;
+export const updateMeetingResponseDurationMinutesMax = 1440;
+
+
+
 export const UpdateMeetingResponse = zod.object({
   "id": zod.number(),
   "circleId": zod.number(),
   "date": zod.string(),
+  "durationMinutes": zod.number().min(1).max(updateMeetingResponseDurationMinutesMax).default(updateMeetingResponseDurationMinutesDefault),
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
@@ -539,10 +568,16 @@ export const SetMeetingResponseBody = zod.object({
   "status": zod.enum(['attending', 'not_attending'])
 })
 
+export const setMeetingResponseResponseDurationMinutesDefault = 60;
+export const setMeetingResponseResponseDurationMinutesMax = 1440;
+
+
+
 export const SetMeetingResponseResponse = zod.object({
   "id": zod.number(),
   "circleId": zod.number(),
   "date": zod.string(),
+  "durationMinutes": zod.number().min(1).max(setMeetingResponseResponseDurationMinutesMax).default(setMeetingResponseResponseDurationMinutesDefault),
   "notes": zod.string().nullish(),
   "slidesPath": zod.string().nullish(),
   "keyInsight": zod.string().nullish(),
