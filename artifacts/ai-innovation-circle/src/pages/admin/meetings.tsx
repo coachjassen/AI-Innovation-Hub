@@ -279,7 +279,7 @@ export default function AdminMeetings() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="date">Date and time (New Zealand)</Label>
-                <Input type="datetime-local" name="date" id="date" required />
+                <Input type="datetime-local" name="date" id="date" step={900} required />
                 <p className="text-xs text-muted-foreground">
                   Saved in Pacific/Auckland time, including daylight saving.
                 </p>
@@ -363,6 +363,7 @@ export default function AdminMeetings() {
                   type="datetime-local"
                   name="date"
                   id="schedule-date"
+                  step={900}
                   defaultValue={scheduleMeeting.date.slice(0, 16)}
                   required
                 />
