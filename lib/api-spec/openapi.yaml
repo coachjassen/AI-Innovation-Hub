@@ -1601,7 +1601,6 @@ components:
           minLength: 1
         email:
           type: string
-          format: email
         company:
           type: string
 

@@ -341,7 +341,7 @@ export const ImportAttendeesBody = zod.object({
   "circleId": zod.number(),
   "attendees": zod.array(zod.object({
   "name": zod.string().min(1),
-  "email": zod.string().email(),
+  "email": zod.string(),
   "company": zod.string().optional()
 })).min(1).max(importAttendeesBodyAttendeesMax)
 })
