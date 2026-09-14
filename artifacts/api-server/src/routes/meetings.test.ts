@@ -614,5 +614,22 @@ describe("one-off invitation RSVP flow", () => {
     expect(token).toBeTruthy();
     const publicInvitation = await api("GET", `/api/one-off-rsvp/${token}`);
     expect(publicInvitation.status).toBe(200);
+
+    sendEmailMock.mockClear();
+    const reminded = await api(
+      "POST",
+      `/api/meetings/${oneOffMeetingId}/one-off-invitations/${oneOffAttendeeId}/resend`,
+      { cookie: adminCookie },
+    );
+    expect(reminded.status).toBe(200);
+    const [reminderEmail] = sendEmailMock.mock.calls[0] as [{ html: string }];
+    const reminderToken = reminderEmail.html.match(/one-off-rsvp\/([a-f0-9]{64})/i)?.[1];
+    expect(reminderToken).toBeTruthy();
+    expect(reminderToken).not.toBe(token);
+
+    const originalInvitationAfterReminder = await api("GET", `/api/one-off-rsvp/${token}`);
+    expect(originalInvitationAfterReminder.status).toBe(200);
+    const reminderInvitation = await api("GET", `/api/one-off-rsvp/${reminderToken}`);
+    expect(reminderInvitation.status).toBe(200);
   });
 });

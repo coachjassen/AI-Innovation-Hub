@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { createHash, randomBytes } from "node:crypto";
-import { eq, desc, asc, and, inArray, ne, lte, isNull } from "drizzle-orm";
+import { eq, desc, asc, and, inArray, ne, lte, isNull, like, or } from "drizzle-orm";
 import {
   SetMeetingAgendaBody,
   SetMeetingInviteesBody,
@@ -988,6 +988,7 @@ async function sendOneOffInvitationEmails(
       attendeeId: attendeesTable.id,
       attendeeName: attendeesTable.name,
       attendeeEmail: attendeesTable.email,
+      invitationTokenHash: meetingInviteesTable.invitationTokenHash,
       invitationSentAt: meetingInviteesTable.invitationSentAt,
       invitationSendCount: meetingInviteesTable.invitationSendCount,
     })
@@ -1049,11 +1050,17 @@ async function sendOneOffInvitationEmails(
         continue;
       }
 
+      const sentAt = new Date();
+      const tokenHash = hashInvitationToken(rawToken);
+      const tokenHashes = [
+        ...(recipient.invitationTokenHash?.split(":").filter(Boolean) ?? []),
+        tokenHash,
+      ];
       await db
         .update(meetingInviteesTable)
         .set({
-          invitationTokenHash: hashInvitationToken(rawToken),
-          invitationSentAt: new Date(),
+          invitationTokenHash: [...new Set(tokenHashes)].join(":"),
+          invitationSentAt: sentAt,
           invitationSendCount: recipient.invitationSendCount + 1,
         })
         .where(eq(meetingInviteesTable.id, recipient.inviteeId));
@@ -1147,7 +1154,15 @@ async function findOneOffRsvp(token: string) {
     .innerJoin(meetingsTable, eq(meetingInviteesTable.meetingId, meetingsTable.id))
     .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
     .innerJoin(circlesTable, eq(meetingsTable.circleId, circlesTable.id))
-    .where(eq(meetingInviteesTable.invitationTokenHash, hashInvitationToken(token)));
+    .where((() => {
+      const tokenHash = hashInvitationToken(token);
+      return or(
+        eq(meetingInviteesTable.invitationTokenHash, tokenHash),
+        like(meetingInviteesTable.invitationTokenHash, `${tokenHash}:%`),
+        like(meetingInviteesTable.invitationTokenHash, `%:${tokenHash}:%`),
+        like(meetingInviteesTable.invitationTokenHash, `%:${tokenHash}`),
+      );
+    })());
   return invitation?.circleCadence === "one-off" ? invitation : null;
 }
 
