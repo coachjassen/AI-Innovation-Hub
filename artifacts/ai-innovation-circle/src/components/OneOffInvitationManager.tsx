@@ -242,12 +242,19 @@ export function OneOffInvitationManager({ meeting, onDone }: { meeting: Meeting;
             ) : (
               invitees.map((invitee) => {
                 const isSelected = selectedIds.includes(invitee.attendeeId);
+                const hasProtectedHistory = Boolean(invitee.invitationSentAt)
+                  || invitee.responseStatus !== "no_response";
                 return (
                   <div key={invitee.attendeeId} className="flex items-center justify-between p-3 hover:bg-muted/50">
-                    <label htmlFor={`invitee-${invitee.attendeeId}`} className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                    <label
+                      htmlFor={`invitee-${invitee.attendeeId}`}
+                      className={`flex items-center gap-3 flex-1 min-w-0 ${hasProtectedHistory ? "cursor-not-allowed" : "cursor-pointer"}`}
+                      title={hasProtectedHistory ? "Sent invitations and recorded RSVPs are kept for audit history." : undefined}
+                    >
                       <Checkbox
                         id={`invitee-${invitee.attendeeId}`}
                         checked={isSelected}
+                        disabled={hasProtectedHistory}
                         onCheckedChange={(c) => {
                           setSelectedIds(curr => c ? [...curr, invitee.attendeeId] : curr.filter(id => id !== invitee.attendeeId));
                         }}
@@ -286,7 +293,7 @@ export function OneOffInvitationManager({ meeting, onDone }: { meeting: Meeting;
                             <CheckCircle2 className="h-3 w-3 mr-1" /> Sent {format(new Date(invitee.invitationSentAt), "MMM d")}
                           </span>
                           <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => handleResend(invitee.attendeeId)} disabled={resendInvitation.isPending}>
-                            <RefreshCw className="h-3 w-3 mr-1" /> Resend
+                            <RefreshCw className="h-3 w-3 mr-1" /> Send reminder
                           </Button>
                         </div>
                       ) : invitee.invited ? (

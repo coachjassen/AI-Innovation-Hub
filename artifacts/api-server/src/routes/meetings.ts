@@ -708,12 +708,26 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
   }
 
   const existingInvitees = await db
-    .select({ attendeeId: meetingInviteesTable.attendeeId })
+    .select({
+      attendeeId: meetingInviteesTable.attendeeId,
+      invitationSentAt: meetingInviteesTable.invitationSentAt,
+    })
     .from(meetingInviteesTable)
     .where(eq(meetingInviteesTable.meetingId, id));
-  const nextInviteeIds = new Set(attendeeIds);
+  const existingResponses = await db
+    .select({ attendeeId: meetingResponsesTable.attendeeId })
+    .from(meetingResponsesTable)
+    .where(eq(meetingResponsesTable.meetingId, id));
+  const protectedInviteeIds = new Set([
+    ...existingInvitees
+      .filter((invitee) => invitee.invitationSentAt !== null)
+      .map((invitee) => invitee.attendeeId),
+    ...existingResponses.map((response) => response.attendeeId),
+  ]);
+  const effectiveAttendeeIds = [...new Set([...attendeeIds, ...protectedInviteeIds])];
+  const nextInviteeIds = new Set(effectiveAttendeeIds);
   const existingInviteeIds = new Set(existingInvitees.map((invitee) => invitee.attendeeId));
-  const addedAttendeeIds = attendeeIds.filter((attendeeId) => !existingInviteeIds.has(attendeeId));
+  const addedAttendeeIds = effectiveAttendeeIds.filter((attendeeId) => !existingInviteeIds.has(attendeeId));
   const removedAttendeeIds = existingInvitees
     .map((invitee) => invitee.attendeeId)
     .filter((attendeeId) => !nextInviteeIds.has(attendeeId));

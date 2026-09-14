@@ -10,6 +10,7 @@ import {
   hubRegistrationsTable,
   magicTokensTable,
   meetingInviteesTable,
+  meetingResponsesTable,
   meetingsTable,
 } from "@workspace/db";
 
@@ -483,7 +484,7 @@ describe("one-off invitation RSVP flow", () => {
     expect(writeAgenda.status).toBe(400);
   });
 
-  it("preserves invitation contact state while the invitee selection is saved again", async () => {
+  it("preserves emailed invitees and their RSVPs when they are omitted from a later selection", async () => {
     const selected = await api("PUT", `/api/meetings/${oneOffMeetingId}/invitees`, {
       cookie: adminCookie,
       body: { attendeeIds: [oneOffAttendeeId] },
@@ -499,13 +500,30 @@ describe("one-off invitation RSVP flow", () => {
       })
       .where(and(eq(meetingInviteesTable.meetingId, oneOffMeetingId), eq(meetingInviteesTable.attendeeId, oneOffAttendeeId)));
 
+    await db
+      .insert(meetingResponsesTable)
+      .values({
+        meetingId: oneOffMeetingId,
+        attendeeId: oneOffAttendeeId,
+        status: "attending",
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [meetingResponsesTable.meetingId, meetingResponsesTable.attendeeId],
+        set: { status: "attending", updatedAt: new Date() },
+      });
+
     const resaved = await api("PUT", `/api/meetings/${oneOffMeetingId}/invitees`, {
       cookie: adminCookie,
-      body: { attendeeIds: [oneOffAttendeeId] },
+      body: { attendeeIds: [] },
     });
     expect(resaved.status).toBe(200);
     const invitee = resaved.body.find((row: { attendeeId: number }) => row.attendeeId === oneOffAttendeeId);
-    expect(invitee).toMatchObject({ invitationSendCount: 1 });
+    expect(invitee).toMatchObject({
+      invited: true,
+      invitationSendCount: 1,
+      responseStatus: "attending",
+    });
     expect(invitee.invitationSentAt).toBeTruthy();
   });
 

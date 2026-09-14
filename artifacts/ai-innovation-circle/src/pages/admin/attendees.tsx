@@ -12,6 +12,7 @@ import {
   useImportAttendees,
   useListAttendees,
   useListHubRegistrations,
+  useListMeetingInvitees,
   useListMeetings,
   useAddHubRegistrationToMeeting,
   useDeleteHubRegistration,
@@ -134,6 +135,14 @@ function getStatusVariant(status: PreviewStatus): "default" | "secondary" | "des
   return "secondary";
 }
 
+function formatNzDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-NZ", {
+    timeZone: "Pacific/Auckland",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 function downloadAttendeeTemplate() {
   const blob = new Blob([`${attendeeTemplateCsv}\n`], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -161,10 +170,32 @@ export default function AdminAttendees() {
   const isRecurring = activeCircle?.cadence !== "one-off";
   const { data: meetings = [], isLoading: isLoadingMeetings } = useListMeetings(params, {
     query: {
-      enabled: activeCircleId !== null && isRecurring,
+      enabled: activeCircleId !== null,
       queryKey: getListMeetingsQueryKey(params),
     },
   });
+  const oneOffEventMeeting = useMemo(() => {
+    if (isRecurring || meetings.length === 0) return null;
+    const now = Date.now();
+    const upcoming = meetings
+      .filter((meeting) => new Date(meeting.date).getTime() >= now)
+      .sort((first, second) => new Date(first.date).getTime() - new Date(second.date).getTime());
+    if (upcoming[0]) return upcoming[0];
+    return [...meetings].sort(
+      (first, second) => new Date(second.date).getTime() - new Date(first.date).getTime(),
+    )[0] ?? null;
+  }, [isRecurring, meetings]);
+  const oneOffMeetingId = oneOffEventMeeting?.id ?? 0;
+  const { data: oneOffInvitees = [] } = useListMeetingInvitees(oneOffMeetingId, {
+    query: {
+      enabled: oneOffEventMeeting !== null,
+      queryKey: getListMeetingInviteesQueryKey(oneOffMeetingId),
+    },
+  });
+  const oneOffInviteeByAttendeeId = useMemo(
+    () => new Map(oneOffInvitees.map((invitee) => [invitee.attendeeId, invitee])),
+    [oneOffInvitees],
+  );
   const { data: registrations = [], isLoading: isLoadingRegistrations } = useListHubRegistrations(
     activeCircleId ?? 0,
     {
@@ -738,6 +769,33 @@ export default function AdminAttendees() {
                   <p className="text-xs text-muted-foreground truncate">{a.company}</p>
                 )}
 
+                {!isRecurring && oneOffEventMeeting && (() => {
+                  const delivery = oneOffInviteeByAttendeeId.get(a.id);
+                  const wasEmailed = Boolean(delivery?.invitationSentAt);
+                  const reminderCount = Math.max(0, (delivery?.invitationSendCount ?? 0) - 1);
+                  return (
+                    <div className="space-y-1.5" data-testid={`delivery-status-${a.id}`}>
+                      <Badge
+                        className={wasEmailed
+                          ? "bg-green-100 text-green-800 hover:bg-green-100"
+                          : "bg-red-100 text-red-800 hover:bg-red-100"}
+                      >
+                        {wasEmailed ? "EMAILED" : "EMAIL NOT SENT"}
+                      </Badge>
+                      <div>
+                        <Badge
+                          variant="secondary"
+                          className={reminderCount > 0 ? "bg-green-100 text-green-800 hover:bg-green-100" : undefined}
+                        >
+                          {reminderCount > 0
+                            ? `${reminderCount} REMINDER${reminderCount === 1 ? "" : "S"} SENT`
+                            : "NO REMINDER SENT"}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className={`flex items-center border-t pt-3 text-sm ${isRecurring ? "justify-between" : "justify-end"}`}>
                   {isRecurring && (
                     <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -770,6 +828,57 @@ export default function AdminAttendees() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {!isRecurring && oneOffEventMeeting && (
+        <div className="pt-8 border-t space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">Email delivery audit</h2>
+            <p className="text-sm text-muted-foreground">
+              One-Off event on {format(new Date(oneOffEventMeeting.date), "MMM d, yyyy")}. Times are shown in New Zealand time.
+            </p>
+          </div>
+          <div className="rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Attendee</TableHead>
+                  <TableHead>Email status</TableHead>
+                  <TableHead>Latest successful email</TableHead>
+                  <TableHead>Reminders</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attendees.map((attendee) => {
+                  const delivery = oneOffInviteeByAttendeeId.get(attendee.id);
+                  const wasEmailed = Boolean(delivery?.invitationSentAt);
+                  const reminderCount = Math.max(0, (delivery?.invitationSendCount ?? 0) - 1);
+                  return (
+                    <TableRow key={attendee.id}>
+                      <TableCell>
+                        <div className="font-medium">{attendee.name}</div>
+                        <div className="text-xs text-muted-foreground">{attendee.email}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={wasEmailed
+                            ? "bg-green-100 text-green-800 hover:bg-green-100"
+                            : "bg-red-100 text-red-800 hover:bg-red-100"}
+                        >
+                          {wasEmailed ? "Emailed" : "Not sent"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {delivery?.invitationSentAt ? formatNzDateTime(delivery.invitationSentAt) : "—"}
+                      </TableCell>
+                      <TableCell>{reminderCount > 0 ? `${reminderCount} sent` : "None"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 
