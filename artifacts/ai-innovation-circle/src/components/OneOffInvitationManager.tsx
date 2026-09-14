@@ -7,6 +7,7 @@ import {
   useSetMeetingInvitees,
   useSendOneOffInvitations,
   useResendOneOffInvitation,
+  useSetMeetingInviteeResponse,
   getListMeetingsQueryKey,
   getListMeetingInviteesQueryKey,
   Meeting,
@@ -97,6 +98,8 @@ export function OneOffInvitationManager({ meeting, onDone }: { meeting: Meeting;
   const setInvitees = useSetMeetingInvitees();
   const sendInvitations = useSendOneOffInvitations();
   const resendInvitation = useResendOneOffInvitation();
+  const setInviteeResponse = useSetMeetingInviteeResponse();
+  const [updatingResponseId, setUpdatingResponseId] = useState<number | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   useEffect(() => {
@@ -141,6 +144,30 @@ export function OneOffInvitationManager({ meeting, onDone }: { meeting: Meeting;
       toast({ title: "Invitation resent" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Failed to resend", variant: "destructive" });
+    }
+  };
+
+  const handleResponseChange = async (
+    attendeeId: number,
+    status: "attending" | "not_attending" | "no_response",
+  ) => {
+    setUpdatingResponseId(attendeeId);
+    try {
+      const updated = await setInviteeResponse.mutateAsync({
+        id: meeting.id,
+        attendeeId,
+        data: { status },
+      });
+      queryClient.setQueryData(
+        getListMeetingInviteesQueryKey(meeting.id),
+        invitees.map((invitee) => invitee.attendeeId === attendeeId ? updated : invitee),
+      );
+      queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+      toast({ title: "RSVP updated" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update RSVP", variant: "destructive" });
+    } finally {
+      setUpdatingResponseId(null);
     }
   };
 
@@ -230,7 +257,29 @@ export function OneOffInvitationManager({ meeting, onDone }: { meeting: Meeting;
                         <p className="text-xs text-muted-foreground truncate">{invitee.attendeeEmail}</p>
                       </div>
                     </label>
-                    <div className="flex items-center gap-3 pl-4">
+                    <div className="flex items-center gap-4 pl-4">
+                      {invitee.invited && (
+                        <div className="flex flex-col gap-1">
+                          <Label htmlFor={`response-${invitee.attendeeId}`} className="text-[11px] text-muted-foreground">
+                            RSVP
+                          </Label>
+                          <select
+                            id={`response-${invitee.attendeeId}`}
+                            value={invitee.responseStatus}
+                            onChange={(event) => handleResponseChange(
+                              invitee.attendeeId,
+                              event.target.value as "attending" | "not_attending" | "no_response",
+                            )}
+                            disabled={updatingResponseId === invitee.attendeeId}
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                            aria-label={`RSVP status for ${invitee.attendeeName}`}
+                          >
+                            <option value="no_response">No response</option>
+                            <option value="attending">Attending</option>
+                            <option value="not_attending">Not attending</option>
+                          </select>
+                        </div>
+                      )}
                       {invitee.invited && invitee.invitationSentAt ? (
                         <div className="flex flex-col items-end gap-1">
                           <span className="inline-flex items-center text-xs text-green-700 font-medium">

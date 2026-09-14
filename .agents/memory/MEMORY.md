@@ -4,3 +4,4 @@
 - [Artifact-prefixed routes](artifact-prefixed-login-routes.md) — preview URLs can include the artifact prefix even when Vite reports `/`; normalize paths before authentication and route matching
 - [Self-hosted environment ownership](self-hosted-env-ownership.md) — the update process runs as the deployment user; owner-only environment files must remain owned by that user
 - [Meeting time picker](meeting-time-picker.md) — native datetime step did not constrain choices; keep the explicit 15-minute NZ-time dropdown
+- [Meeting route test schema](meeting-route-test-schema.md) — meeting route tests can fail in setup when the workspace database is behind the Drizzle schema

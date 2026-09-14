@@ -5,6 +5,7 @@
  * AI Innovation Circle API
  * OpenAPI spec version: 0.1.0
  */
+import type { MeetingInviteeResponseStatus } from './meetingInviteeResponseStatus';
 
 export interface MeetingInvitee {
   attendeeId: number;
@@ -15,4 +16,5 @@ export interface MeetingInvitee {
   /** @nullable */
   invitationSentAt: string | null;
   invitationSendCount: number;
+  responseStatus: MeetingInviteeResponseStatus;
 }

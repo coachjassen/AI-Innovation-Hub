@@ -24,6 +24,7 @@ import type {
   AdminAccountInput,
   AdminDashboard,
   AdminEmailTrigger,
+  AdminMeetingResponseInput,
   AgendaInput,
   AgendaItem,
   Attendee,
@@ -2611,6 +2612,80 @@ export const useSetMeetingInvitees = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSetMeetingInviteesMutationOptions(options));
+    }
+
+export const getSetMeetingInviteeResponseUrl = (id: number,
+    attendeeId: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/invitees/${attendeeId}/response`
+}
+
+/**
+ * @summary Set an invitee's RSVP without sending emails (admin only)
+ */
+export const setMeetingInviteeResponse = async (id: number,
+    attendeeId: number,
+    adminMeetingResponseInput: AdminMeetingResponseInput, options?: RequestInit): Promise<MeetingInvitee> => {
+
+  return customFetch<MeetingInvitee>(getSetMeetingInviteeResponseUrl(id,attendeeId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminMeetingResponseInput,)
+  }
+);}
+
+
+
+
+export const getSetMeetingInviteeResponseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingInviteeResponse>>, TError,{id: number;attendeeId: number;data: BodyType<AdminMeetingResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMeetingInviteeResponse>>, TError,{id: number;attendeeId: number;data: BodyType<AdminMeetingResponseInput>}, TContext> => {
+
+const mutationKey = ['setMeetingInviteeResponse'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMeetingInviteeResponse>>, {id: number;attendeeId: number;data: BodyType<AdminMeetingResponseInput>}> = (props) => {
+          const {id,attendeeId,data} = props ?? {};
+
+          return  setMeetingInviteeResponse(id,attendeeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMeetingInviteeResponseMutationResult = NonNullable<Awaited<ReturnType<typeof setMeetingInviteeResponse>>>
+    export type SetMeetingInviteeResponseMutationBody = BodyType<AdminMeetingResponseInput>
+    export type SetMeetingInviteeResponseMutationError = ErrorType<void>
+
+    /**
+ * @summary Set an invitee's RSVP without sending emails (admin only)
+ */
+export const useSetMeetingInviteeResponse = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingInviteeResponse>>, TError,{id: number;attendeeId: number;data: BodyType<AdminMeetingResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMeetingInviteeResponse>>,
+        TError,
+        {id: number;attendeeId: number;data: BodyType<AdminMeetingResponseInput>},
+        TContext
+      > => {
+      return useMutation(getSetMeetingInviteeResponseMutationOptions(options));
     }
 
 export const getAddHubRegistrationToMeetingUrl = (id: number,

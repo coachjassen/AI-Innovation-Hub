@@ -1,7 +1,11 @@
 import { Router, type IRouter } from "express";
 import { createHash, randomBytes } from "node:crypto";
 import { eq, desc, asc, and, inArray, ne, lte, isNull } from "drizzle-orm";
-import { SetMeetingAgendaBody, SetMeetingInviteesBody } from "@workspace/api-zod";
+import {
+  SetMeetingAgendaBody,
+  SetMeetingInviteesBody,
+  SetMeetingInviteeResponseBody,
+} from "@workspace/api-zod";
 import {
   db,
   meetingsTable,
@@ -502,12 +506,21 @@ async function listInviteesForMeeting(meeting: typeof meetingsTable.$inferSelect
     .from(meetingInviteesTable)
     .where(eq(meetingInviteesTable.meetingId, meeting.id));
   const selectedByAttendeeId = new Map(selected.map((invitee) => [invitee.attendeeId, invitee]));
+  const responses = await db
+    .select({
+      attendeeId: meetingResponsesTable.attendeeId,
+      status: meetingResponsesTable.status,
+    })
+    .from(meetingResponsesTable)
+    .where(eq(meetingResponsesTable.meetingId, meeting.id));
+  const responseByAttendeeId = new Map(responses.map((response) => [response.attendeeId, response.status]));
 
   return members.map((member) => ({
     ...member,
     invited: selectedByAttendeeId.has(member.attendeeId),
     invitationSentAt: selectedByAttendeeId.get(member.attendeeId)?.invitationSentAt?.toISOString() ?? null,
     invitationSendCount: selectedByAttendeeId.get(member.attendeeId)?.invitationSendCount ?? 0,
+    responseStatus: responseByAttendeeId.get(member.attendeeId) ?? "no_response",
   }));
 }
 
@@ -754,6 +767,79 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
   // Failed deliveries retain a null invitationSentAt value. The response makes
   // that visible to the admin, and saving the same selection retries them.
   res.json(await listInviteesForMeeting(meeting));
+});
+
+router.put("/meetings/:id/invitees/:attendeeId/response", requireAdmin, async (req, res): Promise<void> => {
+  const rawMeetingId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const rawAttendeeId = Array.isArray(req.params.attendeeId)
+    ? req.params.attendeeId[0]
+    : req.params.attendeeId;
+  const meetingId = parseInt(rawMeetingId, 10);
+  const attendeeId = parseInt(rawAttendeeId, 10);
+  if (
+    !Number.isInteger(meetingId)
+    || meetingId <= 0
+    || !Number.isInteger(attendeeId)
+    || attendeeId <= 0
+  ) {
+    res.status(400).json({ error: "Invalid meeting or attendee" });
+    return;
+  }
+
+  const parsed = SetMeetingInviteeResponseBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid RSVP status", fieldErrors: parsed.error.flatten() });
+    return;
+  }
+
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, meetingId));
+  if (!meeting) {
+    res.status(404).json({ error: "Meeting not found" });
+    return;
+  }
+  const circle = await getMeetingCircle(meeting);
+  if (!circle || circle.cadence !== "one-off") {
+    res.status(400).json({ error: "Manual invitee RSVP is only available for one-off events" });
+    return;
+  }
+
+  const [invitee] = await db
+    .select({ attendeeId: meetingInviteesTable.attendeeId })
+    .from(meetingInviteesTable)
+    .where(and(
+      eq(meetingInviteesTable.meetingId, meetingId),
+      eq(meetingInviteesTable.attendeeId, attendeeId),
+    ));
+  if (!invitee) {
+    res.status(404).json({ error: "Invitee not found" });
+    return;
+  }
+
+  const { status } = parsed.data;
+  if (status === "no_response") {
+    await db
+      .delete(meetingResponsesTable)
+      .where(and(
+        eq(meetingResponsesTable.meetingId, meetingId),
+        eq(meetingResponsesTable.attendeeId, attendeeId),
+      ));
+  } else {
+    await db
+      .insert(meetingResponsesTable)
+      .values({ meetingId, attendeeId, status, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [meetingResponsesTable.meetingId, meetingResponsesTable.attendeeId],
+        set: { status, updatedAt: new Date() },
+      });
+  }
+
+  const updatedInvitee = (await listInviteesForMeeting(meeting))
+    .find((candidate) => candidate.attendeeId === attendeeId);
+  if (!updatedInvitee) {
+    res.status(404).json({ error: "Invitee not found" });
+    return;
+  }
+  res.json(updatedInvitee);
 });
 
 async function sendMeetingInvitationEmails(

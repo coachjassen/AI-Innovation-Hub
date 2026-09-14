@@ -654,7 +654,8 @@ export const ListMeetingInviteesResponseItem = zod.object({
   "attendeeCompany": zod.string(),
   "invited": zod.boolean(),
   "invitationSentAt": zod.string().nullable(),
-  "invitationSendCount": zod.number()
+  "invitationSendCount": zod.number(),
+  "responseStatus": zod.enum(['attending', 'not_attending', 'no_response'])
 })
 export const ListMeetingInviteesResponse = zod.array(ListMeetingInviteesResponseItem)
 
@@ -677,9 +678,34 @@ export const SetMeetingInviteesResponseItem = zod.object({
   "attendeeCompany": zod.string(),
   "invited": zod.boolean(),
   "invitationSentAt": zod.string().nullable(),
-  "invitationSendCount": zod.number()
+  "invitationSendCount": zod.number(),
+  "responseStatus": zod.enum(['attending', 'not_attending', 'no_response'])
 })
 export const SetMeetingInviteesResponse = zod.array(SetMeetingInviteesResponseItem)
+
+
+/**
+ * @summary Set an invitee's RSVP without sending emails (admin only)
+ */
+export const SetMeetingInviteeResponseParams = zod.object({
+  "id": zod.coerce.number(),
+  "attendeeId": zod.coerce.number()
+})
+
+export const SetMeetingInviteeResponseBody = zod.object({
+  "status": zod.enum(['attending', 'not_attending', 'no_response'])
+})
+
+export const SetMeetingInviteeResponseResponse = zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "attendeeEmail": zod.string(),
+  "attendeeCompany": zod.string(),
+  "invited": zod.boolean(),
+  "invitationSentAt": zod.string().nullable(),
+  "invitationSendCount": zod.number(),
+  "responseStatus": zod.enum(['attending', 'not_attending', 'no_response'])
+})
 
 
 /**
@@ -697,7 +723,8 @@ export const AddHubRegistrationToMeetingResponse = zod.object({
   "attendeeCompany": zod.string(),
   "invited": zod.boolean(),
   "invitationSentAt": zod.string().nullable(),
-  "invitationSendCount": zod.number()
+  "invitationSendCount": zod.number(),
+  "responseStatus": zod.enum(['attending', 'not_attending', 'no_response'])
 })
 
 

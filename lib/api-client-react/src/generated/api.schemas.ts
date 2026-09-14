@@ -318,9 +318,31 @@ export interface MeetingResponseInput {
   status: MeetingResponseInputStatus;
 }
 
+export type AdminMeetingResponseInputStatus = typeof AdminMeetingResponseInputStatus[keyof typeof AdminMeetingResponseInputStatus];
+
+
+export const AdminMeetingResponseInputStatus = {
+  attending: 'attending',
+  not_attending: 'not_attending',
+  no_response: 'no_response',
+} as const;
+
+export interface AdminMeetingResponseInput {
+  status: AdminMeetingResponseInputStatus;
+}
+
 export interface MeetingInviteesInput {
   attendeeIds: number[];
 }
+
+export type MeetingInviteeResponseStatus = typeof MeetingInviteeResponseStatus[keyof typeof MeetingInviteeResponseStatus];
+
+
+export const MeetingInviteeResponseStatus = {
+  attending: 'attending',
+  not_attending: 'not_attending',
+  no_response: 'no_response',
+} as const;
 
 export interface MeetingInvitee {
   attendeeId: number;
@@ -331,6 +353,7 @@ export interface MeetingInvitee {
   /** @nullable */
   invitationSentAt: string | null;
   invitationSendCount: number;
+  responseStatus: MeetingInviteeResponseStatus;
 }
 
 export interface InvitationDeliveryFailure {

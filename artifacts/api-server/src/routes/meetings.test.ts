@@ -509,6 +509,31 @@ describe("one-off invitation RSVP flow", () => {
     expect(invitee.invitationSentAt).toBeTruthy();
   });
 
+  it("lets an admin update RSVP status without sending email", async () => {
+    sendEmailMock.mockClear();
+
+    const attending = await api(
+      "PUT",
+      `/api/meetings/${oneOffMeetingId}/invitees/${oneOffAttendeeId}/response`,
+      { cookie: adminCookie, body: { status: "attending" } },
+    );
+    expect(attending.status).toBe(200);
+    expect(attending.body).toMatchObject({
+      attendeeId: oneOffAttendeeId,
+      responseStatus: "attending",
+    });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+
+    const noResponse = await api(
+      "PUT",
+      `/api/meetings/${oneOffMeetingId}/invitees/${oneOffAttendeeId}/response`,
+      { cookie: adminCookie, body: { status: "no_response" } },
+    );
+    expect(noResponse.status).toBe(200);
+    expect(noResponse.body.responseStatus).toBe("no_response");
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
   it("lets an invitee RSVP with the bearer token without a login session", async () => {
     const before = await api("GET", `/api/one-off-rsvp/${ONE_OFF_TOKEN}`);
     expect(before.status).toBe(200);

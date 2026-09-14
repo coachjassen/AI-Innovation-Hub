@@ -746,6 +746,40 @@ paths:
                 items:
                   $ref: "#/components/schemas/MeetingInvitee"
 
+  /meetings/{id}/invitees/{attendeeId}/response:
+    put:
+      operationId: setMeetingInviteeResponse
+      tags: [meetings]
+      summary: Set an invitee's RSVP without sending emails (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attendeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMeetingResponseInput"
+      responses:
+        "200":
+          description: Updated invitee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingInvitee"
+        "400":
+          description: Invalid RSVP status or meeting
+        "404":
+          description: Meeting or invitee not found
+
   /meetings/{id}/registrations/{registrationId}:
     post:
       operationId: addHubRegistrationToMeeting
@@ -1780,6 +1814,14 @@ components:
           type: string
           enum: [attending, not_attending]
 
+    AdminMeetingResponseInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [attending, not_attending, no_response]
+
     MeetingInviteesInput:
       type: object
       required: [attendeeIds]
@@ -1792,7 +1834,7 @@ components:
 
     MeetingInvitee:
       type: object
-      required: [attendeeId, attendeeName, attendeeEmail, attendeeCompany, invited, invitationSentAt, invitationSendCount]
+      required: [attendeeId, attendeeName, attendeeEmail, attendeeCompany, invited, invitationSentAt, invitationSendCount, responseStatus]
       properties:
         attendeeId:
           type: integer
@@ -1808,6 +1850,9 @@ components:
           type: ["string", "null"]
         invitationSendCount:
           type: integer
+        responseStatus:
+          type: string
+          enum: [attending, not_attending, no_response]
 
     InvitationDeliveryFailure:
       type: object
