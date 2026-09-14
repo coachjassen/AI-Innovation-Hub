@@ -51,7 +51,6 @@ import {
   Loader2,
   Upload,
   Users,
-  Target,
   ClipboardList,
   Plus,
 } from "lucide-react";
@@ -739,11 +738,12 @@ export default function AdminAttendees() {
                   <p className="text-xs text-muted-foreground truncate">{a.company}</p>
                 )}
 
-                <div className="flex items-center justify-between border-t pt-3 text-sm">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Target className="h-3.5 w-3.5" />
-                    <span className="font-semibold text-foreground">{(a as any).goalCount ?? 0}</span> Goals
-                  </span>
+                <div className={`flex items-center border-t pt-3 text-sm ${isRecurring ? "justify-between" : "justify-end"}`}>
+                  {isRecurring && (
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <span className="font-semibold text-foreground">{(a as any).goalCount ?? 0}</span> Goals
+                    </span>
+                  )}
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <ClipboardList className="h-3.5 w-3.5" />
                     <span className="font-semibold text-foreground">{(a as any).surveyResponseCount ?? 0}</span> Surveys
