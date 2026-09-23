@@ -6,6 +6,9 @@ import {
   useDeleteMeeting,
   useListMeetingInvitees,
   useSetMeetingInvitees,
+  useSetMeetingInviteeResponse,
+  useSendRecurringInvitations,
+  useResendRecurringInvitation,
   useListMeetingResponses,
   getListMeetingsQueryKey,
   getListMeetingInviteesQueryKey,
@@ -24,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks, UserRoundPlus, Mail, Sparkles } from "lucide-react";
+import { Calendar, Plus, MoreHorizontal, Trash2, FileText, ChevronDown, Check, X, Clock, Users, ListChecks, UserRoundPlus, Mail, Sparkles, Send, RefreshCw } from "lucide-react";
 import { AgendaManager } from "@/components/AgendaManager";
 import { OneOffInvitationManager } from "@/components/OneOffInvitationManager";
 
@@ -487,11 +490,11 @@ export default function AdminMeetings() {
               Manage Invitees{inviteeMeeting ? ` — ${format(new Date(inviteeMeeting.date), "MMMM d, yyyy")}` : ""}
             </DialogTitle>
             <DialogDescription>
-              Choose which members of this Hub are invited to this meeting.
+              Select members, update RSVPs, and explicitly send invitations or reminders for this meeting.
             </DialogDescription>
           </DialogHeader>
           {inviteeMeeting && (
-            <InviteeManager meetingId={inviteeMeeting.id} onSaved={() => setInviteeMeeting(null)} />
+            <InviteeManager key={inviteeMeeting.id} meetingId={inviteeMeeting.id} />
           )}
         </DialogContent>
       </Dialog>
@@ -515,12 +518,19 @@ export default function AdminMeetings() {
   );
 }
 
-function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: () => void }) {
+function InviteeManager({ meetingId }: { meetingId: number }) {
   const queryClient = useQueryClient();
-  const { data: invitees, isLoading, isError, error } = useListMeetingInvitees(meetingId);
+  const { data: invitees, isLoading, isError, error } = useListMeetingInvitees(meetingId, {
+    query: { queryKey: getListMeetingInviteesQueryKey(meetingId), staleTime: 0, refetchOnMount: "always" },
+  });
   const setInvitees = useSetMeetingInvitees();
+  const setResponse = useSetMeetingInviteeResponse();
+  const sendInvitations = useSendRecurringInvitations();
+  const resendInvitation = useResendRecurringInvitation();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busyAttendeeId, setBusyAttendeeId] = useState<number | null>(null);
   const inviteeList = invitees ?? [];
 
   useEffect(() => {
@@ -545,25 +555,69 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
 
   const save = () => {
     setSaveError(null);
+    setNotice(null);
     setInvitees.mutate(
       { id: meetingId, data: { attendeeIds: selectedIds } },
       {
-        onSuccess: (savedInvitees) => {
+        onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListMeetingInviteesQueryKey(meetingId) });
           queryClient.invalidateQueries({ queryKey: getListMeetingResponsesQueryKey(meetingId) });
           queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
-          const undelivered = savedInvitees.filter((invitee) => invitee.invited && !invitee.invitationSentAt);
-          if (undelivered.length > 0) {
-            setSaveError(
-              `${undelivered.length} invitation${undelivered.length === 1 ? "" : "s"} could not be delivered. Check email settings, then save again to retry.`,
-            );
-            return;
-          }
-          onSaved();
+          setNotice("Selection saved. No email was sent.");
         },
         onError: (error) => setSaveError(error.message || "Unable to save invitees."),
       },
     );
+  };
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: getListMeetingInviteesQueryKey(meetingId) });
+    queryClient.invalidateQueries({ queryKey: getListMeetingResponsesQueryKey(meetingId) });
+    queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+  };
+
+  const updateResponse = async (attendeeId: number, status: "attending" | "not_attending" | "no_response") => {
+    setBusyAttendeeId(attendeeId);
+    setSaveError(null);
+    setNotice(null);
+    try {
+      await setResponse.mutateAsync({ id: meetingId, attendeeId, data: { status } });
+      refresh();
+      setNotice("RSVP updated. No email was sent.");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Unable to update RSVP.");
+    } finally {
+      setBusyAttendeeId(null);
+    }
+  };
+
+  const send = async () => {
+    setSaveError(null);
+    setNotice(null);
+    try {
+      const result = await sendInvitations.mutateAsync({ id: meetingId });
+      refresh();
+      setNotice(`${result.sentCount} invitation${result.sentCount === 1 ? "" : "s"} sent.`);
+      if (result.failures.length) setSaveError(`${result.failures.length} invitation${result.failures.length === 1 ? "" : "s"} could not be delivered. Try again after checking email delivery.`);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Unable to send invitations.");
+    }
+  };
+
+  const remind = async (attendeeId: number) => {
+    setBusyAttendeeId(attendeeId);
+    setSaveError(null);
+    setNotice(null);
+    try {
+      const result = await resendInvitation.mutateAsync({ id: meetingId, attendeeId });
+      refresh();
+      if (result.failures.length || result.sentCount !== 1) setSaveError("Reminder could not be delivered. The existing RSVP link remains valid.");
+      else setNotice("Reminder sent. Previous RSVP links remain valid.");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Unable to send reminder.");
+    } finally {
+      setBusyAttendeeId(null);
+    }
   };
 
   if (isLoading) {
@@ -582,16 +636,21 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
     return <p className="py-6 text-center text-sm text-muted-foreground">No attendee members are available in this Hub yet.</p>;
   }
 
+  const protectedIds = inviteeList.filter((invitee) => invitee.invited && (invitee.invitationSentAt || invitee.responseStatus !== "no_response")).map((invitee) => invitee.attendeeId);
   const allSelected = selectedIds.length === inviteeList.length;
+  const hasUnsavedSelection = selectedIds.length !== inviteeList.filter((invitee) => invitee.invited).length
+    || selectedIds.some((id) => !inviteeList.find((invitee) => invitee.attendeeId === id)?.invited);
+  const unsentCount = inviteeList.filter((invitee) => invitee.invited && !invitee.invitationSentAt).length;
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">Saving the selection and editing RSVPs never sends email. Sent invitations and recorded RSVPs cannot be removed here.</p>
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="text-muted-foreground">{selectedIds.length} of {inviteeList.length} selected</span>
         <div className="flex items-center gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(inviteeList.map((invitee) => invitee.attendeeId))} disabled={allSelected || setInvitees.isPending}>
             Select all
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0 || setInvitees.isPending}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(protectedIds)} disabled={selectedIds.length === protectedIds.length || setInvitees.isPending}>
             Clear
           </Button>
         </div>
@@ -599,32 +658,61 @@ function InviteeManager({ meetingId, onSaved }: { meetingId: number; onSaved: ()
       <div className="max-h-[45vh] divide-y overflow-y-auto rounded-md border">
         {inviteeList.map((invitee) => {
           const isSelected = selectedIds.includes(invitee.attendeeId);
+          const protectedHistory = protectedIds.includes(invitee.attendeeId);
           return (
-            <label
+            <div
               key={invitee.attendeeId}
-              htmlFor={`meeting-${meetingId}-attendee-${invitee.attendeeId}`}
-              className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/50"
+              className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-muted/50"
             >
               <Checkbox
                 id={`meeting-${meetingId}-attendee-${invitee.attendeeId}`}
                 checked={isSelected}
                 onCheckedChange={(checked) => toggleInvitee(invitee.attendeeId, checked === true)}
-                disabled={setInvitees.isPending}
+                disabled={setInvitees.isPending || protectedHistory}
               />
-              <span className="min-w-0 flex-1">
+              <label htmlFor={`meeting-${meetingId}-attendee-${invitee.attendeeId}`} className="min-w-32 flex-1" title={protectedHistory ? "Sent invitations and recorded RSVPs are kept for audit history." : undefined}>
                 <span className="block truncate text-sm font-medium">{invitee.attendeeName}</span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {invitee.attendeeCompany ? `${invitee.attendeeCompany} · ` : ""}{invitee.attendeeEmail}
                 </span>
-              </span>
-            </label>
+              </label>
+              {invitee.invited && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    aria-label={`RSVP status for ${invitee.attendeeName}`}
+                    value={invitee.responseStatus}
+                    onChange={(event) => updateResponse(invitee.attendeeId, event.target.value as "attending" | "not_attending" | "no_response")}
+                    disabled={busyAttendeeId !== null || hasUnsavedSelection}
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="no_response">No response</option>
+                    <option value="attending">Attending</option>
+                    <option value="not_attending">Not attending</option>
+                  </select>
+                  <span className={invitee.invitationSentAt ? "text-xs text-green-700" : "text-xs text-amber-700"}>
+                    {invitee.invitationSentAt
+                      ? `Emailed ${format(new Date(invitee.invitationSentAt), "MMM d")} · ${Math.max(0, invitee.invitationSendCount - 1)} reminders`
+                      : "Email not sent"}
+                  </span>
+                  {invitee.invitationSentAt && (
+                    <Button type="button" variant="ghost" size="sm" disabled={busyAttendeeId !== null || hasUnsavedSelection || sendInvitations.isPending} onClick={() => remind(invitee.attendeeId)}>
+                      <RefreshCw className="mr-1 h-3.5 w-3.5" /> Send reminder
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
       {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+      {notice && <p role="status" className="text-sm text-green-700">{notice}</p>}
       <DialogFooter>
-        <Button type="button" onClick={save} disabled={setInvitees.isPending}>
-          {setInvitees.isPending ? "Saving..." : "Save Invitees"}
+        <Button type="button" variant="secondary" onClick={save} disabled={setInvitees.isPending || !hasUnsavedSelection || busyAttendeeId !== null}>
+          {setInvitees.isPending ? "Saving..." : "Save selection"}
+        </Button>
+        <Button type="button" onClick={send} disabled={setInvitees.isPending || sendInvitations.isPending || hasUnsavedSelection || unsentCount === 0 || busyAttendeeId !== null}>
+          <Send className="mr-1 h-4 w-4" /> Send to {unsentCount} unsent
         </Button>
       </DialogFooter>
     </div>

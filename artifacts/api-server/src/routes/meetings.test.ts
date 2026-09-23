@@ -237,6 +237,7 @@ describe("meeting invitee selection", () => {
     });
     expect(saved.status).toBe(200);
     expect(saved.body.find((invitee: { attendeeId: number }) => invitee.attendeeId === attendeeId)?.invited).toBe(true);
+    expect(sendEmailMock).not.toHaveBeenCalled();
 
     const roster = await api("GET", `/api/meetings/${meetingId}/responses`, { cookie: adminCookie });
     expect(roster.status).toBe(200);
@@ -249,7 +250,10 @@ describe("meeting invitee selection", () => {
       totalInvited: 1,
     });
 
-    await vi.waitFor(() => expect(sendEmailMock).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    const sent = await api("POST", `/api/meetings/${meetingId}/recurring-invitations/send`, { cookie: adminCookie });
+    expect(sent.status).toBe(200);
+    expect(sent.body).toMatchObject({ sentCount: 1, failures: [] });
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
     const [invitationEmail] = sendEmailMock.mock.calls[0] as [{
       html: string;
       attachments?: Array<{ filename: string; content: string }>;
@@ -280,6 +284,64 @@ describe("meeting invitee selection", () => {
 
     const invalidPublicRsvp = await api("GET", `/api/meeting-rsvp/${"c".repeat(64)}`);
     expect(invalidPublicRsvp.status).toBe(404);
+
+    sendEmailMock.mockClear();
+    const manual = await api("PUT", `/api/meetings/${meetingId}/invitees/${attendeeId}/response`, {
+      cookie: adminCookie, body: { status: "not_attending" },
+    });
+    expect(manual.status).toBe(200);
+    expect(manual.body.responseStatus).toBe("not_attending");
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect((await api("GET", `/api/meetings/${meetingId}/responses`, { cookie: adminCookie })).body[0].status).toBe("not_attending");
+    expect((await api("GET", `/api/meetings?circleId=${CIRCLE_ID}`, { cookie: adminCookie })).body.find((row: { id: number }) => row.id === meetingId).notAttendingCount).toBe(1);
+
+    const kept = await api("PUT", `/api/meetings/${meetingId}/invitees`, {
+      cookie: adminCookie, body: { attendeeIds: [] },
+    });
+    expect(kept.status).toBe(200);
+    expect(kept.body.find((row: { attendeeId: number }) => row.attendeeId === attendeeId)).toMatchObject({
+      invited: true, responseStatus: "not_attending", invitationSendCount: 1,
+    });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+
+    const denied = await api("PUT", `/api/meetings/${meetingId}/invitees/${attendeeId}/response`, {
+      cookie: attendeeCookie, body: { status: "attending" },
+    });
+    expect(denied.status).toBe(403);
+    expect((await api("POST", `/api/meetings/${meetingId}/recurring-invitations/send`, { cookie: attendeeCookie })).status).toBe(403);
+    expect((await api("POST", `/api/meetings/${meetingId}/recurring-invitations/${attendeeId}/resend`, { cookie: attendeeCookie })).status).toBe(403);
+    expect((await api("POST", `/api/meetings/${oneOffMeetingId}/recurring-invitations/send`, { cookie: adminCookie })).status).toBe(400);
+    expect((await api("POST", `/api/meetings/${meetingId}/recurring-invitations/${adminId}/resend`, { cookie: adminCookie })).status).toBe(404);
+
+    const duplicateSend = await api("POST", `/api/meetings/${meetingId}/recurring-invitations/send`, { cookie: adminCookie });
+    expect(duplicateSend.body).toMatchObject({ sentCount: 0, failures: [] });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+
+    const failedReminder = (() => {
+      sendEmailMock.mockResolvedValueOnce({ sent: false });
+      return api("POST", `/api/meetings/${meetingId}/recurring-invitations/${attendeeId}/resend`, { cookie: adminCookie });
+    })();
+    expect((await failedReminder).body).toMatchObject({ sentCount: 0, failures: [expect.any(Object)] });
+    expect((await api("GET", `/api/meeting-rsvp/${rsvpToken}`)).status).toBe(200);
+    sendEmailMock.mockClear();
+
+    const reminder = await api("POST", `/api/meetings/${meetingId}/recurring-invitations/${attendeeId}/resend`, { cookie: adminCookie });
+    expect(reminder.body).toMatchObject({ sentCount: 1, failures: [] });
+    const reminderToken = (sendEmailMock.mock.calls[0]?.[0] as { html: string }).html.match(/meeting-rsvp\/([a-f0-9]{64})/i)?.[1];
+    expect(reminderToken).toBeTruthy();
+    expect(reminderToken).not.toBe(rsvpToken);
+    expect((await api("GET", `/api/meeting-rsvp/${rsvpToken}`)).body.status).toBe("not_attending");
+    expect((await api("GET", `/api/meeting-rsvp/${reminderToken}`)).body.status).toBe("not_attending");
+    expect((await api("PUT", `/api/meeting-rsvp/${rsvpToken}`, { body: { status: "attending" } })).status).toBe(200);
+    expect((await api("GET", `/api/meetings/${meetingId}/invitees`, { cookie: adminCookie })).body.find((row: { attendeeId: number }) => row.attendeeId === attendeeId).invitationSendCount).toBe(2);
+
+    sendEmailMock.mockClear();
+    const cleared = await api("PUT", `/api/meetings/${meetingId}/invitees/${attendeeId}/response`, {
+      cookie: adminCookie, body: { status: "no_response" },
+    });
+    expect(cleared.body.responseStatus).toBe("no_response");
+    expect((await api("GET", `/api/meetings/${meetingId}/responses`, { cookie: adminCookie })).body[0].status).toBe("no_response");
+    expect(sendEmailMock).not.toHaveBeenCalled();
   });
 
   it("does not send email when an admin changes a meeting date and time", async () => {

@@ -2551,7 +2551,7 @@ export const getSetMeetingInviteesUrl = (id: number,) => {
 }
 
 /**
- * @summary Replace a meeting's invitee list (admin only)
+ * @summary Save a meeting's invitees without sending email (admin only)
  */
 export const setMeetingInvitees = async (id: number,
     meetingInviteesInput: MeetingInviteesInput, options?: RequestInit): Promise<MeetingInvitee[]> => {
@@ -2601,7 +2601,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SetMeetingInviteesMutationError = ErrorType<unknown>
 
     /**
- * @summary Replace a meeting's invitee list (admin only)
+ * @summary Save a meeting's invitees without sending email (admin only)
  */
 export const useSetMeetingInvitees = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingInvitees>>, TError,{id: number;data: BodyType<MeetingInviteesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2686,6 +2686,148 @@ export const useSetMeetingInviteeResponse = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSetMeetingInviteeResponseMutationOptions(options));
+    }
+
+export const getSendRecurringInvitationsUrl = (id: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/recurring-invitations/send`
+}
+
+/**
+ * @summary Send first-time invitations to unsent recurring meeting invitees (admin only)
+ */
+export const sendRecurringInvitations = async (id: number, options?: RequestInit): Promise<InvitationDeliveryResult> => {
+
+  return customFetch<InvitationDeliveryResult>(getSendRecurringInvitationsUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSendRecurringInvitationsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendRecurringInvitations>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendRecurringInvitations>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['sendRecurringInvitations'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendRecurringInvitations>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  sendRecurringInvitations(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendRecurringInvitationsMutationResult = NonNullable<Awaited<ReturnType<typeof sendRecurringInvitations>>>
+
+    export type SendRecurringInvitationsMutationError = ErrorType<void>
+
+    /**
+ * @summary Send first-time invitations to unsent recurring meeting invitees (admin only)
+ */
+export const useSendRecurringInvitations = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendRecurringInvitations>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendRecurringInvitations>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getSendRecurringInvitationsMutationOptions(options));
+    }
+
+export const getResendRecurringInvitationUrl = (id: number,
+    attendeeId: number,) => {
+
+
+
+
+  return `/api/meetings/${id}/recurring-invitations/${attendeeId}/resend`
+}
+
+/**
+ * @summary Send a reminder to an invited recurring meeting attendee (admin only)
+ */
+export const resendRecurringInvitation = async (id: number,
+    attendeeId: number, options?: RequestInit): Promise<InvitationDeliveryResult> => {
+
+  return customFetch<InvitationDeliveryResult>(getResendRecurringInvitationUrl(id,attendeeId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getResendRecurringInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendRecurringInvitation>>, TError,{id: number;attendeeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendRecurringInvitation>>, TError,{id: number;attendeeId: number}, TContext> => {
+
+const mutationKey = ['resendRecurringInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendRecurringInvitation>>, {id: number;attendeeId: number}> = (props) => {
+          const {id,attendeeId} = props ?? {};
+
+          return  resendRecurringInvitation(id,attendeeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendRecurringInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof resendRecurringInvitation>>>
+
+    export type ResendRecurringInvitationMutationError = ErrorType<void>
+
+    /**
+ * @summary Send a reminder to an invited recurring meeting attendee (admin only)
+ */
+export const useResendRecurringInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendRecurringInvitation>>, TError,{id: number;attendeeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendRecurringInvitation>>,
+        TError,
+        {id: number;attendeeId: number},
+        TContext
+      > => {
+      return useMutation(getResendRecurringInvitationMutationOptions(options));
     }
 
 export const getAddHubRegistrationToMeetingUrl = (id: number,

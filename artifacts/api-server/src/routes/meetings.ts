@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { createHash, randomBytes } from "node:crypto";
-import { eq, desc, asc, and, inArray, ne, lte, isNull, like, or } from "drizzle-orm";
+import { eq, desc, asc, and, inArray, ne, lte, isNull, like, or, sql } from "drizzle-orm";
 import {
   SetMeetingAgendaBody,
   SetMeetingInviteesBody,
@@ -56,6 +56,15 @@ function hashInvitationToken(token: string): string {
 
 function createInvitationToken(): string {
   return randomBytes(32).toString("hex");
+}
+
+function matchesInvitationHash(tokenHash: string) {
+  return or(
+    eq(meetingInviteesTable.invitationTokenHash, tokenHash),
+    like(meetingInviteesTable.invitationTokenHash, `${tokenHash}:%`),
+    like(meetingInviteesTable.invitationTokenHash, `%:${tokenHash}:%`),
+    like(meetingInviteesTable.invitationTokenHash, `%:${tokenHash}`),
+  );
 }
 
 async function getMeetingCircle(meeting: typeof meetingsTable.$inferSelect) {
@@ -758,28 +767,6 @@ router.put("/meetings/:id/invitees", requireAdmin, async (req, res): Promise<voi
     }
   });
 
-  const circle = await getMeetingCircle(meeting);
-  if (attendeeIds.length > 0 && circle?.cadence !== "one-off") {
-    const pendingInvitees = await db
-      .select({ attendeeId: meetingInviteesTable.attendeeId })
-      .from(meetingInviteesTable)
-      .where(and(
-        eq(meetingInviteesTable.meetingId, id),
-        inArray(meetingInviteesTable.attendeeId, attendeeIds),
-        isNull(meetingInviteesTable.invitationSentAt),
-      ));
-    const applicationUrl = getApplicationUrl(req);
-    if (applicationUrl && pendingInvitees.length > 0) {
-      await sendMeetingInvitationEmails(
-        meeting,
-        pendingInvitees.map((invitee) => invitee.attendeeId),
-        `${applicationUrl}/meetings`,
-        applicationUrl,
-      );
-    }
-  }
-  // Failed deliveries retain a null invitationSentAt value. The response makes
-  // that visible to the admin, and saving the same selection retries them.
   res.json(await listInviteesForMeeting(meeting));
 });
 
@@ -812,8 +799,8 @@ router.put("/meetings/:id/invitees/:attendeeId/response", requireAdmin, async (r
     return;
   }
   const circle = await getMeetingCircle(meeting);
-  if (!circle || circle.cadence !== "one-off") {
-    res.status(400).json({ error: "Manual invitee RSVP is only available for one-off events" });
+  if (!circle) {
+    res.status(404).json({ error: "Hub not found" });
     return;
   }
 
@@ -861,7 +848,8 @@ async function sendMeetingInvitationEmails(
   attendeeIds: number[],
   meetingLink: string,
   applicationUrl: string,
-): Promise<void> {
+  options: { forceResend?: boolean } = {},
+): Promise<{ sentCount: number; failures: OneOffInvitationFailure[] }> {
   const [circle] = await db.select().from(circlesTable).where(eq(circlesTable.id, meeting.circleId));
   const circleName = circle?.name ?? "Kinetics Group Innovation Hub";
   const agendaRows = await db
@@ -895,15 +883,16 @@ async function sendMeetingInvitationEmails(
     .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
     .where(and(
       eq(meetingInviteesTable.meetingId, meeting.id),
+      eq(attendeesTable.circleId, meeting.circleId),
+      ne(attendeesTable.role, "admin"),
       inArray(meetingInviteesTable.attendeeId, attendeeIds),
+      options.forceResend ? undefined : isNull(meetingInviteesTable.invitationSentAt),
     ));
 
+  let sentCount = 0;
+  const failures: OneOffInvitationFailure[] = [];
   for (const recipient of recipients) {
     const invitationToken = createInvitationToken();
-    await db
-      .update(meetingInviteesTable)
-      .set({ invitationTokenHash: hashInvitationToken(invitationToken) })
-      .where(eq(meetingInviteesTable.id, recipient.inviteeId));
     try {
       const delivery = await sendEmail({
         to: recipient.email,
@@ -920,27 +909,25 @@ async function sendMeetingInvitationEmails(
           : undefined,
       });
       if (!delivery.sent) {
-        await db
-          .update(meetingInviteesTable)
-          .set({ invitationTokenHash: null })
-          .where(eq(meetingInviteesTable.id, recipient.inviteeId));
+        failures.push({ attendeeId: recipient.attendeeId, attendeeName: recipient.name, error: "Email delivery failed" });
         continue;
       }
+      const tokenHash = hashInvitationToken(invitationToken);
       await db
         .update(meetingInviteesTable)
         .set({
+          invitationTokenHash: sql`concat_ws(':', nullif(${meetingInviteesTable.invitationTokenHash}, ''), ${tokenHash}::text)`,
           invitationSentAt: new Date(),
-          invitationSendCount: 1,
+          invitationSendCount: sql`${meetingInviteesTable.invitationSendCount} + 1`,
         })
         .where(eq(meetingInviteesTable.id, recipient.inviteeId));
+      sentCount += 1;
     } catch (err) {
-      await db
-        .update(meetingInviteesTable)
-        .set({ invitationTokenHash: null })
-        .where(eq(meetingInviteesTable.id, recipient.inviteeId));
-      logger.error({ err, meetingId: meeting.id, email: recipient.email }, "Failed to send meeting invitation");
+      logger.error({ err, meetingId: meeting.id, attendeeId: recipient.attendeeId }, "Failed to send meeting invitation");
+      failures.push({ attendeeId: recipient.attendeeId, attendeeName: recipient.name, error: "Email delivery failed" });
     }
   }
+  return { sentCount, failures };
 }
 
 type OneOffInvitationFailure = {
@@ -948,6 +935,53 @@ type OneOffInvitationFailure = {
   attendeeName: string;
   error: string;
 };
+
+router.post("/meetings/:id/recurring-invitations/send", requireAdmin, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid meeting id" }); return; }
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+  if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
+  const circle = await getMeetingCircle(meeting);
+  if (!circle || circle.cadence === "one-off") {
+    res.status(400).json({ error: "Only recurring meetings use this action" }); return;
+  }
+  const applicationUrl = getApplicationUrl(req);
+  if (!applicationUrl) { res.status(503).json({ error: "Public application URL is not configured" }); return; }
+  const unsent = await db.select({ attendeeId: meetingInviteesTable.attendeeId })
+    .from(meetingInviteesTable)
+    .where(and(eq(meetingInviteesTable.meetingId, id), isNull(meetingInviteesTable.invitationSentAt)));
+  const result = unsent.length
+    ? await sendMeetingInvitationEmails(meeting, unsent.map((row) => row.attendeeId), `${applicationUrl}/meetings`, applicationUrl)
+    : { sentCount: 0, failures: [] };
+  res.json(result);
+});
+
+router.post("/meetings/:id/recurring-invitations/:attendeeId/resend", requireAdmin, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  const attendeeId = Number(req.params.attendeeId);
+  if (![id, attendeeId].every((value) => Number.isSafeInteger(value) && value > 0)) {
+    res.status(400).json({ error: "Invalid meeting or attendee id" }); return;
+  }
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+  if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
+  const circle = await getMeetingCircle(meeting);
+  if (!circle || circle.cadence === "one-off") {
+    res.status(400).json({ error: "Only recurring meetings use this action" }); return;
+  }
+  const [invitee] = await db.select({ sentAt: meetingInviteesTable.invitationSentAt })
+    .from(meetingInviteesTable)
+    .innerJoin(attendeesTable, and(
+      eq(meetingInviteesTable.attendeeId, attendeesTable.id),
+      eq(attendeesTable.circleId, meeting.circleId),
+      ne(attendeesTable.role, "admin"),
+    ))
+    .where(and(eq(meetingInviteesTable.meetingId, id), eq(meetingInviteesTable.attendeeId, attendeeId)));
+  if (!invitee) { res.status(404).json({ error: "Invitee not found" }); return; }
+  if (!invitee.sentAt) { res.status(400).json({ error: "Send the first invitation before a reminder" }); return; }
+  const applicationUrl = getApplicationUrl(req);
+  if (!applicationUrl) { res.status(503).json({ error: "Public application URL is not configured" }); return; }
+  res.json(await sendMeetingInvitationEmails(meeting, [attendeeId], `${applicationUrl}/meetings`, applicationUrl, { forceResend: true }));
+});
 
 async function sendOneOffInvitationEmails(
   req: Parameters<typeof getApplicationUrl>[0],
@@ -1154,15 +1188,7 @@ async function findOneOffRsvp(token: string) {
     .innerJoin(meetingsTable, eq(meetingInviteesTable.meetingId, meetingsTable.id))
     .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
     .innerJoin(circlesTable, eq(meetingsTable.circleId, circlesTable.id))
-    .where((() => {
-      const tokenHash = hashInvitationToken(token);
-      return or(
-        eq(meetingInviteesTable.invitationTokenHash, tokenHash),
-        like(meetingInviteesTable.invitationTokenHash, `${tokenHash}:%`),
-        like(meetingInviteesTable.invitationTokenHash, `%:${tokenHash}:%`),
-        like(meetingInviteesTable.invitationTokenHash, `%:${tokenHash}`),
-      );
-    })());
+    .where(matchesInvitationHash(hashInvitationToken(token)));
   return invitation?.circleCadence === "one-off" ? invitation : null;
 }
 
@@ -1181,7 +1207,7 @@ async function findRecurringMeetingRsvp(token: string) {
     .innerJoin(meetingsTable, eq(meetingInviteesTable.meetingId, meetingsTable.id))
     .innerJoin(attendeesTable, eq(meetingInviteesTable.attendeeId, attendeesTable.id))
     .innerJoin(circlesTable, eq(meetingsTable.circleId, circlesTable.id))
-    .where(eq(meetingInviteesTable.invitationTokenHash, hashInvitationToken(token)));
+    .where(matchesInvitationHash(hashInvitationToken(token)));
   return invitation && invitation.circleCadence !== "one-off" ? invitation : null;
 }
 
@@ -1232,7 +1258,7 @@ router.put("/meeting-rsvp/:token", async (req, res): Promise<void> => {
         attendeeId: meetingInviteesTable.attendeeId,
       })
       .from(meetingInviteesTable)
-      .where(eq(meetingInviteesTable.invitationTokenHash, hashInvitationToken(token)))
+      .where(matchesInvitationHash(hashInvitationToken(token)))
       .for("update");
     if (!lockedInvitee) return null;
 

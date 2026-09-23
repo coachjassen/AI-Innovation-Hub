@@ -723,7 +723,7 @@ paths:
     put:
       operationId: setMeetingInvitees
       tags: [meetings]
-      summary: Replace a meeting's invitee list (admin only)
+      summary: Save a meeting's invitees without sending email (admin only)
       parameters:
         - name: id
           in: path
@@ -777,6 +777,57 @@ paths:
                 $ref: "#/components/schemas/MeetingInvitee"
         "400":
           description: Invalid RSVP status or meeting
+        "404":
+          description: Meeting or invitee not found
+
+  /meetings/{id}/recurring-invitations/send:
+    post:
+      operationId: sendRecurringInvitations
+      tags: [meetings]
+      summary: Send first-time invitations to unsent recurring meeting invitees (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationDeliveryResult"
+        "400":
+          description: Only recurring meetings can use this action
+        "404":
+          description: Meeting not found
+
+  /meetings/{id}/recurring-invitations/{attendeeId}/resend:
+    post:
+      operationId: resendRecurringInvitation
+      tags: [meetings]
+      summary: Send a reminder to an invited recurring meeting attendee (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attendeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationDeliveryResult"
+        "400":
+          description: Not a recurring meeting or attendee has not received an invitation
         "404":
           description: Meeting or invitee not found
 

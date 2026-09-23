@@ -661,7 +661,7 @@ export const ListMeetingInviteesResponse = zod.array(ListMeetingInviteesResponse
 
 
 /**
- * @summary Replace a meeting's invitee list (admin only)
+ * @summary Save a meeting's invitees without sending email (admin only)
  */
 export const SetMeetingInviteesParams = zod.object({
   "id": zod.coerce.number()
@@ -705,6 +705,41 @@ export const SetMeetingInviteeResponseResponse = zod.object({
   "invitationSentAt": zod.string().nullable(),
   "invitationSendCount": zod.number(),
   "responseStatus": zod.enum(['attending', 'not_attending', 'no_response'])
+})
+
+
+/**
+ * @summary Send first-time invitations to unsent recurring meeting invitees (admin only)
+ */
+export const SendRecurringInvitationsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendRecurringInvitationsResponse = zod.object({
+  "sentCount": zod.number(),
+  "failures": zod.array(zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "error": zod.string()
+}))
+})
+
+
+/**
+ * @summary Send a reminder to an invited recurring meeting attendee (admin only)
+ */
+export const ResendRecurringInvitationParams = zod.object({
+  "id": zod.coerce.number(),
+  "attendeeId": zod.coerce.number()
+})
+
+export const ResendRecurringInvitationResponse = zod.object({
+  "sentCount": zod.number(),
+  "failures": zod.array(zod.object({
+  "attendeeId": zod.number(),
+  "attendeeName": zod.string(),
+  "error": zod.string()
+}))
 })
 
 
